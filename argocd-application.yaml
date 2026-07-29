@@ -5,17 +5,13 @@ metadata:
   namespace: argocd
 spec:
   project: default
-
   source:
-    # Ganti dengan URL repo Next.js kamu (repo yang sama dengan source code)
-    repoURL: https://github.com/USERNAME/nextjs-app.git
+    repoURL: https://github.com/f1rstlabel/Monitoring2026.git
     targetRevision: main
-    path: k8s   # folder berisi deployment.yaml & service.yaml
-
+    path: k8s
   destination:
     server: https://kubernetes.default.svc
     namespace: default
-
   syncPolicy:
     automated:
       prune: true
