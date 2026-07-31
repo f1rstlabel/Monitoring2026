@@ -18,7 +18,7 @@ spec:
       containers:
         - name: nextjs-app
           # Tag di bawah akan di-update otomatis oleh GitHub Actions (bagian "sed")
-          image: ghcr.io/f1rstlabel/monitoring2026:21d7feb
+          image: ghcr.io/f1rstlabel/monitoring2026:87d3482
           ports:
             - containerPort: 3000
           resources:
