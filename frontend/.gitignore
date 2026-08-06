@@ -1,0 +1,48 @@
+# ==============================================================================
+# GovMonitor IT — Frontend .gitignore (Vue 3 / Vite)
+# ==============================================================================
+
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+/jspm_packages/
+/web_modules/
+
+# ─── Production Builds ────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+*.local
+
+# ─── Local Configuration & Environment ────────────────────────────────────────
+.env
+.env.production
+.env.development
+.env.local
+.env.production.local
+.env.development.local
+.env.*.local
+!.env.example
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── IDE & Tooling ───────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ─── TypeScript Cache ─────────────────────────────────────────────────────────
+tsconfig.tsbuildinfo
