@@ -21,27 +21,31 @@ The system is split into three main components:
 ```
                   ┌──────────────────────────────────────────────────┐
                   │                 Vue 3 Frontend                   │
-                  │        (Vite + Pinia + TypeScript + Tailwind)     │
+                  │     (Vite + Pinia + TypeScript + Tailwind)       │
                   └──────────────┬───────────────────┬───────────────┘
                                  │ REST API          │ WebSockets (/ws)
                                  ▼                   ▼
                   ┌──────────────────────────────────────────────────┐
                   │                    Go Backend                    │
                   │          (API Handlers + Poller Engine)          │
-                  └──────────────┬───────────────────┬───────────────┘
-                                 │                   │
-                      ┌───────────┴──────┐     ┌──────┴────────────┐
-                      │ PostgreSQL Database│     │    Redis Cache    │
-                      │ (Persisted State)│     │ & Pub/Sub Queue   │
-                      └──────────────────┘     └───────────────────┘
+                  └──────────────┬─────────────────┬─────────────────┘
+                                 │                 │
+                      ┌──────────┴───────┐     ┌───┴──────────────┐
+                      │PostgreSQL Database│     │   Redis Cache    │
+                      │(Persisted State) │     │& Pub/Sub Queue   │
+                      └──────────────────┘     └──────────────────┘
                                  │
-                  ┌───────────────┴───────────────┐
-                  │                               │
-                  ▼                               ▼
-   ┌───────────────────────────────┐  ┌───────────────────────────────┐
-   │     Node.js wa-sidecar        │  │       Telegram Bot API        │
-   │ (Baileys WhatsApp Web API)    │  │       (Fallback Channel)      │
-   └───────────────────────────────┘  └───────────────────────────────┘
+                                 ▼ [Primary Attempt]
+                  ┌───────────────────────────────┐
+                  │      Node.js wa-sidecar       │
+                  │  (Baileys WhatsApp Web API)   │
+                  └──────────────┬────────────────┘
+                                 │ [If WhatsApp Fails / Fallback]
+                                 ▼
+                  ┌───────────────────────────────┐
+                  │       Telegram Bot API        │
+                  │      (Fallback Channel)       │
+                  └───────────────────────────────┘
 ```
 
 For in-depth explanations, diagrams (UML sequence, ERD, and use case diagrams), and operational details, refer to the [System Documentation Directory](./docs).
@@ -212,12 +216,14 @@ npm run dev
 ## 🔍 How it Works (Under the Hood)
 
 1. **Poller Worker Pool**: The backend features a configurable concurrency worker pool. Every cycle, it triggers ICMP (ping) and SNMP queries for the devices registered in the inventory database.
-2. **Debounce and State Transitions**: If a device fails to respond, it enters a "Down" candidate state. If it remains down for a configured threshold of consecutive polls, it triggers a confirmed `DOWN` incident state transition.
-3. **Notification Pipeline**: Confirmed state transitions trigger the dispatch pipeline:
-   - It sends a notification payload to the `wa-sidecar` service.
-   - The `wa-sidecar` attempts to dispatch the alert to target WhatsApp numbers.
-   - If WhatsApp is unavailable or the dispatch fails, the backend falls back to dispatching a Telegram bot message.
-4. **WebSocket Updates**: Real-time polling events and device statuses are emitted on the WebSocket channel (`/ws`), updating the Vue 3 dashboard live without manual page reloads.
+2. **SNMP OS/System Name Discovery**: During SNMP check cycles, the poller queries OID `.1.3.6.1.2.1.1.5.0` to resolve and record the host device's OS/System Name (`snmpSysName`).
+3. **Debounce and State Transitions**: If a device fails to respond, it enters a "Down" candidate state. If it remains down for a configured threshold of consecutive polls, it triggers a confirmed `DOWN` incident state transition.
+4. **Bounded Flap-Reuse Window**: If a resolved device goes DOWN again within the configured `flapReuseWindowMinutes` setting, the engine re-opens the most recent resolved incident ticket instead of generating a duplicate, keeping the initial `started_at` outage timestamp pinned.
+5. **Smart Notification Pipeline**: State transitions trigger the dispatch pipeline which queues notification tasks in Redis (`asynq`). The tasks are executed with spacing and rate limits. If WhatsApp Sidecar delivery fails, the pipeline automatically falls back to Telegram Bot API.
+6. **Live Latency & Outage Visualizations**: Real-time metrics are streamed via WebSockets. On the Device Detail page, the latency chart leaves visual gaps (null values) during DOWN states and overlays red vertical band annotations (`xaxis` range annotations) labeled "DOWN" for clear outage visualization.
+7. **Paging & Slicing Mechanics**: List tables (Dashboard, Devices, Incidents, Reports) enforce pagination controls. Flat lists query the backend directly using `?page=&page_size=`, whereas grouped views query the full dataset and perform pagination client-side. Searches and filters reactively reset the current page back to 1.
+8. **Switchable Reports**: The Reports page segments data into switchable sections (Downtime by Device, Recurring Issues, Active Incidents) with independent pagination controls.
+9. **WebSocket Updates**: Real-time polling events and device statuses are emitted on the WebSocket channel (`/ws`), updating the Vue 3 dashboard live without manual page reloads.
 
 ---
 
@@ -248,27 +254,31 @@ Sistem ini dibagi menjadi tiga komponen utama:
 ```
                   ┌──────────────────────────────────────────────────┐
                   │                 Vue 3 Frontend                   │
-                  │        (Vite + Pinia + TypeScript + Tailwind)     │
+                  │     (Vite + Pinia + TypeScript + Tailwind)       │
                   └──────────────┬───────────────────┬───────────────┘
                                  │ REST API          │ WebSockets (/ws)
                                  ▼                   ▼
                   ┌──────────────────────────────────────────────────┐
                   │                    Go Backend                    │
                   │          (API Handlers + Poller Engine)          │
-                  └──────────────┬───────────────────┬───────────────┘
-                                 │                   │
-                      ┌───────────┴──────┐     ┌──────┴────────────┐
-                      │ PostgreSQL Database│     │    Redis Cache    │
-                      │ (Persisted State)│     │ & Pub/Sub Queue   │
+                  └──────────────┬─────────────────┬─────────────────┘
+                                 │                 │
+                      ┌──────────┴───────┐     ┌───┴──────────────┐
+                      │PostgreSQL Database│     │   Redis Cache    │
+                      │(Persisted State) │     │& Pub/Sub Queue   │
                       └──────────────────┘     └───────────────────┘
                                  │
-                  ┌───────────────┴───────────────┐
-                  │                               │
-                  ▼                               ▼
-   ┌───────────────────────────────┐  ┌───────────────────────────────┐
-   │     Node.js wa-sidecar        │  │       Telegram Bot API        │
-   │ (Baileys WhatsApp Web API)    │  │       (Fallback Channel)      │
-   └───────────────────────────────┘  └───────────────────────────────┘
+                                 ▼ [Upaya Utama (Primary)]
+                  ┌───────────────────────────────┐
+                  │      Node.js wa-sidecar       │
+                  │  (Baileys WhatsApp Web API)   │
+                  └──────────────┬────────────────┘
+                                 │ [Jika WhatsApp Gagal / Fallback]
+                                 ▼
+                  ┌───────────────────────────────┐
+                  │       Telegram Bot API        │
+                  │      (Fallback Channel)       │
+                  └───────────────────────────────┘
 ```
 
 Untuk penjelasan mendalam, diagram (UML sequence, ERD, dan diagram use case), serta detail operasional, silakan merujuk ke [Direktori Dokumentasi Sistem](./docs).
@@ -439,12 +449,14 @@ npm run dev
 ## 🔍 Cara Kerja (Di Balik Layar)
 
 1. **Poller Worker Pool**: Backend memiliki worker pool dengan konkurensi yang dapat dikonfigurasi. Setiap siklus, sistem memicu kueri ICMP (ping) dan SNMP untuk perangkat yang terdaftar di database inventaris.
-2. **Debounce dan Transisi Status**: Jika perangkat gagal merespons, ia masuk ke status kandidat "Down". Jika tetap mati selama ambang batas polling berturut-turut yang dikonfigurasi, sistem memicu transisi status insiden `DOWN` yang terkonfirmasi.
-3. **Pipa Notifikasi**: Transisi status yang terkonfirmasi akan memicu pipa pengiriman notifikasi:
-   - Mengirim payload notifikasi ke layanan `wa-sidecar`.
-   - `wa-sidecar` mencoba mengirimkan peringatan ke nomor WhatsApp target.
-   - Jika WhatsApp tidak tersedia atau pengiriman gagal, backend akan beralih mengirimkan pesan bot Telegram sebagai cadangan (fallback).
-4. **Pembaruan WebSocket**: Event polling real-time dan status perangkat dikirimkan melalui saluran WebSocket (`/ws`), memperbarui dashboard Vue 3 secara langsung tanpa perlu memuat ulang halaman secara manual.
+2. **Pencarian Nama Sistem SNMP**: Selama siklus pemindaian SNMP, poller menanyakan OID `.1.3.6.1.2.1.1.5.0` untuk mendeteksi dan merekam OS / Nama Sistem perangkat host (`snmpSysName`).
+3. **Debounce dan Transisi Status**: Jika perangkat gagal merespons, ia masuk ke status kandidat "Down". Jika tetap mati selama ambang batas polling berturut-turut yang dikonfigurasi, sistem memicu transisi status insiden `DOWN` yang terkonfirmasi.
+4. **Jendela Flap Bounded**: Jika perangkat yang telah pulih mati kembali dalam jangka waktu **Flap Reuse Window (`flapReuseWindowMinutes`)**, mesin pemantau akan **membuka kembali** tiket insiden terdekat yang sudah terselesaikan daripada membuat tiket duplikat baru, menjaga `started_at` tetap tertambat ke awal insiden.
+5. **Pipa Notifikasi Pintar**: Transisi status memicu pipa pengiriman yang memasukkan tugas ke antrean Redis (`asynq`). Pipa notifikasi ini berjalan dengan batasan kecepatan pesan (rate-limiting). Jika pengiriman WhatsApp Sidecar gagal, sistem otomatis mengirim pesan bot Telegram sebagai fallback.
+6. **Visualisasi Latensi Live & Outage**: Metrik real-time dialirkan melalui WebSockets. Pada halaman detail perangkat, grafik latensi menampilkan celah kosong (nilai `null`) ketika perangkat mati (DOWN) dan menampilkan pita vertikal merah bertuliskan "DOWN" pada rentang waktu gangguan.
+7. **Paginasi & Reset Halaman**: Tabel daftar perangkat/insiden/laporan dilengkapi paginasi. Tampilan flat (rata) meminta data langsung ke backend memakai parameter `?page=&page_size=`, sedangkan tampilan grup (grouped view) mengambil seluruh data lalu memotongnya di sisi klien. Reset otomatis ke halaman 1 berlaku saat pencarian/filter diubah.
+8. **Laporan Tersegmentasi (Tab)**: Halaman laporan membagi visualisasi menjadi bagian-bagian yang dapat dialihkan lewat tab (Downtime by Device, Recurring Issues, Active Incidents) dengan kontrol paginasi independen untuk setiap tabel.
+9. **Pembaruan WebSocket**: Event polling real-time dan status perangkat dikirimkan melalui saluran WebSocket (`/ws`), memperbarui dashboard Vue 3 secara langsung tanpa perlu memuat ulang halaman secara manual.
 
 ---
 
