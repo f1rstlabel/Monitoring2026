@@ -179,51 +179,7 @@
         </div>
       </div>
 
-      <!-- CCTV / NVR Camera Stream Configuration -->
-      <div v-if="form.type === 'CCTV' || form.type === 'NVR'" class="col-span-1 md:col-span-2 border-t border-[#26262A] pt-4 mt-2 space-y-3">
-        <div>
-          <p class="text-xs font-semibold text-white">Live Stream & Snapshot Configuration</p>
-          <p class="text-[10px] text-gray-400">Configure connection details for live camera viewing inside NOC dashboard</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#18181B] border border-[#26262A] rounded-lg p-3">
-          <div>
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-medium mb-1">RTSP Stream URL</label>
-            <input
-              v-model="form.streamUrl"
-              type="text"
-              placeholder="e.g. rtsp://10.20.10.5:554/stream1"
-              class="w-full bg-[#0A0A0B] border border-[#26262A] rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#7B96F5]"
-            />
-          </div>
-          <div>
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-medium mb-1">Snapshot Image URL</label>
-            <input
-              v-model="form.snapshotUrl"
-              type="text"
-              placeholder="e.g. http://10.20.10.5/snapshot.jpg"
-              class="w-full bg-[#0A0A0B] border border-[#26262A] rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#7B96F5]"
-            />
-          </div>
-          <div>
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-medium mb-1">Stream Username</label>
-            <input
-              v-model="form.streamUsername"
-              type="text"
-              placeholder="admin"
-              class="w-full bg-[#0A0A0B] border border-[#26262A] rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#7B96F5]"
-            />
-          </div>
-          <div>
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-medium mb-1">Stream Password</label>
-            <input
-              v-model="form.streamPassword"
-              type="password"
-              placeholder="••••••••"
-              class="w-full bg-[#0A0A0B] border border-[#26262A] rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#7B96F5]"
-            />
-          </div>
-        </div>
-      </div>
+
 
       <!-- Custom Failure Threshold Override Section -->
       <div class="col-span-1 md:col-span-2 border-t border-[#26262A] pt-4 space-y-3">
@@ -328,11 +284,7 @@ const form = reactive({
   snmpPort: 161,
   snmpIfIndex: undefined as number | undefined,
   useCustomThreshold: false,
-  failureThreshold: 3,
-  streamUrl: '',
-  snapshotUrl: '',
-  streamUsername: '',
-  streamPassword: ''
+  failureThreshold: 3
 });
 
 watch(
@@ -353,10 +305,6 @@ watch(
       form.snmpIfIndex = newDev.snmpIfIndex;
       form.useCustomThreshold = newDev.useCustomThreshold ?? (newDev.customFailureThreshold !== undefined && newDev.customFailureThreshold !== null);
       form.failureThreshold = newDev.customFailureThreshold ?? newDev.failureThreshold ?? 3;
-      form.streamUrl = newDev.streamUrl || '';
-      form.snapshotUrl = newDev.snapshotUrl || '';
-      form.streamUsername = newDev.streamUsername || '';
-      form.streamPassword = newDev.streamPassword || '';
     } else if (props.mode === 'add') {
       form.name = '';
       form.type = 'Access Point';
@@ -372,10 +320,6 @@ watch(
       form.snmpIfIndex = undefined;
       form.useCustomThreshold = false;
       form.failureThreshold = 3;
-      form.streamUrl = '';
-      form.snapshotUrl = '';
-      form.streamUsername = '';
-      form.streamPassword = '';
     }
   },
   { immediate: true }
@@ -436,11 +380,7 @@ async function handleSubmit() {
       snmpIfIndex: form.snmpIfIndex,
       useCustomThreshold: form.useCustomThreshold,
       customFailureThreshold: form.useCustomThreshold ? form.failureThreshold : null,
-      failureThreshold: form.useCustomThreshold ? form.failureThreshold : 3,
-      streamUrl: form.streamUrl,
-      snapshotUrl: form.snapshotUrl,
-      streamUsername: form.streamUsername,
-      streamPassword: form.streamPassword
+      failureThreshold: form.useCustomThreshold ? form.failureThreshold : 3
     };
 
     if (props.mode === 'add') {

@@ -9,6 +9,7 @@ let unsubscribeFn: (() => void) | null = null;
 
 export const useLiveStore = defineStore('live', () => {
   const liveFeed = ref<LiveFeedItem[]>([]);
+  const batchStatusMessage = ref<string>('');
   const isConnected = wsClient.isConnected;
   const lastUpdatedAgo = wsClient.lastUpdatedAgo;
 
@@ -31,6 +32,18 @@ export const useLiveStore = defineStore('live', () => {
 
     if (data.type === 'STATUS_CHANGE' || data.type === 'DASHBOARD_UPDATE' || data.type === 'INCIDENT_ALERT') {
       deviceStore.fetchSummary();
+    }
+
+    if (data.type === 'BATCH_PROGRESS') {
+      batchStatusMessage.value = data.title || '';
+      let formattedTs = formatWIBTime();
+      pushLiveFeed({
+        id: `batch-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+        timestamp: formattedTs,
+        title: data.title || 'Batch Scanning Progress',
+        description: data.description || 'Scanning inventory...',
+        severity: 'info'
+      });
     }
 
     if (data.type === 'LIVE_FEED' || data.type === 'STATUS_CHANGE' || data.type === 'INCIDENT_ALERT') {
@@ -77,6 +90,7 @@ export const useLiveStore = defineStore('live', () => {
 
   return {
     liveFeed,
+    batchStatusMessage,
     isConnected,
     lastUpdatedAgo,
     initWebSocket,

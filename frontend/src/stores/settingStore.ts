@@ -20,12 +20,13 @@ export const useSettingStore = defineStore('settings', () => {
     ],
     polling: {
       intervalSeconds: 15,
-      concurrencyBatchSize: 50
+      concurrencyBatchSize: 50,
+      flapReuseWindowMinutes: 10
     }
   });
 
   const users = ref<User[]>([
-    { id: 'u-1', name: 'Budi Santoso', email: 'budi.santoso@jabarprov.go.id', role: 'superadmin', status: 'Active', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256', lastActive: 'Active Now' },
+    { id: 'u-1', name: 'Budi Santoso', email: 'budi.santoso@jabarprov.go.id', role: 'admin', status: 'Active', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256', lastActive: 'Active Now' },
     { id: 'u-2', name: 'Rian Pratama', email: 'rian.pratama@jabarprov.go.id', role: 'anggota', status: 'Active', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=256', lastActive: '12 min ago' },
     { id: 'u-3', name: 'Sari Dewi', email: 'sari.dewi@jabarprov.go.id', role: 'pimpinan', status: 'Active', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=256', lastActive: '1 hr ago' }
   ]);
@@ -62,11 +63,18 @@ export const useSettingStore = defineStore('settings', () => {
     }
   }
 
-  async function updatePolling(intervalSec: number, batchSize: number) {
+  async function updatePolling(intervalSec: number, batchSize: number, flapWindowMin?: number) {
     settings.value.polling.intervalSeconds = intervalSec;
     settings.value.polling.concurrencyBatchSize = batchSize;
+    if (flapWindowMin !== undefined) {
+      settings.value.polling.flapReuseWindowMinutes = flapWindowMin;
+    }
     try {
-      await settingsApi.updatePolling({ intervalSeconds: intervalSec, concurrencyBatchSize: batchSize });
+      await settingsApi.updatePolling({
+        intervalSeconds: intervalSec,
+        concurrencyBatchSize: batchSize,
+        flapReuseWindowMinutes: settings.value.polling.flapReuseWindowMinutes
+      });
     } catch (e) {
       // offline
     }

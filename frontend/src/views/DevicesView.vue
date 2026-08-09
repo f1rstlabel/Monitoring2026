@@ -111,14 +111,14 @@
 
     <!-- Grouped View by Location (Drill-down Accordion Grid) -->
     <div v-else-if="viewMode === 'grouped'" class="space-y-4">
-      <div v-if="groupedByLocation.length === 0" class="bg-[#151517] border border-[#26262A] rounded-xl p-12 text-center">
+      <div v-if="paginatedGroupedByLocation.length === 0" class="bg-[#151517] border border-[#26262A] rounded-xl p-12 text-center">
         <MapPin class="w-8 h-8 text-gray-600 mx-auto mb-2" />
         <p class="text-sm font-semibold text-gray-300">No location groups match your filters</p>
         <p class="text-xs text-gray-500 mt-1">Try clearing active search or device type filters</p>
       </div>
 
       <div
-        v-for="group in groupedByLocation"
+        v-for="group in paginatedGroupedByLocation"
         :key="group.locationName"
         class="bg-[#151517] border rounded-xl overflow-hidden shadow-lg transition-all"
         :class="group.downCount > 0 ? 'border-red-500/30' : 'border-[#26262A]'"
@@ -240,9 +240,9 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-[#26262A]">
-          <template v-if="deviceStore.filteredDevices.length > 0">
+          <template v-if="deviceStore.devices.length > 0">
             <tr
-              v-for="device in deviceStore.filteredDevices.slice(0, pageSize)"
+              v-for="device in deviceStore.devices"
               :key="device.id"
               class="hover:bg-[#18181B] transition-colors group cursor-pointer"
               :class="{
@@ -323,21 +323,7 @@
         </tbody>
       </table>
 
-      <!-- Pagination footer -->
-      <div
-        v-if="deviceStore.filteredDevices.length > pageSize"
-        class="flex items-center justify-between px-4 py-3 border-t border-[#26262A] bg-[#18181B]"
-      >
-        <span class="text-xs text-gray-500 font-mono">
-          Showing {{ pageSize }} of {{ deviceStore.filteredDevices.length }} matching devices
-        </span>
-        <button
-          @click="pageSize = Math.min(pageSize + 50, deviceStore.filteredDevices.length)"
-          class="text-xs text-[#7B96F5] hover:underline font-semibold"
-        >
-          Load 50 more
-        </button>
-      </div>
+
     </div>
 
     <!-- Delete Confirm Dialog -->
@@ -379,6 +365,13 @@
       </div>
     </div>
 
+    <!-- Pagination Control -->
+    <PaginationControl
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+      :total="paginatedTotal"
+    />
+
     <!-- Device Form Modal -->
     <DeviceFormModal
       :is-open="isFormModalOpen"
@@ -394,7 +387,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDeviceStore } from '../stores/deviceStore';
 import { useAuthStore } from '../stores/authStore';
@@ -403,6 +396,7 @@ import DeviceFormModal from '../components/devices/DeviceFormModal.vue';
 import StatusPill from '../components/common/StatusPill.vue';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
 import BulkImportModal from '../components/devices/BulkImportModal.vue';
+import PaginationControl from '../components/common/PaginationControl.vue';
 import { Plus, Search, ChevronRight, ChevronDown, Upload, Pencil, Trash2, X, MapPin, List } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -416,7 +410,19 @@ const formModalMode = ref<'add' | 'edit'>('add');
 const isImportModalOpen = ref(false);
 const editTarget = ref<Device | null>(null);
 const deleteTarget = ref<Device | null>(null);
-const pageSize = ref(50);
+const currentPage = ref(1);
+const pageSize = ref(10);
+const paginatedTotal = computed(() => {
+  if (viewMode.value === 'flat') {
+    return deviceStore.totalCount;
+  }
+  return groupedByLocation.value.length;
+});
+
+const paginatedGroupedByLocation = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return groupedByLocation.value.slice(start, start + pageSize.value);
+});
 
 const hasActiveFilters = computed(() =>
   deviceStore.searchQuery !== '' ||
@@ -480,7 +486,36 @@ function executeDelete() {
   deleteTarget.value = null;
 }
 
+function loadDevices() {
+  if (viewMode.value === 'flat') {
+    deviceStore.fetchDevices({
+      page: currentPage.value,
+      pageSize: pageSize.value
+    });
+  } else {
+    // Grouped mode requires the full matching dataset
+    deviceStore.fetchDevices();
+  }
+}
+
 onMounted(() => {
-  deviceStore.fetchDevices();
+  loadDevices();
 });
+
+watch([currentPage, pageSize], () => {
+  loadDevices();
+});
+
+watch(
+  () => [
+    viewMode.value,
+    deviceStore.searchQuery,
+    deviceStore.selectedTypeFilter,
+    deviceStore.selectedStatusFilter
+  ],
+  () => {
+    currentPage.value = 1;
+    loadDevices();
+  }
+);
 </script>

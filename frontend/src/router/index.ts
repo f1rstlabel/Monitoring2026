@@ -30,39 +30,39 @@ const routes = [
     path: '/devices',
     name: 'devices',
     component: DevicesView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, featureKey: 'devices.view' }
   },
   {
     path: '/devices/:id',
     alias: '/device/:id',
     name: 'device-detail',
     component: DeviceDetailView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, featureKey: 'devices.view' }
   },
   {
     path: '/incidents',
     name: 'incidents',
     component: IncidentsView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, featureKey: 'incidents.view' }
   },
   {
     path: '/incidents/:id',
     alias: '/incident/:id',
     name: 'incident-detail',
     component: IncidentDetailView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, featureKey: 'incidents.view' }
   },
   {
     path: '/reports',
     name: 'reports',
     component: ReportsView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, featureKey: 'reports.view' }
   },
   {
     path: '/settings',
     name: 'settings',
     component: SettingsView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, featureKey: 'settings.view' }
   }
 ];
 
@@ -71,15 +71,23 @@ const router = createRouter({
   routes
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login');
-  } else if (to.meta.guestOnly && authStore.isAuthenticated) {
-    next('/dashboard');
-  } else {
-    next();
+    return;
   }
+  if (to.meta.guestOnly && authStore.isAuthenticated) {
+    next('/dashboard');
+    return;
+  }
+  if (authStore.isAuthenticated && to.meta.featureKey) {
+    if (!authStore.hasPermission(to.meta.featureKey as string)) {
+      next('/dashboard');
+      return;
+    }
+  }
+  next();
 });
 
 export default router;

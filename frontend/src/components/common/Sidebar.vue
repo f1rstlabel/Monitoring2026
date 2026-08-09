@@ -16,9 +16,9 @@
         <span class="text-[10px] font-mono bg-[#18181B] text-[#7B96F5] px-1.5 py-0.5 rounded border border-[#26262A]">v2.4.1</span>
       </div>
 
-      <!-- Navigation Items — rendered via v-if per role, not v-show -->
+      <!-- Navigation Items — conditionally rendered per feature permissions -->
       <nav class="p-3 space-y-1 mt-2">
-        <!-- Dashboard: all roles -->
+        <!-- Dashboard -->
         <router-link
           to="/dashboard"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150"
@@ -28,8 +28,9 @@
           <span>Dashboard</span>
         </router-link>
 
-        <!-- Devices: all roles -->
+        <!-- Devices -->
         <router-link
+          v-if="authStore.hasPermission('devices.view')"
           to="/devices"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150"
           :class="navLinkClass('/devices')"
@@ -41,8 +42,9 @@
           </span>
         </router-link>
 
-        <!-- Incidents: all roles -->
+        <!-- Incidents -->
         <router-link
+          v-if="authStore.hasPermission('incidents.view')"
           to="/incidents"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150"
           :class="navLinkClass('/incidents')"
@@ -57,8 +59,9 @@
           </span>
         </router-link>
 
-        <!-- Reports: all roles -->
+        <!-- Reports -->
         <router-link
+          v-if="authStore.hasPermission('reports.view')"
           to="/reports"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150"
           :class="navLinkClass('/reports')"
@@ -67,9 +70,9 @@
           <span>Reports</span>
         </router-link>
 
-        <!-- Settings: superadmin + anggota ONLY — removed from render tree for pimpinan -->
+        <!-- Settings -->
         <router-link
-          v-if="authStore.canSeeSettings"
+          v-if="authStore.hasPermission('settings.view') || authStore.canSeeSettings"
           to="/settings"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150"
           :class="navLinkClass('/settings')"
@@ -150,7 +153,7 @@ function navLinkClass(path: string) {
 // Role display metadata
 const roleLabel = computed(() => {
   const map: Record<string, string> = {
-    superadmin: 'Super Admin',
+    admin: 'Admin',
     pimpinan: 'Pimpinan',
     anggota: 'Anggota NOC'
   };
@@ -159,7 +162,7 @@ const roleLabel = computed(() => {
 
 const roleColor = computed(() => {
   const map: Record<string, string> = {
-    superadmin: 'text-[#7B96F5]',
+    admin: 'text-[#7B96F5]',
     pimpinan: 'text-amber-400',
     anggota: 'text-[#34D399]'
   };
@@ -168,7 +171,7 @@ const roleColor = computed(() => {
 
 const roleIcon = computed(() => {
   const map: Record<string, any> = {
-    superadmin: ShieldCheck,
+    admin: ShieldCheck,
     pimpinan: Eye,
     anggota: Cpu
   };

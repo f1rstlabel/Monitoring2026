@@ -1,44 +1,82 @@
 <template>
   <Modal :is-open="isOpen" title="Configure WhatsApp Notification Targets" @close="$emit('close')">
     <div class="space-y-4">
-      <!-- Add / Edit Target Form -->
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg p-3.5 space-y-3">
-        <h4 class="text-xs font-semibold text-white flex items-center justify-between">
+      <!-- Add / Edit Target Form Card -->
+      <div class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-4 shadow-lg">
+        <h4 class="text-xs font-bold text-white flex items-center justify-between uppercase tracking-wider font-mono">
           <span>{{ editingId ? 'Edit Target' : 'Add New Target' }}</span>
-          <button v-if="editingId" @click="cancelEdit" class="text-[11px] text-gray-400 hover:text-white font-normal">
+          <button v-if="editingId" @click="cancelEdit" class="text-[11px] text-gray-400 hover:text-white font-normal capitalize">
             Cancel Edit
           </button>
         </h4>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div>
-            <label class="block font-mono uppercase text-[9px] text-gray-400 font-medium mb-1">Target Label</label>
-            <input
-              v-model="form.label"
-              type="text"
-              placeholder="e.g. NOC Group / Admin Backup"
-              class="w-full bg-[#151517] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#7B96F5]"
-            />
-          </div>
-          <div>
-            <label class="block font-mono uppercase text-[9px] text-gray-400 font-medium mb-1">Phone Number</label>
-            <input
-              v-model="form.phoneNumber"
-              type="text"
-              placeholder="e.g. +6281234567890"
-              class="w-full bg-[#151517] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#7B96F5]"
-            />
+        <!-- Target Type Segmented Control -->
+        <div class="space-y-1.5">
+          <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Target Type</label>
+          <div class="grid grid-cols-2 gap-2 bg-[#151517] p-1 rounded-lg border border-[#26262A]">
+            <button
+              type="button"
+              @click="form.targetType = 'individual'"
+              class="py-1.5 px-3 rounded-md text-xs font-semibold font-mono transition-all flex items-center justify-center gap-2"
+              :class="form.targetType === 'individual' ? 'bg-[#7B96F5] text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-[#18181B]'"
+            >
+              <User class="w-3.5 h-3.5" />
+              <span>Individual Number</span>
+            </button>
+
+            <button
+              type="button"
+              @click="form.targetType = 'group'"
+              class="py-1.5 px-3 rounded-md text-xs font-semibold font-mono transition-all flex items-center justify-center gap-2"
+              :class="form.targetType === 'group' ? 'bg-[#7B96F5] text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-[#18181B]'"
+            >
+              <Users class="w-3.5 h-3.5" />
+              <span>WhatsApp Group (JID)</span>
+            </button>
           </div>
         </div>
 
-        <div class="flex items-center justify-between pt-1">
-          <p class="text-[10px] text-gray-400 font-mono">
-            JID preview: {{ computedJID || 'Enter phone number with country code' }}
-          </p>
+        <!-- Form Inputs Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Target Label</label>
+            <input
+              v-model="form.label"
+              type="text"
+              placeholder="e.g. NOC On-Call Group"
+              class="w-full bg-[#151517] border border-[#26262A] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#7B96F5]"
+            />
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">
+              {{ form.targetType === 'group' ? 'Group JID' : 'Phone Number' }}
+            </label>
+            <input
+              v-model="form.phoneNumber"
+              type="text"
+              :placeholder="form.targetType === 'group' ? 'e.g. 120363028192837128@g.us' : 'e.g. +6281234567890'"
+              class="w-full bg-[#151517] border border-[#26262A] rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#7B96F5]"
+            />
+            <p class="text-[10px] text-gray-500 font-mono">
+              {{ form.targetType === 'group' ? 'Format: <group-id>@g.us' : 'Phone number must include country code (e.g. 628...)' }}
+            </p>
+          </div>
+        </div>
+
+        <!-- JID Preview & Action Button Footer -->
+        <div class="flex items-center justify-between pt-3 border-t border-[#26262A] gap-3">
+          <div class="flex items-center gap-2 min-w-0 truncate">
+            <span class="text-[10px] font-mono uppercase text-gray-400 font-semibold shrink-0">JID Preview:</span>
+            <code class="px-2 py-0.5 rounded bg-[#151517] border border-[#26262A] text-amber-400 font-mono text-[11px] font-medium truncate">
+              {{ computedJID || (form.targetType === 'group' ? 'Enter Group JID ending in @g.us' : 'Enter phone number with country code') }}
+            </code>
+          </div>
+
           <button
             @click="handleSubmit"
             :disabled="isSubmitting || !form.label || !form.phoneNumber"
-            class="px-3.5 py-1.5 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
+            class="px-4 py-2 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0"
           >
             <Plus v-if="!editingId" class="w-3.5 h-3.5" />
             <Save v-else class="w-3.5 h-3.5" />
@@ -120,7 +158,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import Modal from '../common/Modal.vue';
-import { Plus, Save, Send, Pencil, Trash2 } from 'lucide-vue-next';
+import { Plus, Save, Send, Pencil, Trash2, User, Users } from 'lucide-vue-next';
 import api from '../../api/client';
 import type { WhatsAppTarget } from '../../types';
 
@@ -138,14 +176,20 @@ const testStatusSuccess = ref(true);
 
 const form = reactive({
   label: '',
-  phoneNumber: ''
+  phoneNumber: '',
+  targetType: 'individual' as 'individual' | 'group'
 });
 
 const computedJID = computed(() => {
   if (!form.phoneNumber) return '';
-  let digits = form.phoneNumber.replace(/[^0-9]/g, '');
+  const val = form.phoneNumber.trim();
+  if (val.endsWith('@g.us') || val.endsWith('@s.whatsapp.net')) return val;
+  let digits = val.replace(/[^0-9]/g, '');
   if (digits.startsWith('0') && digits.length > 1) {
     digits = '62' + digits.slice(1);
+  }
+  if (form.targetType === 'group') {
+    return digits ? `${digits}@g.us` : '';
   }
   return digits ? `${digits}@s.whatsapp.net` : '';
 });
@@ -177,6 +221,7 @@ function startEdit(target: WhatsAppTarget) {
   editingId.value = target.id;
   form.label = target.label;
   form.phoneNumber = target.phoneNumber;
+  form.targetType = target.jid?.endsWith('@g.us') ? 'group' : 'individual';
   actionError.value = '';
 }
 

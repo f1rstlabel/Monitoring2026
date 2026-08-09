@@ -8,27 +8,30 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Parse initial role from stored token
   function parseRoleFromToken(tok: string | null): UserRole {
-    if (!tok) return 'superadmin';
+    if (!tok) return 'admin';
     if (tok.includes('pimpinan')) return 'pimpinan';
     if (tok.includes('anggota')) return 'anggota';
-    if (tok.includes('superadmin') || tok.includes('admin')) return 'superadmin';
+    if (tok.includes('admin') || tok.includes('superadmin')) return 'admin';
     try {
       const parts = tok.split('.');
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
-        if (payload.role && ['superadmin', 'pimpinan', 'anggota'].includes(payload.role)) {
-          return payload.role as UserRole;
+        if (payload.role) {
+          if (payload.role === 'superadmin') return 'admin';
+          if (['admin', 'pimpinan', 'anggota'].includes(payload.role)) {
+            return payload.role as UserRole;
+          }
         }
       }
     } catch (e) {
       // fallback
     }
-    return 'superadmin';
+    return 'admin';
   }
 
   const initialRole = parseRoleFromToken(token.value);
   const initialNameMap: Record<UserRole, { name: string; email: string }> = {
-    superadmin: { name: 'Budi Santoso (Super Admin)', email: 'admin.noc@jabarprov.go.id' },
+    admin: { name: 'Budi Santoso (Admin)', email: 'admin.noc@jabarprov.go.id' },
     pimpinan: { name: 'Sari Dewi (Pimpinan)', email: 'sari.dewi@jabarprov.go.id' },
     anggota: { name: 'Rian Pratama (Anggota NOC)', email: 'rian.pratama@jabarprov.go.id' }
   };
@@ -48,7 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
   const featurePermissions = ref<Record<string, boolean>>({});
 
   function hasPermission(featureKey: string): boolean {
-    if (user.value.role === 'superadmin') return true;
+    if (user.value.role === 'admin') return true;
     if (featurePermissions.value && featureKey in featurePermissions.value) {
       return !!featurePermissions.value[featureKey];
     }
@@ -70,9 +73,9 @@ export const useAuthStore = defineStore('auth', () => {
   const canDeleteDevice = computed(() => hasPermission('devices.delete'));
   const canImportDevices = computed(() => hasPermission('devices.import'));
   const canResolveIncident = computed(() => hasPermission('incidents.resolve'));
-  const canSeeSettings = computed(() => user.value.role === 'superadmin' || user.value.role === 'anggota' || hasPermission('settings.view'));
-  const canManageSettings = computed(() => user.value.role === 'superadmin' || hasPermission('settings.polling'));
-  const canManageUsers = computed(() => user.value.role === 'superadmin' || hasPermission('settings.users'));
+  const canSeeSettings = computed(() => user.value.role === 'admin' || user.value.role === 'anggota' || hasPermission('settings.view'));
+  const canManageSettings = computed(() => user.value.role === 'admin' || hasPermission('settings.polling'));
+  const canManageUsers = computed(() => user.value.role === 'admin' || hasPermission('settings.users'));
 
   // ─── Auth Actions ────────────────────────────────────────────────────────────
 
@@ -81,10 +84,12 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await authApi.getMe();
       if (res) {
+        let r = res.role;
+        if (r === 'superadmin') r = 'admin';
         user.value = {
           name: res.name || user.value.name,
           email: res.email || user.value.email,
-          role: res.role || user.value.role,
+          role: r || user.value.role,
           avatarUrl: res.avatarUrl || user.value.avatarUrl
         };
         if (res.featurePermissions) {
@@ -102,6 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = res.token || 'demo-jwt-token-2.4.1';
       localStorage.setItem('gov_monitor_token', token.value!);
       if (res.user) {
+        if (res.user.role === 'superadmin') res.user.role = 'admin';
         user.value = res.user;
       }
       await fetchMe();
@@ -110,25 +116,25 @@ export const useAuthStore = defineStore('auth', () => {
       const normalizedUser = usernameOrEmail.trim().toLowerCase();
       const demoAccounts: Record<string, { role: UserRole; name: string; email: string; avatarUrl: string }> = {
         admin: {
-          role: 'superadmin',
+          role: 'admin',
           name: 'Budi Santoso',
           email: 'admin.noc@jabarprov.go.id',
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
         },
         superadmin: {
-          role: 'superadmin',
+          role: 'admin',
           name: 'Budi Santoso',
           email: 'admin.noc@jabarprov.go.id',
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
         },
         'admin.noc': {
-          role: 'superadmin',
+          role: 'admin',
           name: 'Budi Santoso',
           email: 'admin.noc@jabarprov.go.id',
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
         },
         'admin.noc@jabarprov.go.id': {
-          role: 'superadmin',
+          role: 'admin',
           name: 'Budi Santoso',
           email: 'admin.noc@jabarprov.go.id',
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'

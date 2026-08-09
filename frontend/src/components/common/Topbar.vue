@@ -51,7 +51,7 @@
 
       <!-- Active Role Badge -->
       <div class="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-[#151517] text-xs font-mono font-semibold" :class="roleBadgeClass">
-        <ShieldCheck v-if="authStore.user.role === 'superadmin'" class="w-3.5 h-3.5" />
+        <ShieldCheck v-if="authStore.user.role === 'admin'" class="w-3.5 h-3.5" />
         <Eye v-else-if="authStore.user.role === 'pimpinan'" class="w-3.5 h-3.5" />
         <Cpu v-else class="w-3.5 h-3.5" />
         <span class="uppercase text-[10px] tracking-wider">{{ roleBadgeLabel }}</span>
@@ -255,7 +255,7 @@ function formatRelativeTime(isoString: string) {
 
 const roleBadgeLabel = computed(() => {
   const map: Record<string, string> = {
-    superadmin: 'SUPERADMIN',
+    admin: 'ADMIN',
     pimpinan: 'PIMPINAN',
     anggota: 'ANGGOTA NOC'
   };
@@ -264,7 +264,7 @@ const roleBadgeLabel = computed(() => {
 
 const roleBadgeClass = computed(() => {
   const map: Record<string, string> = {
-    superadmin: 'border-[#7B96F5]/40 text-[#7B96F5] bg-[#7B96F5]/10',
+    admin: 'border-[#7B96F5]/40 text-[#7B96F5] bg-[#7B96F5]/10',
     pimpinan: 'border-amber-500/40 text-amber-400 bg-amber-500/10',
     anggota: 'border-[#34D399]/40 text-[#34D399] bg-[#34D399]/10'
   };

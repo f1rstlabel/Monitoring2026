@@ -1,11 +1,11 @@
 <template>
-  <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
-    <!-- Header with Range Selector & Realtime Indicator -->
+  <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
+    <!-- Header with Metric, Presentation Mode & Range Selector -->
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#26262A] pb-3">
       <div class="flex items-center gap-3">
         <div>
-          <h3 class="text-xs font-bold text-gray-200 uppercase font-mono tracking-wider">Historical Reachability & Metrics</h3>
-          <p class="text-[11px] text-gray-500 mt-0.5">Realtime WebSocket Canvas Stream (Powered by uPlot)</p>
+          <h3 class="text-xs font-bold text-gray-200 uppercase font-mono tracking-wider">Historical Reachability &amp; Metrics</h3>
+          <p class="text-[11px] text-gray-500 mt-0.5">Realtime WebSocket Stream (Powered by ApexCharts)</p>
         </div>
         <!-- Realtime Live Stream Badge -->
         <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400">
@@ -18,9 +18,9 @@
         <!-- Metric Type Selector (Status, CPU, Memory) -->
         <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5 text-xs font-mono">
           <button
-            v-for="mode in ['status', 'cpu', 'memory'] as const"
+            v-for="mode in (['status', 'cpu', 'memory'] as const)"
             :key="mode"
-            @click="activeMetric = mode"
+            @click="switchMetric(mode)"
             class="px-2.5 py-1 rounded transition-colors uppercase font-semibold text-[11px]"
             :class="activeMetric === mode ? 'bg-[#7B96F5] text-white' : 'text-gray-400 hover:text-white'"
           >
@@ -28,101 +28,177 @@
           </button>
         </div>
 
-        <!-- Time Range Selector -->
+        <!-- Presentation View Mode Toggle -->
         <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5 text-xs font-mono">
+          <!-- Line/Area — always available -->
           <button
-            v-for="range in ['24h', '7d', '30d', 'custom'] as const"
+            @click="viewMode = 'line'"
+            title="Line/Area Time Series Chart"
+            class="px-2.5 py-1 rounded transition-colors text-[11px] flex items-center gap-1"
+            :class="viewMode === 'line' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+          >
+            <Activity class="w-3.5 h-3.5" />
+            <span>Line/Area</span>
+          </button>
+
+          <!-- Donut — only for Status metric -->
+          <button
+            v-if="activeMetric === 'status'"
+            @click="viewMode = 'donut'"
+            title="Up vs Down Proportion (selected range)"
+            class="px-2.5 py-1 rounded transition-colors text-[11px] flex items-center gap-1"
+            :class="viewMode === 'donut' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+          >
+            <PieChart class="w-3.5 h-3.5" />
+            <span>Up/Down</span>
+          </button>
+
+          <!-- RadialBar Gauge — only for CPU / Memory -->
+          <button
+            v-if="activeMetric !== 'status'"
+            @click="viewMode = 'gauge'"
+            title="Current Snapshot — Radial Gauge"
+            class="px-2.5 py-1 rounded transition-colors text-[11px] flex items-center gap-1"
+            :class="viewMode === 'gauge' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+          >
+            <Gauge class="w-3.5 h-3.5" />
+            <span>Gauge</span>
+          </button>
+        </div>
+
+        <!-- Snapshot badge — shown when gauge is active -->
+        <div
+          v-if="viewMode === 'gauge'"
+          class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-mono text-amber-400"
+          title="Gauge shows the current live value — not a historical range"
+        >
+          <span class="text-[9px] uppercase font-bold tracking-wider">Snapshot · Current Value</span>
+        </div>
+
+        <!-- Time Range Selector — hidden when gauge (snapshot) -->
+        <div v-if="viewMode !== 'gauge'" class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5 text-xs font-mono">
+          <button
+            v-for="range in (['24h', '7d', '30d', 'custom'] as const)"
             :key="range"
-            @click="activeRange = range"
+            @click="selectRange(range)"
             class="px-2 py-1 rounded transition-colors text-[11px]"
             :class="activeRange === range ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
           >
             {{ range }}
           </button>
         </div>
-
-        <!-- Interactive Zoom Controls -->
-        <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5 text-xs font-mono gap-1">
-          <button
-            @click="zoomIn"
-            title="Zoom In (+)"
-            class="px-2 py-1 rounded bg-[#26262A] text-gray-300 hover:text-white hover:bg-[#3A3A40] transition-colors font-bold text-xs"
-          >
-            +
-          </button>
-          <button
-            @click="zoomOut"
-            title="Zoom Out (-)"
-            class="px-2 py-1 rounded bg-[#26262A] text-gray-300 hover:text-white hover:bg-[#3A3A40] transition-colors font-bold text-xs"
-          >
-            -
-          </button>
-          <button
-            @click="resetZoom"
-            title="Reset Zoom"
-            class="px-2 py-1 rounded bg-[#26262A] text-[#7B96F5] hover:text-white hover:bg-[#3A3A40] transition-colors font-semibold text-[11px]"
-          >
-            Reset
-          </button>
-        </div>
       </div>
     </div>
 
     <!-- Custom Date Range Picker -->
-    <div v-if="activeRange === 'custom'" class="flex items-center gap-3 bg-[#18181B] border border-[#26262A] rounded-lg p-2.5 text-xs font-mono">
+    <div v-if="activeRange === 'custom' && viewMode !== 'gauge'" class="flex items-center gap-3 bg-[#18181B] border border-[#26262A] rounded-lg p-2.5 text-xs font-mono">
       <div class="flex items-center gap-2">
         <span class="text-gray-400">From:</span>
-        <input type="date" v-model="customFrom" class="bg-[#0A0A0B] border border-[#26262A] rounded px-2 py-1 text-white text-xs" />
+        <input type="date" v-model="customFrom" @change="fetchAndRender" class="bg-[#0A0A0B] border border-[#26262A] rounded px-2 py-1 text-white text-xs" />
       </div>
       <div class="flex items-center gap-2">
         <span class="text-gray-400">To:</span>
-        <input type="date" v-model="customTo" class="bg-[#0A0A0B] border border-[#26262A] rounded px-2 py-1 text-white text-xs" />
+        <input type="date" v-model="customTo" @change="fetchAndRender" class="bg-[#0A0A0B] border border-[#26262A] rounded px-2 py-1 text-white text-xs" />
+      </div>
+      <button @click="fetchAndRender" class="px-3 py-1 bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-bold rounded text-xs">
+        Apply Range
+      </button>
+    </div>
+
+    <!-- ApexCharts Container — full width, no centering flex wrapper -->
+    <div class="relative w-full" :class="viewMode === 'gauge' || viewMode === 'donut' ? 'h-72' : 'h-64'">
+      <apexchart
+        v-if="!isEmpty"
+        :key="`${viewMode}-${activeMetric}-${activeRange}`"
+        width="100%"
+        :height="viewMode === 'gauge' || viewMode === 'donut' ? 280 : 250"
+        :type="apexChartType"
+        :options="apexOptions"
+        :series="apexSeries"
+      />
+      <div v-else class="absolute inset-0 flex items-center justify-center text-xs font-mono text-gray-500 bg-[#151517]/80">
+        No probe metric data available for selected range
       </div>
     </div>
 
-    <!-- uPlot Container -->
-    <div class="relative w-full h-64 flex items-center justify-center">
-      <div ref="chartRef" class="w-full h-full cursor-crosshair"></div>
-      <div v-if="isEmpty" class="absolute inset-0 flex items-center justify-center text-xs font-mono text-gray-500 bg-[#151517]/80">
-        No probe metric data available for selected range
-      </div>
+    <!-- Donut range-aware legend -->
+    <div v-if="viewMode === 'donut' && !isEmpty" class="flex items-center justify-center gap-6 text-xs font-mono text-gray-400 pt-1">
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-[#3ECF8E] inline-block"></span>
+        UP (reachable) — {{ upPct }}%
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-[#F16565] inline-block"></span>
+        DOWN (0 ms) — {{ downPct }}%
+      </span>
+      <span class="text-[10px] text-gray-600">Range: {{ activeRange !== 'custom' ? activeRange : `${customFrom} → ${customTo}` }}</span>
+    </div>
+
+    <!-- Line range-aware legend -->
+    <div v-if="activeMetric === 'status' && viewMode === 'line' && !isEmpty" class="flex items-center justify-center gap-6 text-[10px] font-mono text-gray-500 pt-1 border-t border-[#26262A]/40 mt-1">
+      <span class="flex items-center gap-1.5">
+        <span class="w-3.5 h-0.5 bg-[#3ECF8E] inline-block"></span>
+        Green Line = Latency while UP
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-3 h-3 bg-[#F16565]/20 border border-[#F16565]/35 inline-block rounded-sm"></span>
+        Red Band = Downtime Period
+      </span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import uPlot from 'uplot';
-import 'uplot/dist/uPlot.min.css';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import VueApexCharts from 'vue3-apexcharts';
 import api from '../../api/client';
 import { wsClient } from '../../ws/websocket';
+import { Activity, PieChart, Gauge } from 'lucide-vue-next';
+
+const apexchart = VueApexCharts;
 
 const props = defineProps<{
   deviceId?: string;
-  history?: { date: string; upCount: number; downCount: number }[];
 }>();
 
 type MetricMode = 'status' | 'cpu' | 'memory';
+type ViewMode = 'line' | 'gauge' | 'donut';
 type RangeMode = '24h' | '7d' | '30d' | 'custom';
 
 const activeMetric = ref<MetricMode>('status');
+const viewMode = ref<ViewMode>('line');
 const activeRange = ref<RangeMode>('24h');
+
 const customFrom = ref('');
 const customTo = ref('');
-
-const chartRef = ref<HTMLDivElement | null>(null);
 const isEmpty = ref(false);
-let uplotInstance: uPlot | null = null;
-let currentUPlotData: uPlot.AlignedData = [[], [], []];
-let initialXMin: number | null = null;
-let initialXMax: number | null = null;
-let unsubscribeWS: (() => void) | null = null;
+
+const rawMetrics = ref<{ value: number; recordedAt: string }[]>([]);
+
+/** Switch metric and auto-correct viewMode to something valid for the new metric */
+function switchMetric(mode: MetricMode) {
+  activeMetric.value = mode;
+  // donut is only for status; gauge is only for cpu/memory
+  if (mode === 'status' && viewMode.value === 'gauge') viewMode.value = 'line';
+  if (mode !== 'status' && viewMode.value === 'donut') viewMode.value = 'line';
+  fetchAndRender();
+}
+
+function selectRange(range: RangeMode) {
+  activeRange.value = range;
+  if (range === 'custom') {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    customFrom.value = sevenDaysAgo.toISOString().split('T')[0];
+    customTo.value = today.toISOString().split('T')[0];
+  }
+  fetchAndRender();
+}
 
 async function fetchAndRender() {
   if (!props.deviceId) return;
 
   const mType = activeMetric.value === 'status' ? 'latency' : activeMetric.value;
-  let rawData: { value: number; recordedAt: string }[] = [];
 
   try {
     const res = await api.get(`/devices/${props.deviceId}/metrics`, {
@@ -133,273 +209,316 @@ async function fetchAndRender() {
         to: customTo.value
       }
     });
+
+    let dataItems: any[] = [];
     if (Array.isArray(res.data)) {
-      rawData = res.data.map((m: any) => ({
-        value: Number(m.value) || 0,
-        recordedAt: m.recordedAt
-      }));
+      dataItems = res.data;
+    } else if (res.data && Array.isArray(res.data.items)) {
+      dataItems = res.data.items;
+    } else if (res.data && Array.isArray(res.data.data)) {
+      dataItems = res.data.data;
     }
+
+    rawMetrics.value = dataItems.map((m: any) => ({
+      value: Number(m.value) || 0,
+      recordedAt: m.recordedAt
+    })).sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
+
+    isEmpty.value = rawMetrics.value.length === 0;
   } catch (e) {
-    rawData = [];
-  }
-
-  // Sort ascending by time (required for uPlot)
-  rawData.sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
-
-  if (rawData.length === 0) {
+    rawMetrics.value = [];
     isEmpty.value = true;
-    const nowSec = Math.floor(Date.now() / 1000);
-    const times = [nowSec - 86400, nowSec - 43200, nowSec];
-    const dummyVals = activeMetric.value === 'status' ? [null, null, null] : [0, 0, 0];
-    currentUPlotData = activeMetric.value === 'status'
-      ? [times, dummyVals, dummyVals]
-      : [times, dummyVals];
-    renderUPlot(currentUPlotData);
-    return;
   }
+}
 
-  isEmpty.value = false;
+const latestValue = computed(() => {
+  if (rawMetrics.value.length === 0) return 0;
+  return rawMetrics.value[rawMetrics.value.length - 1].value;
+});
 
-  const xTimestamps: number[] = [];
-  const series1: (number | null)[] = [];
-  const series2: (number | null)[] = [];
+// Donut computation: count reachable (latency > 0) vs unreachable (latency === 0) data points
+const upCount = computed(() => rawMetrics.value.filter(m => m.value > 0).length);
+const downCount = computed(() => rawMetrics.value.filter(m => m.value === 0).length);
+const upPct = computed(() => {
+  const total = upCount.value + downCount.value;
+  return total === 0 ? 0 : Math.round((upCount.value / total) * 100);
+});
+const downPct = computed(() => 100 - upPct.value);
 
-  const isStatus = activeMetric.value === 'status';
+const downPeriods = computed(() => {
+  if (activeMetric.value !== 'status') return [];
 
-  // Calculate max latency for red loss area height
-  let maxLat = 30;
-  for (const item of rawData) {
-    if (item.value > maxLat) maxLat = item.value;
-  }
+  const periods: { x: number; x2: number }[] = [];
+  let inDownPeriod = false;
+  let startX = 0;
 
-  for (const item of rawData) {
-    const tSec = Math.floor(new Date(item.recordedAt).getTime() / 1000);
-    xTimestamps.push(tSec);
+  for (let i = 0; i < rawMetrics.value.length; i++) {
+    const item = rawMetrics.value[i];
+    const t = new Date(item.recordedAt).getTime();
 
-    if (isStatus) {
-      if (item.value > 0) {
-        series1.push(item.value);
-        series2.push(null);
-      } else {
-        series1.push(null);
-        series2.push(maxLat); // Prominent red loss marker height during DOWN period
+    if (item.value === 0) {
+      if (!inDownPeriod) {
+        inDownPeriod = true;
+        startX = t;
       }
     } else {
-      series1.push(item.value);
+      if (inDownPeriod) {
+        inDownPeriod = false;
+        periods.push({ x: startX, x2: t });
+      }
     }
   }
 
-  currentUPlotData = isStatus
-    ? [xTimestamps, series1, series2]
-    : [xTimestamps, series1];
+  if (inDownPeriod && rawMetrics.value.length > 0) {
+    const lastT = new Date(rawMetrics.value[rawMetrics.value.length - 1].recordedAt).getTime();
+    periods.push({ x: startX, x2: lastT });
+  }
 
-  await nextTick();
-  renderUPlot(currentUPlotData);
-}
+  return periods;
+});
+
+const apexChartType = computed((): 'area' | 'radialBar' | 'donut' => {
+  if (viewMode.value === 'gauge') return 'radialBar';
+  if (viewMode.value === 'donut') return 'donut';
+  return 'area';
+});
+
+const accentColor = computed(() => {
+  if (activeMetric.value === 'cpu') return '#7B96F5';
+  if (activeMetric.value === 'memory') return '#F59E0B';
+  return '#3ECF8E';
+});
+
+const apexSeries = computed((): any => {
+  if (viewMode.value === 'gauge') {
+    const val = latestValue.value;
+    return [Math.min(100, Math.max(0, Math.round(val)))];
+  }
+
+  if (viewMode.value === 'donut') {
+    // [UP count, DOWN count] for donut slices — range-aware (rawMetrics is fetched per range)
+    const total = upCount.value + downCount.value;
+    if (total === 0) return [1, 0]; // avoid empty chart
+    return [upCount.value, downCount.value];
+  }
+
+  // line/area
+  const seriesData = rawMetrics.value.map(item => ({
+    x: new Date(item.recordedAt).getTime(),
+    y: (activeMetric.value === 'status' && item.value === 0) ? null : item.value
+  }));
+  const label = activeMetric.value === 'status' ? 'Latency (ms)' : activeMetric.value === 'cpu' ? 'CPU Utilization (%)' : 'Memory Usage (%)';
+  return [{ name: label, data: seriesData }];
+});
+
+const apexOptions = computed((): any => {
+  const metricLabel = activeMetric.value === 'status' ? 'LATENCY' : activeMetric.value.toUpperCase();
+
+  if (viewMode.value === 'gauge') {
+    return {
+      chart: {
+        type: 'radialBar',
+        background: 'transparent',
+        foreColor: '#9CA3AF',
+        sparkline: { enabled: false }
+      },
+      plotOptions: {
+        radialBar: {
+          startAngle: -135,
+          endAngle: 135,
+          hollow: {
+            margin: 0,
+            size: '68%',
+            background: '#151517'
+          },
+          track: {
+            background: '#26262A',
+            strokeWidth: '100%'
+          },
+          dataLabels: {
+            show: true,
+            name: {
+              offsetY: -10,
+              color: '#9CA3AF',
+              fontSize: '12px',
+              fontWeight: '600',
+              fontFamily: 'JetBrains Mono, monospace'
+            },
+            value: {
+              offsetY: 8,
+              color: '#FFFFFF',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              fontFamily: 'JetBrains Mono, monospace',
+              formatter: () => {
+                const val = latestValue.value;
+                return `${val.toFixed(0)}%`;
+              }
+            }
+          }
+        }
+      },
+      colors: [accentColor.value],
+      labels: [metricLabel]
+    };
+  }
+
+  if (viewMode.value === 'donut') {
+    const total = upCount.value + downCount.value;
+    return {
+      chart: {
+        type: 'donut',
+        background: 'transparent',
+        foreColor: '#9CA3AF'
+      },
+      colors: ['#3ECF8E', '#F16565'],
+      labels: [
+        `UP (${upCount.value} checks)`,
+        `DOWN (${downCount.value} checks)`
+      ],
+      legend: {
+        show: false // we use our custom legend below the chart
+      },
+      dataLabels: {
+        enabled: true,
+        formatter: (val: number) => `${Math.round(val)}%`,
+        style: {
+          fontSize: '13px',
+          fontFamily: 'JetBrains Mono, monospace',
+          fontWeight: '700'
+        },
+        dropShadow: { enabled: false }
+      },
+      plotOptions: {
+        pie: {
+          donut: {
+            size: '60%',
+            labels: {
+              show: true,
+              name: {
+                show: true,
+                fontSize: '11px',
+                fontFamily: 'JetBrains Mono, monospace',
+                color: '#9CA3AF',
+                offsetY: -8
+              },
+              value: {
+                show: true,
+                fontSize: '22px',
+                fontFamily: 'JetBrains Mono, monospace',
+                fontWeight: 'bold',
+                color: '#FFFFFF',
+                offsetY: 4,
+                formatter: (val: string) => `${Math.round(Number(val))}%`
+              },
+              total: {
+                show: true,
+                showAlways: true,
+                label: 'Uptime',
+                fontSize: '11px',
+                fontFamily: 'JetBrains Mono, monospace',
+                color: '#9CA3AF',
+                formatter: () => `${upPct.value}%`
+              }
+            }
+          }
+        }
+      },
+      stroke: { width: 2, colors: ['#151517'] },
+      tooltip: {
+        theme: 'dark',
+        y: {
+          formatter: (val: number) => `${val} checks (${total > 0 ? Math.round((val / total) * 100) : 0}%)`
+        }
+      }
+    };
+  }
+
+  // line/area
+  return {
+    chart: {
+      type: 'area',
+      background: 'transparent',
+      toolbar: { show: false },
+      zoom: { enabled: true },
+      foreColor: '#9CA3AF',
+      fontFamily: 'JetBrains Mono, monospace'
+    },
+    annotations: {
+      xaxis: downPeriods.value.map(p => ({
+        x: p.x,
+        x2: p.x2,
+        fillColor: '#F16565',
+        opacity: 0.2,
+        strokeDashArray: 0,
+        borderColor: '#F16565',
+        borderWidth: 1,
+        label: {
+          style: {
+            color: '#F16565',
+            background: '#151517',
+            fontSize: '9px',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontWeight: 'bold'
+          },
+          text: 'DOWN'
+        }
+      }))
+    },
+    colors: [accentColor.value],
+    stroke: { curve: 'smooth', width: 2, connectNulls: false },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.45,
+        opacityTo: 0.05,
+        stops: [0, 90, 100]
+      }
+    },
+    dataLabels: { enabled: false },
+    xaxis: {
+      type: 'datetime',
+      axisBorder: { color: '#26262A' },
+      axisTicks: { color: '#26262A' }
+    },
+    yaxis: {
+      labels: {
+        formatter: (val: number) => activeMetric.value === 'status' ? `${val.toFixed(0)} ms` : `${val.toFixed(0)}%`
+      }
+    },
+    grid: { borderColor: '#26262A' },
+    tooltip: {
+      theme: 'dark',
+      x: { format: 'dd MMM HH:mm' }
+    }
+  };
+});
 
 function handleRealtimeWSMessage(data: any) {
   if (!props.deviceId) return;
-
   const msgDevId = data.deviceId || data.DeviceID;
   if (msgDevId && msgDevId !== props.deviceId) return;
 
-  const isStatus = activeMetric.value === 'status';
-  const tSec = Math.floor(new Date(data.timestamp || Date.now()).getTime() / 1000);
   const latencyMs = Number(data.latencyMs) || 0;
-  const isDown = data.status === 'DOWN' || (isStatus && latencyMs === 0);
+  rawMetrics.value.push({
+    value: latencyMs,
+    recordedAt: new Date(data.timestamp || Date.now()).toISOString()
+  });
 
-  if (!currentUPlotData[0]) return;
-
-  const times = currentUPlotData[0] as number[];
-  const s1 = currentUPlotData[1] as (number | null)[];
-  const s2 = isStatus ? (currentUPlotData[2] as (number | null)[]) : null;
-
-  // Append new timestamp & metric
-  times.push(tSec);
-  if (isStatus) {
-    if (!isDown && latencyMs > 0) {
-      s1.push(latencyMs);
-      s2?.push(null);
-    } else {
-      s1.push(null);
-      s2?.push(40); // Red DOWN loss marker
-    }
-  } else {
-    s1.push(latencyMs);
-  }
-
-  // Keep max 300 points for memory safety
-  if (times.length > 300) {
-    times.shift();
-    s1.shift();
-    if (s2) s2.shift();
-  }
-
-  if (uplotInstance) {
-    // Ultra-fast lightweight Canvas update (<1 ms, zero lag)
-    uplotInstance.setData(currentUPlotData);
+  if (rawMetrics.value.length > 300) {
+    rawMetrics.value.shift();
   }
 }
 
-function wheelZoomPlugin(): uPlot.Plugin {
-  return {
-    hooks: {
-      ready: (u: uPlot) => {
-        const over = u.over;
-        over.addEventListener('wheel', (e: WheelEvent) => {
-          e.preventDefault();
-          const rect = over.getBoundingClientRect();
-          const left = e.clientX - rect.left;
-          const leftPct = left / rect.width;
-          const xMin = u.scales.x.min!;
-          const xMax = u.scales.x.max!;
-          const range = xMax - xMin;
-          const factor = e.deltaY < 0 ? 0.75 : 1.25;
-          const newRange = range * factor;
-          const newMin = xMin + (range - newRange) * leftPct;
-          const newMax = newMin + newRange;
-          u.setScale('x', { min: newMin, max: newMax });
-        });
-      }
-    }
-  };
-}
+let unsubscribeWS: (() => void) | null = null;
 
-function renderUPlot(data: uPlot.AlignedData) {
-  if (!chartRef.value) return;
-
-  if (uplotInstance) {
-    uplotInstance.destroy();
-    uplotInstance = null;
-  }
-
-  const containerWidth = chartRef.value.getBoundingClientRect().width || 600;
-  const isStatus = activeMetric.value === 'status';
-
-  if (data[0] && data[0].length > 0) {
-    initialXMin = data[0][0];
-    initialXMax = data[0][data[0].length - 1];
-  }
-
-  const opts: uPlot.Options = {
-    width: containerWidth,
-    height: 240,
-    title: '',
-    tzDate: (ts) => new Date(ts * 1000),
-    plugins: [wheelZoomPlugin()],
-    series: [
-      {
-        label: 'Time',
-        value: (_: uPlot, rawValue: number | null) =>
-          rawValue ? new Date(rawValue * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB' : '--'
-      },
-      ...(isStatus
-        ? [
-            {
-              label: 'Latency (UP ms)',
-              stroke: '#3ECF8E',
-              fill: 'rgba(62, 207, 142, 0.15)',
-              width: 2,
-              spanGaps: false,
-              value: (_: uPlot, rawValue: number | null) => (rawValue != null ? `${rawValue.toFixed(0)} ms` : '--')
-            },
-            {
-              label: '🔴 DOWN (100% Packet Loss)',
-              stroke: '#F16565',
-              fill: 'rgba(241, 101, 101, 0.65)',
-              width: 3,
-              spanGaps: false,
-              points: {
-                show: true,
-                size: 8,
-                fill: '#F16565',
-                stroke: '#FFFFFF',
-                width: 1.5
-              },
-              value: (_: uPlot, rawValue: number | null) => (rawValue != null ? '🔴 DOWN (100% Packet Loss)' : '--')
-            }
-          ]
-        : [
-            {
-              label: activeMetric.value === 'cpu' ? 'CPU Utilization' : 'Memory Usage',
-              stroke: activeMetric.value === 'cpu' ? '#7B96F5' : '#F59E0B',
-              fill: activeMetric.value === 'cpu' ? 'rgba(123, 150, 245, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-              width: 2,
-              spanGaps: false,
-              value: (_: uPlot, rawValue: number | null) => (rawValue != null ? `${rawValue.toFixed(1)}%` : '--')
-            }
-          ])
-    ],
-    axes: [
-      {
-        stroke: '#9CA3AF',
-        grid: { stroke: '#26262A', width: 1 },
-        ticks: { stroke: '#26262A', width: 1 },
-        font: '10px JetBrains Mono, monospace',
-        values: (_: uPlot, ticks: number[]) =>
-          ticks.map((t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-      },
-      {
-        stroke: '#9CA3AF',
-        grid: { stroke: '#26262A', width: 1 },
-        ticks: { stroke: '#26262A', width: 1 },
-        font: '10px JetBrains Mono, monospace',
-        values: (_: uPlot, ticks: number[]) => ticks.map((v) => (isStatus ? `${v.toFixed(0)} ms` : `${v.toFixed(0)}%`))
-      }
-    ],
-    cursor: {
-      drag: { setScale: true, x: true, y: false },
-      focus: { prox: 30 },
-      points: { size: 6, fill: '#FFFFFF' }
-    },
-    legend: {
-      show: true
-    }
-  };
-
-  uplotInstance = new uPlot(opts, data, chartRef.value);
-}
-
-function zoomIn() {
-  if (!uplotInstance) return;
-  const min = uplotInstance.scales.x.min!;
-  const max = uplotInstance.scales.x.max!;
-  const range = max - min;
-  const center = min + range / 2;
-  const newRange = range * 0.6;
-  uplotInstance.setScale('x', { min: center - newRange / 2, max: center + newRange / 2 });
-}
-
-function zoomOut() {
-  if (!uplotInstance) return;
-  const min = uplotInstance.scales.x.min!;
-  const max = uplotInstance.scales.x.max!;
-  const range = max - min;
-  const center = min + range / 2;
-  const newRange = range * 1.5;
-  uplotInstance.setScale('x', { min: center - newRange / 2, max: center + newRange / 2 });
-}
-
-function resetZoom() {
-  if (uplotInstance && initialXMin != null && initialXMax != null) {
-    uplotInstance.setScale('x', { min: initialXMin, max: initialXMax });
-  }
-}
-
-function handleResize() {
-  if (uplotInstance && chartRef.value) {
-    const width = chartRef.value.getBoundingClientRect().width;
-    if (width > 0) {
-      uplotInstance.setSize({ width, height: 240 });
-    }
-  }
-}
-
-watch([activeMetric, activeRange, customFrom, customTo], fetchAndRender);
+watch([activeRange], () => {
+  fetchAndRender();
+});
 
 onMounted(() => {
   fetchAndRender();
-  window.addEventListener('resize', handleResize);
   wsClient.connect();
   unsubscribeWS = wsClient.subscribe((data: any) => {
     if (data.type === 'LIVE_FEED' || data.type === 'STATUS_CHANGE') {
@@ -409,33 +528,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
   if (unsubscribeWS) {
     unsubscribeWS();
     unsubscribeWS = null;
   }
-  if (uplotInstance) {
-    uplotInstance.destroy();
-    uplotInstance = null;
-  }
 });
 </script>
-
-<style>
-.uplot {
-  font-family: 'JetBrains Mono', monospace !important;
-}
-.uplot .u-legend {
-  color: #9ca3af !important;
-  font-size: 11px !important;
-  font-family: 'JetBrains Mono', monospace !important;
-  padding: 0 0 8px 0 !important;
-}
-.uplot .u-legend .u-series th {
-  color: #d1d5db !important;
-}
-.uplot .u-select {
-  background: rgba(123, 150, 245, 0.2) !important;
-  border: 1px solid rgba(123, 150, 245, 0.6) !important;
-}
-</style>

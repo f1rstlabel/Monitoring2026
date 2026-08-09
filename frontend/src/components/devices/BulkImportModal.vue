@@ -79,10 +79,16 @@
 
               <!-- Format hint -->
               <div class="bg-[#0A0A0B] border border-[#26262A] rounded-xl p-4 space-y-2">
-                <p class="text-[10px] font-mono uppercase tracking-widest text-gray-500">Expected CSV format</p>
-                <pre class="text-[11px] font-mono text-gray-300 leading-5">Name, Model (UniFi), Status, MAC Address, IP Address
-02.01, U6 IW, Up to date, e4:38:83:46:f0:25, 10.11.11.122
-2.1 SETDA, U6 Enterprise, Up to date, 9c:05:d6:a5:4b:65, 10.11.9.100</pre>
+                <div class="flex items-center justify-between">
+                  <p class="text-[10px] font-mono uppercase tracking-widest text-gray-500">Expected CSV format</p>
+                  <button type="button" @click="downloadTemplate" class="text-[10px] text-[#7B96F5] hover:underline flex items-center gap-1 font-semibold bg-transparent border-0 cursor-pointer">
+                    <Download class="w-3.5 h-3.5" />
+                    Download CSV Template
+                  </button>
+                </div>
+                <pre class="text-[10px] font-mono text-gray-300 leading-5 overflow-x-auto whitespace-pre">Device Name,Device Type,Addressing Mode,IP Address,MAC Address,Location,Rack,SNMP Polling Enabled,SNMP Community,SNMP Port,Custom Failure Threshold Override,Custom Failure Threshold Value
+AP Biro Umum,Access Point,Static IP,10.20.1.18,00:1A:2B:3C:4D:5E,Gedung Sate,Rack A,FALSE,public,161,FALSE,3
+AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,public,161,TRUE,5</pre>
               </div>
 
               <!-- Selected file info -->
@@ -122,14 +128,18 @@
                       class="w-full bg-[#0A0A0B] border border-[#26262A] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
                     >
                       <option value="">— Skip this column —</option>
-                      <option value="name">name</option>
-                      <option value="model">model</option>
-                      <option value="mac">mac_address</option>
-                      <option value="ip">ip_address</option>
-                      <option value="firmwareStatus">firmware_status</option>
-                      <option value="type">device_type</option>
-                      <option value="location">location</option>
-                      <option value="addressingMode">addressing_mode</option>
+                      <option value="name">Device Name</option>
+                      <option value="type">Device Type</option>
+                      <option value="addressingMode">Addressing Mode</option>
+                      <option value="ip">IP Address</option>
+                      <option value="mac">MAC Address</option>
+                      <option value="location">Location</option>
+                      <option value="rack">Rack</option>
+                      <option value="snmpEnabled">SNMP Polling Enabled</option>
+                      <option value="snmpCommunity">SNMP Community</option>
+                      <option value="snmpPort">SNMP Port</option>
+                      <option value="useCustomThreshold">Custom Failure Threshold Override</option>
+                      <option value="customFailureThreshold">Custom Failure Threshold Value</option>
                     </select>
                   </div>
                 </div>
@@ -220,13 +230,26 @@
                 </div>
               </div>
 
+              <!-- Location Processing Summary -->
+              <div v-if="newlyCreatedLocations.length > 0 || matchedLocations.length > 0" class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-3">
+                <p class="text-[10px] font-mono uppercase text-gray-500">Location Processing Summary</p>
+                <div v-if="newlyCreatedLocations.length > 0" class="space-y-1">
+                  <p class="text-xs font-semibold text-emerald-400">Newly Created Locations ({{ newlyCreatedLocations.length }}):</p>
+                  <p class="text-[11px] text-gray-300 pl-2 leading-relaxed">{{ newlyCreatedLocations.join(', ') }}</p>
+                </div>
+                <div v-if="matchedLocations.length > 0" class="space-y-1">
+                  <p class="text-xs font-semibold text-sky-400">Matched Existing Locations ({{ matchedLocations.length }}):</p>
+                  <p class="text-[11px] text-gray-400 pl-2 leading-relaxed">{{ matchedLocations.join(', ') }}</p>
+                </div>
+              </div>
+
               <div v-if="importSummary.failed > 0" class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-2">
                 <p class="text-[10px] font-mono uppercase text-gray-500">Failed rows</p>
                 <div v-for="r in importSummary.results.filter(x => x.status === 'failed')" :key="r.rowIndex" class="flex items-center gap-3">
                   <span class="text-[10px] font-mono text-gray-600">Row {{ r.rowIndex + 1 }}</span>
                   <span class="text-xs text-[#F16565]">{{ r.reason }}</span>
                 </div>
-                <button @click="downloadErrorLog" class="mt-2 text-xs text-[#7B96F5] hover:underline flex items-center gap-1">
+                <button @click="downloadErrorLog" class="mt-2 text-xs text-[#7B96F5] hover:underline flex items-center gap-1 bg-transparent border-0 cursor-pointer">
                   <Download class="w-3.5 h-3.5" />
                   Download error log
                 </button>
@@ -298,6 +321,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useDeviceStore } from '../../stores/deviceStore';
+import { locationsApi } from '../../api';
 import type { ImportRow, ImportSummary, ColumnMapping, Device } from '../../types';
 import {
   FileSpreadsheet, X, Upload, Check, ArrowRight, FileCheck,
@@ -318,6 +342,8 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const columnMappings = ref<ColumnMapping[]>([]);
 const parsedRows = ref<ImportRow[]>([]);
 const importSummary = ref<ImportSummary>({ imported: 0, skipped: 0, failed: 0, results: [] });
+const newlyCreatedLocations = ref<string[]>([]);
+const matchedLocations = ref<string[]>([]);
 
 // ─── Computed ────────────────────────────────────────────────────────────────
 const validCount = computed(() => parsedRows.value.filter(r => r.status === 'valid').length);
@@ -362,70 +388,145 @@ async function parseCSV(file: File): Promise<{ headers: string[]; rows: Record<s
 }
 
 // ─── Default Column Auto-mapping ─────────────────────────────────────────────
-const autoMappingRules: Record<string, keyof Device | 'model' | 'firmwareStatus'> = {
-  'name': 'name',
+const autoMappingRules: Record<string, keyof Device | ''> = {
   'device name': 'name',
-  'model (unifi)': 'model',
-  'model': 'model',
-  'mac address': 'mac',
-  'mac': 'mac',
+  'device type': 'type',
+  'addressing mode': 'addressingMode',
   'ip address': 'ip',
-  'ip': 'ip',
-  'status': 'firmwareStatus',
-  'type': 'type',
+  'mac address': 'mac',
   'location': 'location',
+  'rack': 'rack',
+  'snmp polling enabled': 'snmpEnabled',
+  'snmp community': 'snmpCommunity',
+  'snmp port': 'snmpPort',
+  'custom failure threshold override': 'useCustomThreshold',
+  'custom failure threshold value': 'customFailureThreshold'
 };
 
-function autoMapColumn(header: string): keyof Device | 'model' | 'firmwareStatus' | '' {
+function autoMapColumn(header: string): keyof Device | '' {
   const normalized = header.toLowerCase().trim();
   return autoMappingRules[normalized] ?? '';
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
-function normalizeMac(mac: string): string {
-  return mac.toLowerCase().replace(/[:-]/g, ':').replace(/(.{2})(?!$)/g, '$1:').replace(/:{2,}/g, ':');
+function isValidIp(ip: string): boolean {
+  return /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip);
 }
 
-function isValidMac(mac: string): boolean {
-  return /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(mac);
+function isValidMacFormat(rawMac: string): boolean {
+  const clean = rawMac.trim();
+  const colonHyphenRegex = /^([0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2}$/;
+  const dotRegex = /^[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}$/;
+  const rawHexRegex = /^[0-9a-fA-F]{12}$/;
+  
+  return colonHyphenRegex.test(clean) || dotRegex.test(clean) || rawHexRegex.test(clean);
+}
+
+function normalizeMac(rawMac: string): string {
+  const clean = rawMac.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+  if (clean.length !== 12) return rawMac;
+  const parts = [];
+  for (let i = 0; i < 6; i++) {
+    parts.push(clean.slice(i * 2, i * 2 + 2));
+  }
+  return parts.join(':');
 }
 
 function validateRows(rawRows: Record<string, string>[]): ImportRow[] {
   const existingMacs = new Set(deviceStore.devices.map((d: Device) => d.mac.toLowerCase()));
   const seenMacs = new Set<string>();
+  const validTypes = new Set(['Access Point', 'Switch', 'SmartPower', 'Router', 'CCTV', 'NVR']);
 
   return rawRows.map((raw, idx) => {
     const mapped: Partial<Device> = {};
 
     // Apply column mappings
     for (const m of columnMappings.value) {
-      if (!m.targetField || !raw[m.sourceColumn]) continue;
+      if (!m.targetField || raw[m.sourceColumn] === undefined) continue;
       const val = raw[m.sourceColumn].trim();
-      if (m.targetField === 'mac') {
-        mapped.mac = normalizeMac(val);
-      } else if (m.targetField === 'model' || m.targetField === 'firmwareStatus') {
-        (mapped as any)[m.targetField] = val;
+      
+      if (m.targetField === 'snmpEnabled' || m.targetField === 'useCustomThreshold') {
+        const lower = val.toLowerCase();
+        (mapped as any)[m.targetField] = (lower === 'true' || lower === 'yes' || lower === '1');
+      } else if (m.targetField === 'snmpPort' || m.targetField === 'customFailureThreshold') {
+        const num = parseInt(val, 10);
+        (mapped as any)[m.targetField] = isNaN(num) ? undefined : num;
       } else {
         (mapped as any)[m.targetField] = val;
       }
     }
 
-    // Validation checks
+    // Name check
     if (!mapped.name) {
-      return { rowIndex: idx, raw, mapped, status: 'missing_field' as const, reason: 'Missing device name' };
+      return { rowIndex: idx, raw, mapped, status: 'missing_field', reason: 'Missing device name' };
     }
-    if (!mapped.mac) {
-      return { rowIndex: idx, raw, mapped, status: 'missing_field' as const, reason: 'Missing MAC address' };
+    
+    // Type check
+    if (!mapped.type) {
+      return { rowIndex: idx, raw, mapped, status: 'missing_field', reason: 'Missing device type' };
     }
-    if (!isValidMac(mapped.mac)) {
-      return { rowIndex: idx, raw, mapped, status: 'invalid_mac' as const, reason: `Invalid MAC format: ${mapped.mac}` };
-    }
-    if (existingMacs.has(mapped.mac.toLowerCase()) || seenMacs.has(mapped.mac.toLowerCase())) {
-      return { rowIndex: idx, raw, mapped, status: 'duplicate_mac' as const, reason: `Duplicate MAC: ${mapped.mac}` };
+    if (!validTypes.has(mapped.type)) {
+      return { rowIndex: idx, raw, mapped, status: 'failed', reason: `Unrecognized Device Type: '${mapped.type}'` };
     }
 
-    seenMacs.add(mapped.mac.toLowerCase());
-    return { rowIndex: idx, raw, mapped, status: 'valid' as const };
+    // Addressing mode check
+    const rawMode = (mapped.addressingMode as string || '').trim();
+    if (!rawMode) {
+      return { rowIndex: idx, raw, mapped, status: 'missing_field', reason: 'Missing addressing mode' };
+    }
+    
+    let normalizedMode: 'Static' | 'DHCP';
+    if (rawMode.toLowerCase() === 'static ip' || rawMode.toLowerCase() === 'static') {
+      normalizedMode = 'Static';
+    } else if (rawMode.toLowerCase() === 'dhcp reservation' || rawMode.toLowerCase() === 'dhcp') {
+      normalizedMode = 'DHCP';
+    } else {
+      return { rowIndex: idx, raw, mapped, status: 'failed', reason: `Invalid addressing mode: '${rawMode}'` };
+    }
+    mapped.addressingMode = normalizedMode;
+
+    // IP Check
+    const rawIp = (mapped.ip || '').trim();
+    if (normalizedMode === 'Static' && !rawIp) {
+      return { rowIndex: idx, raw, mapped, status: 'missing_field', reason: 'IP Address is required for Static IP mode' };
+    }
+    if (rawIp && !isValidIp(rawIp)) {
+      return { rowIndex: idx, raw, mapped, status: 'failed', reason: `Invalid IP address format: '${rawIp}'` };
+    }
+    mapped.ip = rawIp;
+
+    // MAC Check
+    const rawMac = (mapped.mac || '').trim();
+    if (!rawMac) {
+      return { rowIndex: idx, raw, mapped, status: 'missing_field', reason: 'Missing MAC address' };
+    }
+    if (!isValidMacFormat(rawMac)) {
+      return { rowIndex: idx, raw, mapped, status: 'invalid_mac', reason: `Invalid MAC format: '${rawMac}'` };
+    }
+    
+    const normalizedMac = normalizeMac(rawMac);
+    mapped.mac = normalizedMac;
+
+    if (existingMacs.has(normalizedMac.toLowerCase()) || seenMacs.has(normalizedMac.toLowerCase())) {
+      return { rowIndex: idx, raw, mapped, status: 'duplicate_mac', reason: `Duplicate MAC: '${normalizedMac}'` };
+    }
+    seenMacs.add(normalizedMac.toLowerCase());
+
+    // SNMP Check
+    if (mapped.snmpEnabled) {
+      if (mapped.snmpPort !== undefined && (mapped.snmpPort < 1 || mapped.snmpPort > 65535)) {
+        return { rowIndex: idx, raw, mapped, status: 'failed', reason: `Invalid SNMP port: ${mapped.snmpPort}` };
+      }
+    }
+
+    // Threshold Check
+    if (mapped.useCustomThreshold) {
+      if (mapped.customFailureThreshold === undefined || mapped.customFailureThreshold === null || mapped.customFailureThreshold < 1 || mapped.customFailureThreshold > 10) {
+        return { rowIndex: idx, raw, mapped, status: 'failed', reason: `Invalid fails threshold: ${mapped.customFailureThreshold || ''} (must be 1-10)` };
+      }
+    }
+
+    return { rowIndex: idx, raw, mapped, status: 'valid' };
   });
 }
 
@@ -452,22 +553,69 @@ async function executeImport() {
   let imported = 0;
   let skipped = 0;
   let failed = 0;
+  
+  newlyCreatedLocations.value = [];
+  matchedLocations.value = [];
+
+  let existingLocsList: { id: string; name: string }[] = [];
+  try {
+    existingLocsList = await locationsApi.getLocations();
+  } catch (err) {
+    console.error('Failed to pre-fetch locations:', err);
+  }
+
+  const locationMap = new Map<string, string>();
+  for (const loc of existingLocsList) {
+    locationMap.set(loc.name.trim().toLowerCase(), loc.id);
+  }
+
+  const newLocsSet = new Set<string>();
+  const matchedLocsSet = new Set<string>();
 
   for (const row of parsedRows.value) {
     if (row.status === 'valid') {
       try {
+        let locId = '';
+        let locName = (row.mapped.location || '').trim();
+        
+        if (locName) {
+          const normLocName = locName.toLowerCase();
+          if (locationMap.has(normLocName)) {
+            locId = locationMap.get(normLocName)!;
+            matchedLocsSet.add(locName);
+          } else {
+            try {
+              const created = await locationsApi.createLocation(locName);
+              locId = created.id;
+              locationMap.set(normLocName, locId);
+              newLocsSet.add(locName);
+            } catch (err) {
+              console.error(`Failed to create location '${locName}', fallback to database auto-creation:`, err);
+              newLocsSet.add(locName);
+            }
+          }
+        }
+
         await deviceStore.addDevice({
           name: row.mapped.name!,
-          type: (row.mapped.type as any) || 'Access Point',
-          ip: row.mapped.ip || '0.0.0.0',
+          type: row.mapped.type!,
+          ip: row.mapped.ip || '',
           mac: row.mapped.mac!,
-          addressingMode: 'DHCP',
-          location: row.mapped.location || '',
+          addressingMode: row.mapped.addressingMode!,
+          locationId: locId || undefined,
+          location: locName || '',
+          rack: row.mapped.rack || '',
+          snmpEnabled: row.mapped.snmpEnabled || false,
+          snmpCommunity: row.mapped.snmpEnabled ? (row.mapped.snmpCommunity || 'public') : '',
+          snmpPort: row.mapped.snmpEnabled ? (row.mapped.snmpPort || 161) : undefined,
+          useCustomThreshold: row.mapped.useCustomThreshold || false,
+          customFailureThreshold: row.mapped.useCustomThreshold ? (row.mapped.customFailureThreshold || 3) : null,
+          failureThreshold: row.mapped.useCustomThreshold ? (row.mapped.customFailureThreshold || 3) : 3
         });
         results.push({ rowIndex: row.rowIndex, status: 'imported' });
         imported++;
-      } catch {
-        results.push({ rowIndex: row.rowIndex, status: 'failed', reason: 'API error' });
+      } catch (err: any) {
+        results.push({ rowIndex: row.rowIndex, status: 'failed', reason: err.response?.data?.message || 'API error' });
         failed++;
       }
     } else if (row.status === 'duplicate_mac') {
@@ -479,8 +627,38 @@ async function executeImport() {
     }
   }
 
+  newlyCreatedLocations.value = Array.from(newLocsSet);
+  matchedLocations.value = Array.from(matchedLocsSet);
+
   importSummary.value = { imported, skipped, failed, results };
   step.value = 3;
+}
+
+function downloadTemplate() {
+  const headers = [
+    'Device Name',
+    'Device Type',
+    'Addressing Mode',
+    'IP Address',
+    'MAC Address',
+    'Location',
+    'Rack',
+    'SNMP Polling Enabled',
+    'SNMP Community',
+    'SNMP Port',
+    'Custom Failure Threshold Override',
+    'Custom Failure Threshold Value'
+  ].join(',');
+  const row1 = 'AP Biro Umum,Access Point,Static IP,10.20.1.18,00:1A:2B:3C:4D:5E,Gedung Sate,Rack A,FALSE,public,161,FALSE,3';
+  const row2 = 'AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,public,161,TRUE,5';
+  const csv = [headers, row1, row2].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'device_import_template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -516,13 +694,14 @@ function downloadErrorLog() {
 
 function handleClose() {
   emit('close');
-  // Reset after close animation
   setTimeout(() => {
     step.value = 0;
     selectedFile.value = null;
     parsedRows.value = [];
     columnMappings.value = [];
     importSummary.value = { imported: 0, skipped: 0, failed: 0, results: [] };
+    newlyCreatedLocations.value = [];
+    matchedLocations.value = [];
   }, 300);
 }
 
@@ -532,6 +711,8 @@ watch(() => props.isOpen, (val) => {
     step.value = 0;
     selectedFile.value = null;
     parsedRows.value = [];
+    newlyCreatedLocations.value = [];
+    matchedLocations.value = [];
   }
 });
 </script>

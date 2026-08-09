@@ -136,7 +136,7 @@
           </div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div
-              v-for="device in deviceStore.filteredDevices.slice(0, 30)"
+              v-for="device in deviceStore.devices"
               :key="device.id"
               @click="router.push(`/devices/${device.id}`)"
               class="bg-[#151517] border rounded-xl p-4 space-y-3 cursor-pointer hover:border-[#7B96F5] transition-all group"
@@ -191,7 +191,7 @@
             </thead>
             <tbody class="divide-y divide-[#26262A]">
               <tr
-                v-for="device in deviceStore.filteredDevices.slice(0, 40)"
+                v-for="device in deviceStore.devices"
                 :key="device.id"
                 @click="router.push(`/devices/${device.id}`)"
                 class="hover:bg-[#18181B] cursor-pointer transition-colors"
@@ -207,6 +207,15 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Control -->
+        <div class="mt-4">
+          <PaginationControl
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :total="deviceStore.totalCount"
+          />
+        </div>
       </div>
 
       <!-- Right 1-Column: Live Feed Panel -->
@@ -221,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDeviceStore } from '../stores/deviceStore';
 import { useAuthStore } from '../stores/authStore';
@@ -231,6 +240,7 @@ import Skeleton from '../components/common/Skeleton.vue';
 import LiveFeedPanel from '../components/dashboard/LiveFeedPanel.vue';
 import StatusPill from '../components/common/StatusPill.vue';
 import DeviceFormModal from '../components/devices/DeviceFormModal.vue';
+import PaginationControl from '../components/common/PaginationControl.vue';
 import {
   Server,
   CheckCircle2,
@@ -247,8 +257,42 @@ const deviceStore = useDeviceStore();
 const authStore = useAuthStore();
 const isAddModalOpen = ref(false);
 
+const currentPage = ref(1);
+const pageSize = ref(10);
+
+function loadDevices() {
+  deviceStore.fetchDevices({
+    page: currentPage.value,
+    pageSize: pageSize.value
+  });
+}
+
 onMounted(() => {
-  deviceStore.fetchDevices();
+  loadDevices();
   deviceStore.fetchSummary();
 });
+
+watch([currentPage, pageSize], () => {
+  loadDevices();
+});
+
+let searchTimeout: any = null;
+watch(
+  () => deviceStore.searchQuery,
+  () => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentPage.value = 1;
+      loadDevices();
+    }, 300);
+  }
+);
+
+watch(
+  () => [deviceStore.selectedTypeFilter, deviceStore.selectedStatusFilter],
+  () => {
+    currentPage.value = 1;
+    loadDevices();
+  }
+);
 </script>

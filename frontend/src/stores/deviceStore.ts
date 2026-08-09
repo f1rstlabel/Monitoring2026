@@ -18,6 +18,7 @@ export const useDeviceStore = defineStore('devices', () => {
   const selectedStatusFilter = ref<string>('All');
   const searchQuery = ref<string>('');
   const viewMode = ref<'grid' | 'list'>('grid');
+  const totalCount = ref<number>(0);
 
   const filteredDevices = computed(() => {
     return devices.value.filter(device => {
@@ -43,24 +44,41 @@ export const useDeviceStore = defineStore('devices', () => {
     }
   }
 
-  async function fetchDevices() {
+  async function fetchDevices(params?: { page?: number; pageSize?: number }) {
     isLoading.value = true;
     try {
-      const data = await devicesApi.getDevices({
+      const queryParams: any = {
         type: selectedTypeFilter.value !== 'All' ? selectedTypeFilter.value : undefined,
         status: selectedStatusFilter.value !== 'All' ? selectedStatusFilter.value : undefined,
         search: searchQuery.value || undefined
-      });
-      devices.value = data;
+      };
+      if (params && params.page !== undefined) {
+        queryParams.page = params.page;
+        queryParams.page_size = params.pageSize || 10;
+      }
+      const res = await devicesApi.getDevices(queryParams);
+      if (res && (Array.isArray(res.items) || Array.isArray(res.data))) {
+        devices.value = res.items || res.data;
+        totalCount.value = res.total || devices.value.length;
+      } else if (Array.isArray(res)) {
+        devices.value = res;
+        totalCount.value = res.length;
+      } else {
+        devices.value = [];
+        totalCount.value = 0;
+      }
     } catch (e) {
       // Fallback generator if offline / mock loading
       if (devices.value.length === 0) {
         devices.value = generateInitialDevices();
+        totalCount.value = devices.value.length;
       }
     } finally {
       isLoading.value = false;
     }
   }
+
+
 
   async function addDevice(deviceData: Partial<Device>) {
     try {
@@ -135,6 +153,7 @@ export const useDeviceStore = defineStore('devices', () => {
     selectedStatusFilter,
     searchQuery,
     viewMode,
+    totalCount,
     filteredDevices,
     fetchSummary,
     fetchDevices,

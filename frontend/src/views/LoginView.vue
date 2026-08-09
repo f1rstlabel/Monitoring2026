@@ -85,58 +85,12 @@
           <span v-else class="animate-pulse">Authenticating...</span>
         </button>
       </form>
-
-      <!-- Forgot Password Link -->
-      <div class="mt-6 text-center">
-        <a href="#" @click.prevent="isForgotModalOpen = true" class="text-xs text-gray-500 hover:text-[#7B96F5] transition-colors">
-          Forgot password?
-        </a>
-      </div>
     </div>
 
     <!-- Footer Tag -->
     <div class="mt-8 text-center text-[10px] font-mono text-gray-600 tracking-wider">
       v2.4.1-stable // NOC SECURE LOGIN
     </div>
-
-    <!-- Forgot Password Modal -->
-    <Modal :is-open="isForgotModalOpen" title="Reset Password" @close="isForgotModalOpen = false">
-      <template #default>
-        <form @submit.prevent="handleForgotPassword" class="space-y-4 text-xs">
-          <div class="space-y-1.5">
-            <label class="block font-mono uppercase text-[10px] text-gray-400">Email Address *</label>
-            <input
-              v-model="forgotEmail"
-              type="email"
-              required
-              placeholder="e.g. admin.noc@jabarprov.go.id"
-              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5]"
-            />
-          </div>
-
-          <div v-if="forgotMessage" class="p-2.5 rounded bg-[#34D399]/10 border border-[#34D399]/30 text-[#34D399] text-xs font-mono">
-            {{ forgotMessage }}
-          </div>
-        </form>
-      </template>
-
-      <template #footer>
-        <button
-          @click="isForgotModalOpen = false"
-          class="px-4 py-2 rounded-lg border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs"
-        >
-          Close
-        </button>
-        <button
-          @click="handleForgotPassword"
-          :disabled="!forgotEmail || isSendingForgot"
-          class="px-5 py-2 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs flex items-center gap-2 disabled:opacity-50"
-        >
-          <span v-if="!isSendingForgot">Send Reset Link</span>
-          <span v-else class="animate-pulse">Sending...</span>
-        </button>
-      </template>
-    </Modal>
   </div>
 </template>
 
@@ -144,8 +98,6 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
-import { authApi } from '../api';
-import Modal from '../components/common/Modal.vue';
 import { Shield, User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -157,11 +109,6 @@ const showPassword = ref(false);
 const rememberMe = ref(true);
 const errorMessage = ref('');
 const isSubmitting = ref(false);
-
-const isForgotModalOpen = ref(false);
-const forgotEmail = ref('');
-const forgotMessage = ref('');
-const isSendingForgot = ref(false);
 
 async function handleLogin() {
   errorMessage.value = '';
@@ -178,20 +125,6 @@ async function handleLogin() {
     errorMessage.value = e.response?.data?.message || 'Invalid username or password';
   } finally {
     isSubmitting.value = false;
-  }
-}
-
-async function handleForgotPassword() {
-  if (!forgotEmail.value) return;
-  isSendingForgot.value = true;
-  forgotMessage.value = '';
-  try {
-    const res = await authApi.forgotPassword(forgotEmail.value);
-    forgotMessage.value = res.message || 'Password reset link sent to your email';
-  } catch (e: any) {
-    forgotMessage.value = e.response?.data?.message || 'Failed to send reset link';
-  } finally {
-    isSendingForgot.value = false;
   }
 }
 </script>

@@ -34,7 +34,7 @@
 
     <!-- Filter Bar -->
     <div class="bg-[#151517] border border-[#26262A] rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3 flex-1 min-w-[240px]">
+      <div class="flex items-center gap-3 flex-1 min-w-[320px]">
         <div class="relative flex-1">
           <Search class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -49,8 +49,17 @@
           class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
         >
           <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">ACTIVE Outages Only</option>
+          <option value="ACTIVE">ACTIVE Outages</option>
           <option value="RESOLVED">RESOLVED Only</option>
+        </select>
+        <select
+          v-model="groupingMode"
+          class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+        >
+          <option value="none">No Grouping / Flat List</option>
+          <option value="location">Group by Location</option>
+          <option value="device">Group by Device</option>
+          <option value="status">Group by Status</option>
         </select>
       </div>
 
@@ -62,7 +71,116 @@
     <!-- Skeleton while loading -->
     <SkeletonTable v-if="incidentStore.isLoading" :rows="6" :cols="7" />
 
-    <!-- Incident List Table -->
+    <!-- Grouped Accordion List (by Location, Device, Status) -->
+    <div v-else-if="groupingMode !== 'none'" class="space-y-4">
+      <div v-if="paginatedGroupedIncidents.length === 0" class="bg-[#151517] border border-[#26262A] rounded-xl p-12 text-center">
+        <p class="text-sm font-semibold text-gray-300 font-mono">No incidents match your filters</p>
+      </div>
+
+      <div
+        v-for="group in paginatedGroupedIncidents"
+        :key="group.name"
+        class="bg-[#151517] border rounded-xl overflow-hidden shadow-xl transition-all"
+        :class="group.activeCount > 0 ? 'border-red-500/30' : 'border-[#26262A]'"
+      >
+        <!-- Group Header -->
+        <div
+          @click="toggleGroupExpand(group.name)"
+          class="flex items-center justify-between p-4 cursor-pointer hover:bg-[#1C1C20] transition-colors"
+        >
+          <div class="flex items-center gap-3">
+            <span
+              class="w-2.5 h-2.5 rounded-full"
+              :class="group.activeCount > 0 ? 'bg-red-500 pulsing-dot-red' : 'bg-emerald-500'"
+            ></span>
+            <div>
+              <h3 class="text-sm font-bold text-gray-100 flex items-center gap-2">
+                {{ group.name }}
+                <span class="text-xs font-mono font-normal text-gray-500">
+                  ({{ group.items.length }} Incidents)
+                </span>
+              </h3>
+              <p class="text-[10px] font-mono text-gray-500 mt-0.5">
+                {{ group.activeCount }} ACTIVE OUTAGE(S) &bull; {{ group.resolvedCount }} RESOLVED
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span
+              class="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase border"
+              :class="group.activeCount > 0 ? 'bg-red-500/15 text-red-400 border-red-500/30' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'"
+            >
+              {{ group.activeCount > 0 ? `${group.activeCount} OUTAGE` : 'RESOLVED' }}
+            </span>
+            <ChevronRight
+              class="w-4 h-4 text-gray-400 transition-transform duration-200"
+              :class="expandedGroups[group.name] !== false ? 'rotate-180' : ''"
+            />
+          </div>
+        </div>
+
+        <!-- Group Table Content -->
+        <div v-if="expandedGroups[group.name] !== false" class="overflow-x-auto border-t border-[#26262A]">
+          <table class="w-full text-left text-xs text-gray-300">
+            <thead class="bg-[#18181B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-400">
+              <tr>
+                <th class="py-3.5 px-4">Ticket ID</th>
+                <th class="py-3.5 px-4">Device Name</th>
+                <th class="py-3.5 px-4">Type</th>
+                <th class="py-3.5 px-4">IP Address</th>
+                <th class="py-3.5 px-4">Duration</th>
+                <th class="py-3.5 px-4">Affected</th>
+                <th class="py-3.5 px-4">Status</th>
+                <th class="py-3.5 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#26262A]">
+              <tr
+                v-for="inc in group.items"
+                :key="inc.id"
+                @click="router.push(`/incidents/${inc.id}`)"
+                class="hover:bg-[#18181B] transition-colors cursor-pointer group"
+                :class="{
+                  'border-l-2 border-l-[#F16565] bg-red-500/5': inc.status === 'ACTIVE'
+                }"
+              >
+                <td class="py-3.5 px-4 font-mono font-bold text-[#7B96F5] group-hover:underline">
+                  {{ inc.id }}
+                </td>
+                <td class="py-3.5 px-4 font-bold text-white">{{ inc.deviceName }}</td>
+                <td class="py-3.5 px-4 font-mono text-gray-400">{{ inc.deviceType }}</td>
+                <td class="py-3.5 px-4 font-mono text-gray-300">{{ inc.deviceIp }}</td>
+                <td class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
+                <td class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
+                <td class="py-3.5 px-4">
+                  <span
+                    class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border"
+                    :class="inc.status === 'ACTIVE'
+                      ? 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse'
+                      : 'bg-[#3ECF8E]/15 text-[#3ECF8E] border-[#3ECF8E]/30'"
+                  >
+                    {{ inc.status }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 text-right" @click.stop>
+                  <div class="flex items-center justify-end gap-1">
+                    <button
+                      @click.stop="router.push(`/incidents/${inc.id}`)"
+                      class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#26262A] transition-colors"
+                    >
+                      <ChevronRight class="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Incident List Table (Flat View) -->
     <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden shadow-xl">
       <table class="w-full text-left text-xs text-gray-300">
         <thead class="bg-[#18181B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-400">
@@ -80,7 +198,7 @@
         <tbody class="divide-y divide-[#26262A]">
           <template v-if="filteredIncidents.length > 0">
             <tr
-              v-for="inc in filteredIncidents"
+              v-for="inc in incidentStore.incidents"
               :key="inc.id"
               @click="router.push(`/incidents/${inc.id}`)"
               class="hover:bg-[#18181B] transition-colors cursor-pointer group"
@@ -130,22 +248,45 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination Control -->
+    <PaginationControl
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+      :total="paginatedTotal"
+    />
+
+    <!-- Hidden Printable Report element for PDF output -->
+    <PrintableIncidentsList
+      v-if="isPrintRendered"
+      :incidents="filteredIncidents"
+      :groupingMode="groupingMode"
+      :groupedIncidents="groupedIncidents"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
+import PaginationControl from '../components/common/PaginationControl.vue';
+import PrintableIncidentsList from '../components/reports/PrintableIncidentsList.vue';
 import { ChevronRight, CheckCircle, FileText, Printer, Search } from 'lucide-vue-next';
 import type { Incident } from '../types';
+
+const currentPage = ref(1);
+const pageSize = ref(10);
 
 const router = useRouter();
 const incidentStore = useIncidentStore();
 
 const searchQuery = ref('');
 const statusFilter = ref('ALL');
+const groupingMode = ref<'none' | 'location' | 'device' | 'status'>('none');
+const expandedGroups = ref<Record<string, boolean>>({});
+const isPrintRendered = ref(false);
 
 const filteredIncidents = computed(() => {
   return incidentStore.incidents.filter((inc: Incident) => {
@@ -163,9 +304,65 @@ const filteredIncidents = computed(() => {
   });
 });
 
+const paginatedTotal = computed(() => {
+  if (groupingMode.value === 'none') {
+    return incidentStore.totalCount;
+  }
+  return groupedIncidents.value.length;
+});
+
+const paginatedGroupedIncidents = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return groupedIncidents.value.slice(start, start + pageSize.value);
+});
+
+const groupedIncidents = computed(() => {
+  if (groupingMode.value === 'none') {
+    return [];
+  }
+
+  const map: Record<string, { name: string; items: Incident[]; activeCount: number; resolvedCount: number }> = {};
+  
+  for (const inc of filteredIncidents.value) {
+    let key = '';
+    if (groupingMode.value === 'location') {
+      key = (inc.location || 'Unassigned').trim();
+    } else if (groupingMode.value === 'device') {
+      key = (inc.deviceName || 'Unknown Device').trim();
+    } else if (groupingMode.value === 'status') {
+      key = (inc.status || 'ACTIVE').trim();
+    }
+
+    if (!map[key]) {
+      map[key] = { name: key, items: [], activeCount: 0, resolvedCount: 0 };
+    }
+    map[key].items.push(inc);
+    if (inc.status === 'ACTIVE') {
+      map[key].activeCount++;
+    } else {
+      map[key].resolvedCount++;
+    }
+  }
+
+  return Object.values(map).sort((a, b) => {
+    if (b.activeCount !== a.activeCount) {
+      return b.activeCount - a.activeCount;
+    }
+    return a.name.localeCompare(b.name);
+  });
+});
+
+function toggleGroupExpand(name: string) {
+  if (expandedGroups.value[name] === undefined) {
+    expandedGroups.value[name] = true; // default expand when clicked first time
+  } else {
+    expandedGroups.value[name] = !expandedGroups.value[name];
+  }
+}
+
 function exportIncidentsCSV() {
   const headers = ['Ticket ID', 'Device Name', 'Type', 'IP Address', 'Duration', 'Affected Count', 'Status'];
-  const rows = incidentStore.incidents.map((i: Incident) => [
+  const rows = filteredIncidents.value.map((i: Incident) => [
     i.id,
     i.deviceName,
     i.deviceType,
@@ -184,11 +381,48 @@ function exportIncidentsCSV() {
   URL.revokeObjectURL(url);
 }
 
-function exportIncidentsPDF() {
+async function exportIncidentsPDF() {
+  isPrintRendered.value = true;
+  await nextTick();
+  await new Promise((resolve) => setTimeout(resolve, 100)); // allow rendering thread sync
   window.print();
+  isPrintRendered.value = false;
+}
+
+function loadIncidents() {
+  if (groupingMode.value === 'none') {
+    incidentStore.fetchIncidents({
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      status: statusFilter.value !== 'ALL' ? statusFilter.value : undefined,
+      search: searchQuery.value || undefined
+    });
+  } else {
+    // Grouped mode requires the full matching dataset
+    incidentStore.fetchIncidents({
+      status: statusFilter.value !== 'ALL' ? statusFilter.value : undefined,
+      search: searchQuery.value || undefined
+    });
+  }
 }
 
 onMounted(() => {
-  incidentStore.fetchIncidents();
+  loadIncidents();
 });
+
+watch([currentPage, pageSize], () => {
+  loadIncidents();
+});
+
+watch(
+  () => [
+    groupingMode.value,
+    statusFilter.value,
+    searchQuery.value
+  ],
+  () => {
+    currentPage.value = 1;
+    loadIncidents();
+  }
+);
 </script>

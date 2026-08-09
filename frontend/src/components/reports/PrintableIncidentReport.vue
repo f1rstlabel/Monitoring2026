@@ -38,7 +38,7 @@
 
       <!-- Tabel Detail Dampak & Audit -->
       <div class="mb-6 break-inside-avoid page-break-inside-avoid">
-        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">2. ANALISIS DAMPAK &amp; AUDIT TRAIL NOTIFIKASI</h3>
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">2. ANALISIS DAMPAK</h3>
         <table class="w-full text-left border-collapse border border-slate-300 text-xs" style="table-layout: fixed; width: 100%;">
           <colgroup>
             <col style="width: 35%;">
@@ -46,22 +46,94 @@
           </colgroup>
           <thead>
             <tr class="bg-slate-100 font-bold text-slate-700 font-mono uppercase text-[10px]">
-              <th class="border border-slate-300 p-2.5">Parameter Audit</th>
-              <th class="border border-slate-300 p-2.5">Hasil Evaluasi / Deskripsi Sistem</th>
+              <th class="border border-slate-300 p-2">Parameter Audit</th>
+              <th class="border border-slate-300 p-2">Hasil Evaluasi / Deskripsi Sistem</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200">
             <tr class="break-inside-avoid page-break-inside-avoid">
-              <td class="border border-slate-300 p-2.5 font-semibold text-slate-800">Jumlah Node Terdampak</td>
-              <td class="border border-slate-300 p-2.5 font-mono">{{ incident.affectedDevicesCount || 1 }} Perangkat Infrastructure</td>
+              <td class="border border-slate-300 p-2 font-semibold text-slate-800">Jumlah Node Terdampak</td>
+              <td class="border border-slate-300 p-2 font-mono">{{ incident.affectedDevicesCount || 1 }} Perangkat Infrastructure</td>
             </tr>
             <tr class="break-inside-avoid page-break-inside-avoid">
-              <td class="border border-slate-300 p-2.5 font-semibold text-slate-800">Indikator Kegagalan ICMP</td>
-              <td class="border border-slate-300 p-2.5">Ping Packet Loss 100% (Batas threshold kegagalan berturut-turut terlampaui).</td>
+              <td class="border border-slate-300 p-2 font-semibold text-slate-800">Indikator Kegagalan ICMP</td>
+              <td class="border border-slate-300 p-2">Ping Packet Loss {{ incident.packetLoss }}% (Batas threshold kegagalan berturut-turut terlampaui).</td>
             </tr>
             <tr class="break-inside-avoid page-break-inside-avoid">
-              <td class="border border-slate-300 p-2.5 font-semibold text-slate-800">Kanal Dispatched Alert</td>
-              <td class="border border-slate-300 p-2.5">Notifikasi otomatis terkirim via WhatsApp API Gateway &amp; Telegram NOC Channel.</td>
+              <td class="border border-slate-300 p-2 font-semibold text-slate-800">Kanal Dispatched Alert</td>
+              <td class="border border-slate-300 p-2">Notifikasi otomatis terkirim via WhatsApp API Gateway &amp; Telegram NOC Channel.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Event Timeline Logs -->
+      <div class="mb-6 break-inside-avoid page-break-inside-avoid">
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">3. EVENT TIMELINE LOGS</h3>
+        <table class="w-full text-left border-collapse border border-slate-300 text-xs" style="table-layout: fixed; width: 100%;">
+          <colgroup>
+            <col style="width: 25%;">
+            <col style="width: 25%;">
+            <col style="width: 50%;">
+          </colgroup>
+          <thead>
+            <tr class="bg-slate-100 font-bold text-slate-700 font-mono uppercase text-[10px]">
+              <th class="border border-slate-300 p-2">Waktu</th>
+              <th class="border border-slate-300 p-2">Event / Aksi</th>
+              <th class="border border-slate-300 p-2">Deskripsi Detail</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            <tr v-for="evt in incident.timeline" :key="evt.id" class="break-inside-avoid page-break-inside-avoid">
+              <td class="border border-slate-300 p-2 font-mono text-[10px]">{{ evt.timestamp }}</td>
+              <td class="border border-slate-300 p-2 font-semibold text-slate-800">
+                {{ evt.title }}
+                <span v-if="evt.channel" class="text-[9px] font-mono px-1 rounded bg-slate-100 border border-slate-300 text-slate-700">
+                  {{ evt.channel }}
+                </span>
+              </td>
+              <td class="border border-slate-300 p-2 font-mono text-slate-600 text-[11px]">{{ evt.description }}</td>
+            </tr>
+            <tr v-if="!incident.timeline || incident.timeline.length === 0">
+              <td colspan="3" class="border border-slate-300 p-4 text-center text-slate-400 font-mono">Tidak ada log timeline.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Notification Log -->
+      <div class="mb-6 break-inside-avoid page-break-inside-avoid">
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">4. NOTIFIKASI AUDIT LOG</h3>
+        <table class="w-full text-left border-collapse border border-slate-300 text-xs" style="table-layout: fixed; width: 100%;">
+          <colgroup>
+            <col style="width: 20%;">
+            <col style="width: 45%;">
+            <col style="width: 15%;">
+            <col style="width: 20%;">
+          </colgroup>
+          <thead>
+            <tr class="bg-slate-100 font-bold text-slate-700 font-mono uppercase text-[10px]">
+              <th class="border border-slate-300 p-2">Kanal</th>
+              <th class="border border-slate-300 p-2">Penerima</th>
+              <th class="border border-slate-300 p-2">Status</th>
+              <th class="border border-slate-300 p-2 text-right">Dikirim Pada</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            <tr v-for="log in incident.notificationLog" :key="log.id" class="break-inside-avoid page-break-inside-avoid">
+              <td class="border border-slate-300 p-2 font-semibold text-slate-800">{{ log.channel }}</td>
+              <td class="border border-slate-300 p-2 font-mono text-[11px] text-slate-600">{{ log.recipient }}</td>
+              <td class="border border-slate-300 p-2">
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold"
+                  :class="log.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'"
+                >
+                  {{ log.status }}
+                </span>
+              </td>
+              <td class="border border-slate-300 p-2 text-right font-mono text-slate-500">{{ log.timestamp }}</td>
+            </tr>
+            <tr v-if="!incident.notificationLog || incident.notificationLog.length === 0">
+              <td colspan="4" class="border border-slate-300 p-4 text-center text-slate-400 font-mono">Tidak ada log notifikasi.</td>
             </tr>
           </tbody>
         </table>
@@ -116,20 +188,32 @@ defineProps<{
     box-shadow: none !important;
   }
 
-  /* Prevent page split inside table rows/cards */
+  /* Prevent page split inside elements */
   .break-inside-avoid {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+
+  tr, .grid, .mb-6 {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
   /* Wrap text for table cells */
   table {
     table-layout: fixed !important;
     width: 100% !important;
+    border-collapse: collapse !important;
   }
 
   th, td {
-    word-break: break-word !important;
+    word-wrap: break-word !important;
+    word-break: break-all !important;
     overflow-wrap: break-word !important;
     white-space: normal !important;
   }

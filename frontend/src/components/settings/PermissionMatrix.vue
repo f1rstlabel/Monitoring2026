@@ -8,7 +8,7 @@
           Role Permission Access Control Matrix
         </h2>
         <p class="text-xs text-gray-400 mt-1">
-          Configure granular feature capability access per role. Changes take effect instantly across frontend &amp; backend middleware.
+          Configure explicit feature permission matrix per role using radio controls. Admin bypasses all checks.
         </p>
       </div>
 
@@ -33,9 +33,9 @@
         <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-400 border-b border-[#26262A]">
           <tr>
             <th class="py-3 px-4">Feature Module &amp; Action</th>
-            <th class="py-3 px-4 text-center w-36">Pimpinan</th>
-            <th class="py-3 px-4 text-center w-36">Anggota NOC</th>
-            <th class="py-3 px-4 text-center w-32">Super Admin</th>
+            <th class="py-3 px-4 text-center w-48">Pimpinan</th>
+            <th class="py-3 px-4 text-center w-48">Anggota NOC</th>
+            <th class="py-3 px-4 text-center w-36">Admin</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#26262A]">
@@ -56,40 +56,66 @@
                 </div>
               </td>
 
-              <!-- Pimpinan Toggle -->
+              <!-- Pimpinan Radio Controls -->
               <td class="py-3 px-4 text-center">
-                <button
-                  type="button"
-                  @click="togglePermission('pimpinan', feat.key)"
-                  class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-                  :class="getPermission('pimpinan', feat.key) ? 'bg-[#7B96F5]' : 'bg-[#26262A]'"
-                >
-                  <span
-                    class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                    :class="getPermission('pimpinan', feat.key) ? 'translate-x-4' : 'translate-x-0'"
-                  />
-                </button>
+                <div class="inline-flex items-center gap-3 bg-[#18181B] border border-[#26262A] px-2.5 py-1 rounded-lg text-[11px] font-mono">
+                  <label class="inline-flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      :name="'pimpinan-' + feat.key"
+                      :value="true"
+                      :checked="getPermission('pimpinan', feat.key) === true"
+                      @change="setPermission('pimpinan', feat.key, true)"
+                      class="text-[#7B96F5] focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
+                    />
+                    <span class="text-emerald-400 font-semibold">Allow</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      :name="'pimpinan-' + feat.key"
+                      :value="false"
+                      :checked="getPermission('pimpinan', feat.key) === false"
+                      @change="setPermission('pimpinan', feat.key, false)"
+                      class="text-red-400 focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
+                    />
+                    <span class="text-gray-400">Deny</span>
+                  </label>
+                </div>
               </td>
 
-              <!-- Anggota Toggle -->
+              <!-- Anggota Radio Controls -->
               <td class="py-3 px-4 text-center">
-                <button
-                  type="button"
-                  @click="togglePermission('anggota', feat.key)"
-                  class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-                  :class="getPermission('anggota', feat.key) ? 'bg-[#7B96F5]' : 'bg-[#26262A]'"
-                >
-                  <span
-                    class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                    :class="getPermission('anggota', feat.key) ? 'translate-x-4' : 'translate-x-0'"
-                  />
-                </button>
+                <div class="inline-flex items-center gap-3 bg-[#18181B] border border-[#26262A] px-2.5 py-1 rounded-lg text-[11px] font-mono">
+                  <label class="inline-flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      :name="'anggota-' + feat.key"
+                      :value="true"
+                      :checked="getPermission('anggota', feat.key) === true"
+                      @change="setPermission('anggota', feat.key, true)"
+                      class="text-[#7B96F5] focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
+                    />
+                    <span class="text-emerald-400 font-semibold">Allow</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      :name="'anggota-' + feat.key"
+                      :value="false"
+                      :checked="getPermission('anggota', feat.key) === false"
+                      @change="setPermission('anggota', feat.key, false)"
+                      class="text-red-400 focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
+                    />
+                    <span class="text-gray-400">Deny</span>
+                  </label>
+                </div>
               </td>
 
-              <!-- Super Admin (Locked Full Access) -->
+              <!-- Admin (Locked Full Access) -->
               <td class="py-3 px-4 text-center">
-                <span class="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#3ECF8E] bg-[#3ECF8E]/10 px-2 py-0.5 rounded border border-[#3ECF8E]/30">
-                  <Check class="w-3 h-3" /> FULL
+                <span class="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#3ECF8E] bg-[#3ECF8E]/10 px-2 py-1 rounded border border-[#3ECF8E]/30">
+                  <Check class="w-3 h-3" /> ADMIN (FULL)
                 </span>
               </td>
             </tr>
@@ -148,7 +174,7 @@ const featureGroups: FeatureGroup[] = [
       { key: 'settings.notifications', label: 'Manage Alert Gateways', description: 'Configure WhatsApp & Telegram' },
       { key: 'settings.polling', label: 'Configure Engine Polling', description: 'Update interval, batch size & debounce' },
       { key: 'settings.thresholds', label: 'Manage Failure Thresholds', description: 'Update consecutive failure rules' },
-      { key: 'settings.users', label: 'Manage Users & Invites', description: 'Invite users & edit user roles' },
+      { key: 'settings.users', label: 'Manage Users & Roles', description: 'Direct user management & role updates' },
       { key: 'settings.permissions', label: 'Access Control Matrix', description: 'Configure per-role permissions' }
     ]
   }
@@ -161,7 +187,6 @@ const isSaveSuccess = ref(false);
 const saveMessage = ref('');
 const saveSuccess = ref(true);
 
-// State matrix: role -> featureKey -> boolean
 const matrix = reactive<Record<string, Record<string, boolean>>>({
   pimpinan: {
     'devices.view': true,
@@ -201,9 +226,9 @@ function getPermission(role: string, featureKey: string): boolean {
   return matrix[role]?.[featureKey] ?? false;
 }
 
-function togglePermission(role: string, featureKey: string) {
+function setPermission(role: string, featureKey: string, val: boolean) {
   if (!matrix[role]) matrix[role] = {};
-  matrix[role][featureKey] = !matrix[role][featureKey];
+  matrix[role][featureKey] = val;
 }
 
 async function loadPermissions() {
@@ -244,7 +269,7 @@ async function savePermissions() {
     await authStore.fetchMe();
     isSaveSuccess.value = true;
     saveSuccess.value = true;
-    saveMessage.value = 'Per-role feature access permission matrix saved and updated across system.';
+    saveMessage.value = 'Per-role feature access permission matrix saved successfully.';
     setTimeout(() => { isSaveSuccess.value = false; saveMessage.value = ''; }, 4000);
   } catch (e: any) {
     saveSuccess.value = false;

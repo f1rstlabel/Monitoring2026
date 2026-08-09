@@ -65,7 +65,7 @@ export const permissionsApi = {
 };
 
 export const devicesApi = {
-  getDevices: async (params?: { type?: string; status?: string; search?: string }): Promise<Device[]> => {
+  getDevices: async (params?: { type?: string; status?: string; search?: string; page?: number; page_size?: number }): Promise<any> => {
     const res = await api.get('/devices', { params });
     return res.data;
   },
@@ -92,7 +92,7 @@ export const devicesApi = {
 };
 
 export const incidentsApi = {
-  getIncidents: async (params?: { status?: string; search?: string; deviceId?: string }): Promise<Incident[]> => {
+  getIncidents: async (params?: { status?: string; search?: string; deviceId?: string; page?: number; page_size?: number }): Promise<any> => {
     const res = await api.get('/incidents', { params });
     return res.data;
   },
@@ -111,7 +111,7 @@ export const settingsApi = {
     const res = await api.put('/settings/thresholds', { thresholds });
     return res.data;
   },
-  updatePolling: async (polling: { intervalSeconds: number; concurrencyBatchSize: number }): Promise<any> => {
+  updatePolling: async (polling: { intervalSeconds: number; concurrencyBatchSize: number; flapReuseWindowMinutes?: number }): Promise<any> => {
     const res = await api.put('/settings/polling', polling);
     return res.data;
   },

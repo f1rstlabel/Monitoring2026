@@ -75,21 +75,39 @@
                 class="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full ring-4 ring-[#151517]"
                 :class="[
                   evt.severity === 'critical' ? 'bg-[#F16565] pulsing-dot-red' :
-                  evt.severity === 'warning' ? 'bg-[#F5A65B]' : 'bg-[#7B96F5]'
+                  evt.severity === 'warning' ? 'bg-[#F5A65B]' :
+                  evt.severity === 'skipped' ? 'bg-gray-600' : 'bg-[#7B96F5]'
                 ]"
               ></span>
 
-              <div class="bg-[#18181B] border border-[#26262A] rounded-lg p-3.5 text-xs space-y-1 group-hover:border-[#3A3A40] transition-colors">
+              <div
+                class="border rounded-lg p-3.5 text-xs space-y-1 group-hover:border-[#3A3A40] transition-colors"
+                :class="[
+                  evt.severity === 'skipped'
+                    ? 'bg-[#18181B]/50 border-[#26262A]/50 opacity-70'
+                    : 'bg-[#18181B] border-[#26262A]'
+                ]"
+              >
                 <div class="flex items-center justify-between">
-                  <h4 class="font-bold text-gray-100 flex items-center gap-2">
+                  <h4 class="font-bold flex items-center gap-2"
+                    :class="evt.severity === 'skipped' ? 'text-gray-500' : 'text-gray-100'"
+                  >
                     {{ evt.title }}
-                    <span v-if="evt.channel" class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#26262A] text-[#7B96F5]">
+                    <span v-if="evt.channel" class="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                      :class="[
+                        evt.severity === 'skipped'
+                          ? 'bg-[#1C1C1F] text-gray-600'
+                          : 'bg-[#26262A] text-[#7B96F5]'
+                      ]"
+                    >
                       {{ evt.channel }}
                     </span>
                   </h4>
                   <span class="font-mono text-[10px] text-gray-500">{{ evt.timestamp }}</span>
                 </div>
-                <p class="text-gray-400 font-mono text-[11px] leading-relaxed">{{ evt.description }}</p>
+                <p class="font-mono text-[11px] leading-relaxed"
+                  :class="evt.severity === 'skipped' ? 'text-gray-600' : 'text-gray-400'"
+                >{{ evt.description }}</p>
               </div>
             </div>
           </div>
@@ -124,48 +142,16 @@
             <MapPin class="w-4 h-4 text-[#7B96F5]" />
           </div>
         </div>
-
-        <!-- Notification Log Table -->
+        <!-- Notification Channels Widget -->
         <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
           <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
             <h3 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-2">
               <Send class="w-4 h-4 text-[#3ECF8E]" />
-              Notification Audit Log
+              Notification Gateways
             </h3>
           </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead>
-                <tr class="border-b border-[#26262A] text-gray-500 text-[10px] font-mono uppercase">
-                  <th class="py-2 px-2.5">Channel</th>
-                  <th class="py-2 px-2.5">Recipient</th>
-                  <th class="py-2 px-2.5">Status</th>
-                  <th class="py-2 px-2.5 text-right">Sent At</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-[#26262A] text-gray-300 font-mono">
-                <tr v-for="log in (incident.notificationLog || [])" :key="log.id" class="hover:bg-[#18181B]">
-                  <td class="py-2.5 px-2.5 flex items-center gap-1.5">
-                    <component :is="log.channel === 'WhatsApp' ? MessageSquare : Mail" class="w-3.5 h-3.5 text-gray-400" />
-                    <span>{{ log.channel }}</span>
-                  </td>
-                  <td class="py-2.5 px-2.5 text-gray-400 text-[11px]">{{ log.recipient }}</td>
-                  <td class="py-2.5 px-2.5">
-                    <span
-                      class="px-2 py-0.5 rounded text-[10px] font-semibold"
-                      :class="[
-                        log.status === 'Delivered' ? 'bg-[#3ECF8E]/15 text-[#3ECF8E]' :
-                        log.status === 'Failed' ? 'bg-red-500/15 text-red-400' : 'bg-blue-500/15 text-blue-400'
-                      ]"
-                    >
-                      {{ log.status }}
-                    </span>
-                  </td>
-                  <td class="py-2.5 px-2.5 text-right text-gray-500">{{ log.timestamp }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="py-1">
+            <ChannelChecklist :events="incident.timeline" />
           </div>
         </div>
       </div>
@@ -211,22 +197,20 @@
     </div>
   </div>
 
-  <PrintableIncidentReport :incident="incident" />
+  <PrintableIncidentReport v-if="isPrintRendered" :incident="incident" />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import StatusPill from '../components/common/StatusPill.vue';
-import SkeletonTable from '../components/common/SkeletonTable.vue';
 import PrintableIncidentReport from '../components/reports/PrintableIncidentReport.vue';
+import ChannelChecklist from '../components/notifications/ChannelChecklist.vue';
 import {
   ChevronRight,
   Clock,
   Send,
-  MessageSquare,
-  Mail,
   Eye,
   AlertTriangle,
   AlertCircle,
@@ -242,9 +226,24 @@ const authStore = useAuthStore();
 
 const pageState = ref<'loading' | 'ready' | 'not_found' | 'error'>('loading');
 const incident = ref(incidentStore.currentIncident);
+const isPrintRendered = ref(false);
 
-function handlePrintPDF() {
-  window.print();
+async function handlePrintPDF() {
+  const previousState = pageState.value;
+  pageState.value = 'loading';
+  try {
+    await loadIncident();
+    pageState.value = 'ready';
+    isPrintRendered.value = true;
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    window.print();
+  } catch (err) {
+    console.error('Failed to print PDF:', err);
+    pageState.value = previousState;
+  } finally {
+    isPrintRendered.value = false;
+  }
 }
 
 async function loadIncident() {

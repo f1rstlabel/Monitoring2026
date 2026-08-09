@@ -8,7 +8,7 @@
     </nav>
 
     <!-- Header Section -->
-    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-6 flex flex-wrap items-center justify-between gap-4">
+    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-6 flex flex-wrap items-center justify-between gap-4 shadow-xl">
       <div class="space-y-2">
         <div class="flex items-center gap-3">
           <h1 class="text-xl font-extrabold text-white tracking-tight">{{ device.name }}</h1>
@@ -48,7 +48,7 @@
     <!-- Top Grid: Device Overview & 7-Day History Chart -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left Card: Device Overview & Circular Gauge -->
-      <div class="lg:col-span-1 bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-6">
+      <div class="lg:col-span-1 bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-6 shadow-xl">
         <h3 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono border-b border-[#26262A] pb-3">
           Device Overview
         </h3>
@@ -74,6 +74,10 @@
           </div>
           <!-- New SNMP Info Section -->
           <template v-if="device.snmpEnabled">
+            <div v-if="device.snmpSysName" class="flex justify-between py-2 items-center">
+              <span class="text-gray-400 font-mono">OS / System Name</span>
+              <span class="font-mono text-amber-400 font-bold truncate max-w-[160px]" :title="device.snmpSysName">{{ device.snmpSysName }}</span>
+            </div>
             <div class="flex justify-between py-2">
               <span class="text-gray-400 font-mono">SNMP Polling</span>
               <span class="font-mono text-[#3ECF8E] font-semibold">Enabled</span>
@@ -90,15 +94,53 @@
         </div>
       </div>
 
-      <!-- Right Card: Status History Chart & SNMP Metrics -->
+      <!-- Right Card: Status History Chart & Location Siblings -->
       <div class="lg:col-span-2 space-y-6">
         <StatusHistoryChart :device-id="device.id" />
-        <CCTVPictureCard v-if="device.type === 'CCTV' || device.type === 'NVR'" :device="device" />
+
+        <!-- Devices in this Location -->
+        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
+          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-2">
+              <MapPin class="w-4 h-4 text-[#7B96F5]" />
+              Devices in this Location ({{ siblingDevices.length }})
+            </h3>
+          </div>
+
+          <div v-if="siblingDevices.length > 0" class="space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <router-link
+                v-for="sib in paginatedSiblings"
+                :key="sib.id"
+                :to="'/devices/' + sib.id"
+                class="bg-[#18181B] border border-[#26262A] hover:border-[#7B96F5]/50 rounded-lg p-3 flex items-center justify-between transition-colors group"
+              >
+                <div>
+                  <h4 class="font-mono text-xs font-bold text-gray-200 group-hover:text-[#7B96F5] flex items-center gap-2">
+                    {{ sib.name }}
+                    <span class="text-[10px] text-gray-500 font-normal">({{ sib.type }})</span>
+                  </h4>
+                  <p class="text-[11px] font-mono text-gray-400 mt-0.5">IP: {{ sib.ip }}</p>
+                </div>
+                <StatusPill :status="sib.status" />
+              </router-link>
+            </div>
+            <PaginationControl
+              v-if="siblingDevices.length > sibPageSize"
+              v-model:current-page="sibPage"
+              v-model:page-size="sibPageSize"
+              :total="siblingDevices.length"
+            />
+          </div>
+          <div v-else class="p-4 text-center text-xs font-mono text-gray-500">
+            No other devices registered at {{ device.location || 'this location' }}
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Bottom Section: Recent Incidents -->
-    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
+    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
       <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
         <h3 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-2">
           <AlertTriangle class="w-4 h-4 text-amber-500" />
@@ -118,7 +160,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-[#26262A]/60">
-          <tr v-for="inc in recentIncidents" :key="inc.id" class="hover:bg-[#18181B]">
+          <tr v-for="inc in paginatedIncidents" :key="inc.id" class="hover:bg-[#18181B]">
             <td class="py-2.5 px-3 font-mono text-gray-400">{{ inc.date }}</td>
             <td class="py-2.5 px-3 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
             <td class="py-2.5 px-3">
@@ -127,8 +169,18 @@
               </span>
             </td>
           </tr>
+          <tr v-if="recentIncidents.length === 0">
+            <td colspan="3" class="py-4 text-center text-gray-500 font-mono text-xs">No recent incidents recorded for this device</td>
+          </tr>
         </tbody>
       </table>
+
+      <PaginationControl
+        v-if="recentIncidents.length > incPageSize"
+        v-model:current-page="incPage"
+        v-model:page-size="incPageSize"
+        :total="recentIncidents.length"
+      />
     </div>
   </div>
   <div v-else class="p-8 text-center bg-[#151517] border border-[#26262A] rounded-xl space-y-4">
@@ -164,8 +216,8 @@ import type { Device } from '../types';
 import StatusPill from '../components/common/StatusPill.vue';
 import UptimeGauge from '../components/devices/UptimeGauge.vue';
 import StatusHistoryChart from '../components/devices/StatusHistoryChart.vue';
-import CCTVPictureCard from '../components/devices/CCTVPictureCard.vue';
 import DeviceFormModal from '../components/devices/DeviceFormModal.vue';
+import PaginationControl from '../components/common/PaginationControl.vue';
 import {
   ChevronRight,
   Network,
@@ -186,14 +238,38 @@ const formModalMode = ref<'add' | 'edit'>('edit');
 const deviceId = computed(() => route.params.id as string);
 const device = computed(() => deviceStore.devices.find((d: Device) => d.id === deviceId.value) || null);
 
+const siblingDevices = computed(() => {
+  if (!device.value) return [];
+  return deviceStore.devices.filter((d: Device) => {
+    if (d.id === device.value?.id) return false;
+    if (d.locationId && device.value?.locationId && d.locationId === device.value.locationId) return true;
+    if (d.location && device.value?.location && d.location.toLowerCase() === device.value.location.toLowerCase()) return true;
+    return false;
+  });
+});
+
+const sibPage = ref(1);
+const sibPageSize = ref(4);
+const paginatedSiblings = computed(() => {
+  const start = (sibPage.value - 1) * sibPageSize.value;
+  return siblingDevices.value.slice(start, start + sibPageSize.value);
+});
+
 const recentIncidents = ref<{ id: string; date: string; duration: string; resolution: string }[]>([]);
+const incPage = ref(1);
+const incPageSize = ref(5);
+const paginatedIncidents = computed(() => {
+  const start = (incPage.value - 1) * incPageSize.value;
+  return recentIncidents.value.slice(start, start + incPageSize.value);
+});
 
 async function fetchIncidentsForDevice() {
   if (!deviceId.value) return;
   try {
     const res = await api.get('/incidents', { params: { deviceId: deviceId.value } });
-    if (Array.isArray(res.data)) {
-      recentIncidents.value = res.data.map((inc: any) => ({
+    const items = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.data || []);
+    if (Array.isArray(items)) {
+      recentIncidents.value = items.map((inc: any) => ({
         id: inc.id,
         date: `${inc.startTime || 'Recent'}`,
         duration: inc.duration || 'N/A',

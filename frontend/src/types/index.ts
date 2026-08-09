@@ -1,8 +1,8 @@
 export type DeviceType = 'Access Point' | 'Switch' | 'Router' | 'SmartPower' | 'CCTV' | 'NVR';
 export type DeviceStatus = 'UP' | 'DOWN';
 export type AddressingMode = 'Static' | 'DHCP';
-export type UserRole = 'superadmin' | 'pimpinan' | 'anggota';
-export type SeverityLevel = 'critical' | 'warning' | 'info';
+export type UserRole = 'admin' | 'pimpinan' | 'anggota';
+export type SeverityLevel = 'critical' | 'warning' | 'info' | 'skipped';
 
 export interface Device {
   id: string;
@@ -27,11 +27,17 @@ export interface Device {
   snmpCommunity?: string;
   snmpPort?: number;
   snmpIfIndex?: number;
+  snmpSysName?: string;
   latencyMs?: number;
-  streamUrl?: string;
-  snapshotUrl?: string;
-  streamUsername?: string;
-  streamPassword?: string;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface DeviceMetric {
@@ -124,6 +130,7 @@ export interface PollingEngineConfig {
   intervalSeconds: number;
   concurrencyBatchSize: number;
   debounceSeconds?: number;
+  flapReuseWindowMinutes?: number;
 }
 
 export interface SystemSettings {

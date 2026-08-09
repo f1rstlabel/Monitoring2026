@@ -45,9 +45,9 @@
               v-model="form.role"
               class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
             >
-              <option value="superadmin">SUPER ADMIN (Full Unrestricted Access)</option>
+              <option value="admin">ADMIN (Full Unrestricted Access)</option>
               <option value="anggota">NOC STAFF (Operator - Technical Actions)</option>
-              <option value="pimpinan">PIMPINAN (Executive Dashboard & Reports)</option>
+              <option value="pimpinan">PIMPINAN (Executive Dashboard &amp; Reports)</option>
             </select>
           </div>
 
@@ -74,8 +74,8 @@
               </h4>
               <p class="text-[11px] text-gray-400 mt-0.5">Toggle explicit feature capabilities assigned to this user</p>
             </div>
-            <span v-if="form.role === 'superadmin'" class="text-[10px] font-mono text-[#3ECF8E] bg-[#3ECF8E]/10 px-2 py-0.5 rounded border border-[#3ECF8E]/30">
-              Super Admin Override Enabled
+            <span v-if="form.role === 'admin'" class="text-[10px] font-mono text-[#3ECF8E] bg-[#3ECF8E]/10 px-2 py-0.5 rounded border border-[#3ECF8E]/30">
+              Admin Override Enabled
             </span>
           </div>
 
@@ -95,7 +95,7 @@
                     type="checkbox"
                     :value="feat.key"
                     v-model="form.permissions"
-                    :disabled="form.role === 'superadmin'"
+                    :disabled="form.role === 'admin'"
                     class="mt-0.5 rounded border-[#26262A] bg-[#0A0A0B] text-[#7B96F5] focus:ring-[#7B96F5] disabled:opacity-50"
                   />
                   <div>
@@ -106,6 +106,31 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Reset Password Direct Action -->
+        <div class="border-t border-[#26262A] pt-4 space-y-2">
+          <h4 class="font-bold text-white text-xs uppercase tracking-wider font-mono flex items-center gap-2">
+            <KeyRound class="w-4 h-4 text-amber-400" />
+            Direct Password Reset
+          </h4>
+          <div class="flex items-center gap-2">
+            <input
+              v-model="newPassword"
+              type="password"
+              placeholder="Enter new password for this user"
+              class="flex-1 bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono text-xs"
+            />
+            <button
+              type="button"
+              @click="handleResetPassword"
+              :disabled="!newPassword.trim() || isSubmitting"
+              class="px-3.5 py-2 rounded-lg bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500/30 text-amber-300 font-bold text-xs font-mono disabled:opacity-40 transition-colors"
+            >
+              Reset Password
+            </button>
+          </div>
+          <p v-if="resetSuccessMsg" class="text-[11px] font-mono text-emerald-400 mt-1">{{ resetSuccessMsg }}</p>
         </div>
 
         <div v-if="errorMsg" class="bg-[#F16565]/10 border border-[#F16565]/30 rounded-lg p-2.5 text-xs text-[#F16565] font-mono">
@@ -151,7 +176,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
 import Modal from '../common/Modal.vue';
-import { RefreshCw, ShieldCheck } from 'lucide-vue-next';
+import { RefreshCw, KeyRound, ShieldCheck } from 'lucide-vue-next';
 import type { User, UserRole } from '../../types';
 import api from '../../api/client';
 
@@ -164,6 +189,8 @@ const emit = defineEmits(['close', 'saved']);
 
 const isSubmitting = ref(false);
 const errorMsg = ref('');
+const newPassword = ref('');
+const resetSuccessMsg = ref('');
 
 const featureGroups = [
   {
@@ -208,8 +235,8 @@ const form = reactive({
   permissions: [] as string[]
 });
 
-const defaultRolePermissions: Record<UserRole, string[]> = {
-  superadmin: [
+const defaultRolePermissions: Record<string, string[]> = {
+  admin: [
     'devices.view', 'devices.create', 'devices.edit', 'devices.delete', 'devices.import',
     'incidents.view', 'incidents.resolve',
     'reports.view', 'reports.export',
@@ -236,6 +263,9 @@ watch(
       form.permissions = newUser.permissions && newUser.permissions.length > 0
         ? [...newUser.permissions]
         : [...(defaultRolePermissions[newUser.role] || [])];
+      newPassword.value = '';
+      resetSuccessMsg.value = '';
+      errorMsg.value = '';
     }
   },
   { immediate: true }
@@ -249,6 +279,25 @@ watch(
     }
   }
 );
+
+async function handleResetPassword() {
+  if (!props.user || !newPassword.value.trim()) return;
+  isSubmitting.value = true;
+  resetSuccessMsg.value = '';
+  errorMsg.value = '';
+  try {
+    await api.put(`/users/${props.user.id}/reset-password`, {
+      password: newPassword.value.trim()
+    });
+    resetSuccessMsg.value = 'Password reset successfully!';
+    newPassword.value = '';
+    setTimeout(() => { resetSuccessMsg.value = ''; }, 3000);
+  } catch (e: any) {
+    errorMsg.value = e.response?.data?.error || 'Failed to reset password';
+  } finally {
+    isSubmitting.value = false;
+  }
+}
 
 async function handleSubmit() {
   if (!props.user) return;
