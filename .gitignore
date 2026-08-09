@@ -45,3 +45,4 @@ docs/
 .env.local
 *.env
 !.env.example
+dev-run.sh
