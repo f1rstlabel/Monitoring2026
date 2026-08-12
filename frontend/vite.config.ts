@@ -45,11 +45,13 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
+        xfwd: true,
         configure: setupSilentProxy
       },
       '/ws': {
         target: 'ws://127.0.0.1:8080',
         ws: true,
+        xfwd: true,
         configure: setupSilentProxy
       }
     }

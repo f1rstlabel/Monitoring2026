@@ -34,20 +34,26 @@ export const useSettingStore = defineStore('settings', () => {
   const isLoading = ref(false);
 
   async function fetchSettings() {
+    isLoading.value = true;
     try {
       const res = await settingsApi.getSettings();
       if (res) settings.value = res;
     } catch (e) {
       // offline default
+    } finally {
+      isLoading.value = false;
     }
   }
 
   async function fetchUsers() {
+    isLoading.value = true;
     try {
       const res = await usersApi.getUsers();
       if (res && res.length) users.value = res;
     } catch (e) {
       // offline default
+    } finally {
+      isLoading.value = false;
     }
   }
 

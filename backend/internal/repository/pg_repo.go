@@ -38,9 +38,10 @@ func (r *PostgresDeviceRepository) GetAll(typeFilter, statusFilter, search strin
 		}
 	}
 
-	query := `SELECT d.id, d.name, d.type, d.mac_address, COALESCE(d.last_known_ip, ''), d.addressing_mode, COALESCE(d.model, ''), COALESCE(d.firmware_status, ''), d.status, COALESCE(d.location_id, ''), COALESCE(l.name, d.location, ''), COALESCE(d.rack, ''), d.failure_threshold, d.uptime_30d, d.down_count_7d, d.down_count_30d, d.checked_seconds_ago, COALESCE(d.last_checked, ''), COALESCE(d.snmp_enabled, false), COALESCE(d.snmp_community, 'public'), COALESCE(d.snmp_port, 161), COALESCE(d.snmp_if_index, 0), COALESCE(d.snmp_sys_name, ''), COALESCE(d.use_custom_threshold, false), d.custom_failure_threshold
+	query := `SELECT d.id, d.name, d.type, d.mac_address, COALESCE(d.last_known_ip, ''), d.addressing_mode, COALESCE(d.model, ''), COALESCE(d.firmware_status, ''), d.status, COALESCE(d.location_id, ''), COALESCE(l.name, d.location, ''), COALESCE(d.rack, ''), d.failure_threshold, d.uptime_30d, d.down_count_7d, d.down_count_30d, d.checked_seconds_ago, COALESCE(d.last_checked, ''), COALESCE(d.snmp_enabled, false), COALESCE(d.snmp_community, 'public'), COALESCE(d.snmp_port, 161), COALESCE(d.snmp_if_index, 0), COALESCE(d.snmp_sys_name, ''), COALESCE(d.snmp_sys_descr, ''), COALESCE(d.snmp_sys_uptime, ''), COALESCE(d.snmp_sys_contact, ''), COALESCE(d.snmp_sys_location, ''), COALESCE(d.use_custom_threshold, false), d.custom_failure_threshold, COALESCE(d.created_by_user_id, ''), COALESCE(u.name, '')
 		FROM devices d
 		LEFT JOIN locations l ON d.location_id = l.id
+		LEFT JOIN users u ON d.created_by_user_id = u.id
 		WHERE 1=1`
 	var args []interface{}
 	idx := 1
@@ -76,7 +77,8 @@ func (r *PostgresDeviceRepository) GetAll(typeFilter, statusFilter, search strin
 			&d.Status, &d.LocationID, &d.Location, &d.Rack, &d.FailureThreshold, &d.Uptime30d,
 			&d.DownCount7d, &d.DownCount30d, &d.CheckedSecondsAgo, &d.LastChecked,
 			&d.SNMPEnabled, &d.SNMPCommunity, &d.SNMPPort, &d.SNMPIfIndex, &d.SNMPSysName,
-			&d.UseCustomThreshold, &d.CustomFailureThreshold,
+			&d.SNMPSysDescr, &d.SNMPSysUpTime, &d.SNMPSysContact, &d.SNMPSysLocation,
+			&d.UseCustomThreshold, &d.CustomFailureThreshold, &d.CreatedByUserID, &d.CreatedByUserName,
 		)
 		if err != nil {
 			return nil, err
@@ -99,9 +101,10 @@ func (r *PostgresDeviceRepository) GetAll(typeFilter, statusFilter, search strin
 }
 
 func (r *PostgresDeviceRepository) GetByID(id string) (*domain.Device, error) {
-	query := `SELECT d.id, d.name, d.type, d.mac_address, COALESCE(d.last_known_ip, ''), d.addressing_mode, COALESCE(d.model, ''), COALESCE(d.firmware_status, ''), d.status, COALESCE(d.location_id, ''), COALESCE(l.name, d.location, ''), COALESCE(d.rack, ''), d.failure_threshold, d.uptime_30d, d.down_count_7d, d.down_count_30d, d.checked_seconds_ago, COALESCE(d.last_checked, ''), COALESCE(d.snmp_enabled, false), COALESCE(d.snmp_community, 'public'), COALESCE(d.snmp_port, 161), COALESCE(d.snmp_if_index, 0), COALESCE(d.snmp_sys_name, ''), COALESCE(d.use_custom_threshold, false), d.custom_failure_threshold
+	query := `SELECT d.id, d.name, d.type, d.mac_address, COALESCE(d.last_known_ip, ''), d.addressing_mode, COALESCE(d.model, ''), COALESCE(d.firmware_status, ''), d.status, COALESCE(d.location_id, ''), COALESCE(l.name, d.location, ''), COALESCE(d.rack, ''), d.failure_threshold, d.uptime_30d, d.down_count_7d, d.down_count_30d, d.checked_seconds_ago, COALESCE(d.last_checked, ''), COALESCE(d.snmp_enabled, false), COALESCE(d.snmp_community, 'public'), COALESCE(d.snmp_port, 161), COALESCE(d.snmp_if_index, 0), COALESCE(d.snmp_sys_name, ''), COALESCE(d.snmp_sys_descr, ''), COALESCE(d.snmp_sys_uptime, ''), COALESCE(d.snmp_sys_contact, ''), COALESCE(d.snmp_sys_location, ''), COALESCE(d.use_custom_threshold, false), d.custom_failure_threshold, COALESCE(d.created_by_user_id, ''), COALESCE(u.name, '')
 		FROM devices d
 		LEFT JOIN locations l ON d.location_id = l.id
+		LEFT JOIN users u ON d.created_by_user_id = u.id
 		WHERE d.id = $1`
 	var d domain.Device
 	err := r.db.QueryRow(query, id).Scan(
@@ -109,7 +112,8 @@ func (r *PostgresDeviceRepository) GetByID(id string) (*domain.Device, error) {
 		&d.Status, &d.LocationID, &d.Location, &d.Rack, &d.FailureThreshold, &d.Uptime30d,
 		&d.DownCount7d, &d.DownCount30d, &d.CheckedSecondsAgo, &d.LastChecked,
 		&d.SNMPEnabled, &d.SNMPCommunity, &d.SNMPPort, &d.SNMPIfIndex, &d.SNMPSysName,
-		&d.UseCustomThreshold, &d.CustomFailureThreshold,
+		&d.SNMPSysDescr, &d.SNMPSysUpTime, &d.SNMPSysContact, &d.SNMPSysLocation,
+		&d.UseCustomThreshold, &d.CustomFailureThreshold, &d.CreatedByUserID, &d.CreatedByUserName,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -121,9 +125,10 @@ func (r *PostgresDeviceRepository) GetByID(id string) (*domain.Device, error) {
 }
 
 func (r *PostgresDeviceRepository) GetByMAC(mac string) (*domain.Device, error) {
-	query := `SELECT d.id, d.name, d.type, d.mac_address, COALESCE(d.last_known_ip, ''), d.addressing_mode, COALESCE(d.model, ''), COALESCE(d.firmware_status, ''), d.status, COALESCE(d.location_id, ''), COALESCE(l.name, d.location, ''), COALESCE(d.rack, ''), d.failure_threshold, d.uptime_30d, d.down_count_7d, d.down_count_30d, d.checked_seconds_ago, COALESCE(d.last_checked, ''), COALESCE(d.snmp_enabled, false), COALESCE(d.snmp_community, 'public'), COALESCE(d.snmp_port, 161), COALESCE(d.snmp_if_index, 0), COALESCE(d.snmp_sys_name, ''), COALESCE(d.use_custom_threshold, false), d.custom_failure_threshold
+	query := `SELECT d.id, d.name, d.type, d.mac_address, COALESCE(d.last_known_ip, ''), d.addressing_mode, COALESCE(d.model, ''), COALESCE(d.firmware_status, ''), d.status, COALESCE(d.location_id, ''), COALESCE(l.name, d.location, ''), COALESCE(d.rack, ''), d.failure_threshold, d.uptime_30d, d.down_count_7d, d.down_count_30d, d.checked_seconds_ago, COALESCE(d.last_checked, ''), COALESCE(d.snmp_enabled, false), COALESCE(d.snmp_community, 'public'), COALESCE(d.snmp_port, 161), COALESCE(d.snmp_if_index, 0), COALESCE(d.snmp_sys_name, ''), COALESCE(d.snmp_sys_descr, ''), COALESCE(d.snmp_sys_uptime, ''), COALESCE(d.snmp_sys_contact, ''), COALESCE(d.snmp_sys_location, ''), COALESCE(d.use_custom_threshold, false), d.custom_failure_threshold, COALESCE(d.created_by_user_id, ''), COALESCE(u.name, '')
 		FROM devices d
 		LEFT JOIN locations l ON d.location_id = l.id
+		LEFT JOIN users u ON d.created_by_user_id = u.id
 		WHERE LOWER(d.mac_address) = LOWER($1)`
 	var d domain.Device
 	err := r.db.QueryRow(query, mac).Scan(
@@ -131,7 +136,8 @@ func (r *PostgresDeviceRepository) GetByMAC(mac string) (*domain.Device, error) 
 		&d.Status, &d.LocationID, &d.Location, &d.Rack, &d.FailureThreshold, &d.Uptime30d,
 		&d.DownCount7d, &d.DownCount30d, &d.CheckedSecondsAgo, &d.LastChecked,
 		&d.SNMPEnabled, &d.SNMPCommunity, &d.SNMPPort, &d.SNMPIfIndex, &d.SNMPSysName,
-		&d.UseCustomThreshold, &d.CustomFailureThreshold,
+		&d.SNMPSysDescr, &d.SNMPSysUpTime, &d.SNMPSysContact, &d.SNMPSysLocation,
+		&d.UseCustomThreshold, &d.CustomFailureThreshold, &d.CreatedByUserID, &d.CreatedByUserName,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -177,10 +183,14 @@ func (r *PostgresDeviceRepository) Create(d *domain.Device) (*domain.Device, err
 	if d.LocationID != "" {
 		locID = d.LocationID
 	}
-	query := `INSERT INTO devices (id, name, type, mac_address, last_known_ip, addressing_mode, model, status, location_id, location, rack, failure_threshold, uptime_30d, snmp_enabled, snmp_community, snmp_port, snmp_if_index, snmp_sys_name, use_custom_threshold, custom_failure_threshold)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
+	var createdBy interface{}
+	if d.CreatedByUserID != "" {
+		createdBy = d.CreatedByUserID
+	}
+	query := `INSERT INTO devices (id, name, type, mac_address, last_known_ip, addressing_mode, model, status, location_id, location, rack, failure_threshold, uptime_30d, snmp_enabled, snmp_community, snmp_port, snmp_if_index, snmp_sys_name, use_custom_threshold, custom_failure_threshold, created_by_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`
 
-	_, err := r.db.Exec(query, d.ID, d.Name, d.Type, d.MAC, d.IP, d.AddressingMode, d.Model, d.Status, locID, d.Location, d.Rack, d.FailureThreshold, d.Uptime30d, d.SNMPEnabled, d.SNMPCommunity, d.SNMPPort, d.SNMPIfIndex, d.SNMPSysName, d.UseCustomThreshold, d.CustomFailureThreshold)
+	_, err := r.db.Exec(query, d.ID, d.Name, d.Type, d.MAC, d.IP, d.AddressingMode, d.Model, d.Status, locID, d.Location, d.Rack, d.FailureThreshold, d.Uptime30d, d.SNMPEnabled, d.SNMPCommunity, d.SNMPPort, d.SNMPIfIndex, d.SNMPSysName, d.UseCustomThreshold, d.CustomFailureThreshold, createdBy)
 	if err != nil {
 		return nil, err
 	}
@@ -214,6 +224,17 @@ func (r *PostgresDeviceRepository) Update(d *domain.Device) error {
 func (r *PostgresDeviceRepository) UpdateSNMPSysName(deviceID, sysName string) error {
 	query := `UPDATE devices SET snmp_sys_name=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2`
 	_, err := r.db.Exec(query, sysName, deviceID)
+	if r.redis != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		_ = r.redis.Client.Del(ctx, "devices:all").Err()
+		cancel()
+	}
+	return err
+}
+
+func (r *PostgresDeviceRepository) UpdateSNMPMetadata(deviceID, sysName, sysDescr, sysUpTime, sysContact, sysLocation string) error {
+	query := `UPDATE devices SET snmp_sys_name=$1, snmp_sys_descr=$2, snmp_sys_uptime=$3, snmp_sys_contact=$4, snmp_sys_location=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6`
+	_, err := r.db.Exec(query, sysName, sysDescr, sysUpTime, sysContact, sysLocation, deviceID)
 	if r.redis != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		_ = r.redis.Client.Del(ctx, "devices:all").Err()
@@ -956,6 +977,9 @@ func (r *PostgresUserLogRepository) Append(ul *domain.UserLog) error {
 	if ul.OccurredAt.IsZero() {
 		ul.OccurredAt = time.Now()
 	}
+	if ul.IPAddress == "::1" || ul.IPAddress == "localhost" || ul.IPAddress == "" {
+		ul.IPAddress = "127.0.0.1"
+	}
 	query := `INSERT INTO user_logs (id, user_id, action, detail, ip_address, user_agent, session_id, occurred_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	_, err := r.db.Exec(query, ul.ID, ul.UserID, ul.Action, ul.Detail, ul.IPAddress, ul.UserAgent, ul.SessionID, ul.OccurredAt)
@@ -988,6 +1012,9 @@ func (r *PostgresUserLogRepository) GetRecent(limit int) ([]domain.UserLog, erro
 		var ul domain.UserLog
 		if err := rows.Scan(&ul.ID, &ul.UserID, &ul.UserName, &ul.Action, &ul.Detail, &ul.IPAddress, &ul.UserAgent, &ul.SessionID, &ul.OccurredAt); err != nil {
 			return nil, err
+		}
+		if ul.IPAddress == "::1" || ul.IPAddress == "localhost" || ul.IPAddress == "" {
+			ul.IPAddress = "127.0.0.1"
 		}
 		logs = append(logs, ul)
 	}

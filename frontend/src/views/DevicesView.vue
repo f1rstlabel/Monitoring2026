@@ -107,7 +107,23 @@
     </div>
 
     <!-- Skeleton while loading -->
-    <SkeletonTable v-if="deviceStore.isLoading" :rows="10" :cols="8" />
+    <template v-if="deviceStore.isLoading">
+      <div v-if="viewMode === 'grouped'" class="space-y-4">
+        <div v-for="g in 3" :key="g" class="bg-[#151517] border border-[#26262A] rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+            <Skeleton width="30%" height="1.1rem" />
+            <Skeleton width="15%" height="0.8rem" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div v-for="i in 3" :key="i" class="p-3 bg-[#18181B] border border-[#26262A] rounded-lg space-y-2">
+              <Skeleton width="60%" height="0.8rem" />
+              <Skeleton width="40%" height="0.65rem" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <SkeletonTable v-else :rows="10" :cols="8" />
+    </template>
 
     <!-- Grouped View by Location (Drill-down Accordion Grid) -->
     <div v-else-if="viewMode === 'grouped'" class="space-y-4">
@@ -395,6 +411,7 @@ import type { Device } from '../types';
 import DeviceFormModal from '../components/devices/DeviceFormModal.vue';
 import StatusPill from '../components/common/StatusPill.vue';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
+import Skeleton from '../components/common/Skeleton.vue';
 import BulkImportModal from '../components/devices/BulkImportModal.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
 import { Plus, Search, ChevronRight, ChevronDown, Upload, Pencil, Trash2, X, MapPin, List } from 'lucide-vue-next';
@@ -403,7 +420,7 @@ const router = useRouter();
 const deviceStore = useDeviceStore();
 const authStore = useAuthStore();
 
-const viewMode = ref<'grouped' | 'flat'>('grouped');
+const viewMode = ref<'grouped' | 'flat'>('flat');
 const expandedGroups = reactive<Record<string, boolean>>({});
 const isFormModalOpen = ref(false);
 const formModalMode = ref<'add' | 'edit'>('add');

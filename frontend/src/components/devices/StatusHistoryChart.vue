@@ -41,16 +41,15 @@
             <span>Line/Area</span>
           </button>
 
-          <!-- Donut — only for Status metric -->
+          <!-- Donut — available for all metrics -->
           <button
-            v-if="activeMetric === 'status'"
             @click="viewMode = 'donut'"
-            title="Up vs Down Proportion (selected range)"
+            title="Proportion Breakdown (selected range)"
             class="px-2.5 py-1 rounded transition-colors text-[11px] flex items-center gap-1"
             :class="viewMode === 'donut' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
           >
             <PieChart class="w-3.5 h-3.5" />
-            <span>Up/Down</span>
+            <span>Donut</span>
           </button>
 
           <!-- RadialBar Gauge — only for CPU / Memory -->
@@ -236,7 +235,7 @@ const latestValue = computed(() => {
   return rawMetrics.value[rawMetrics.value.length - 1].value;
 });
 
-// Donut computation: count reachable (latency > 0) vs unreachable (latency === 0) data points
+// Donut computation: status (UP vs DOWN) or resource buckets (Low, Moderate, High)
 const upCount = computed(() => rawMetrics.value.filter(m => m.value > 0).length);
 const downCount = computed(() => rawMetrics.value.filter(m => m.value === 0).length);
 const upPct = computed(() => {
@@ -244,6 +243,15 @@ const upPct = computed(() => {
   return total === 0 ? 0 : Math.round((upCount.value / total) * 100);
 });
 const downPct = computed(() => 100 - upPct.value);
+
+const lowResourceCount = computed(() => rawMetrics.value.filter(m => m.value < 50).length);
+const medResourceCount = computed(() => rawMetrics.value.filter(m => m.value >= 50 && m.value <= 80).length);
+const highResourceCount = computed(() => rawMetrics.value.filter(m => m.value > 80).length);
+const avgMetricVal = computed(() => {
+  if (rawMetrics.value.length === 0) return 0;
+  const sum = rawMetrics.value.reduce((acc, m) => acc + m.value, 0);
+  return Math.round(sum / rawMetrics.value.length);
+});
 
 const downPeriods = computed(() => {
   if (activeMetric.value !== 'status') return [];
@@ -296,10 +304,15 @@ const apexSeries = computed((): any => {
   }
 
   if (viewMode.value === 'donut') {
-    // [UP count, DOWN count] for donut slices — range-aware (rawMetrics is fetched per range)
-    const total = upCount.value + downCount.value;
-    if (total === 0) return [1, 0]; // avoid empty chart
-    return [upCount.value, downCount.value];
+    if (activeMetric.value === 'status') {
+      const total = upCount.value + downCount.value;
+      if (total === 0) return [1, 0];
+      return [upCount.value, downCount.value];
+    } else {
+      const total = rawMetrics.value.length;
+      if (total === 0) return [1, 0, 0];
+      return [lowResourceCount.value, medResourceCount.value, highResourceCount.value];
+    }
   }
 
   // line/area
@@ -364,20 +377,28 @@ const apexOptions = computed((): any => {
   }
 
   if (viewMode.value === 'donut') {
-    const total = upCount.value + downCount.value;
+    const isStatus = activeMetric.value === 'status';
+    const total = isStatus ? (upCount.value + downCount.value) : rawMetrics.value.length;
+    const colors = isStatus ? ['#3ECF8E', '#F16565'] : ['#3ECF8E', '#F59E0B', '#F16565'];
+    const labels = isStatus ? [
+      `UP (${upCount.value} checks)`,
+      `DOWN (${downCount.value} checks)`
+    ] : [
+      `Normal <50% (${lowResourceCount.value})`,
+      `Moderate 50-80% (${medResourceCount.value})`,
+      `High >80% (${highResourceCount.value})`
+    ];
+
     return {
       chart: {
         type: 'donut',
         background: 'transparent',
         foreColor: '#9CA3AF'
       },
-      colors: ['#3ECF8E', '#F16565'],
-      labels: [
-        `UP (${upCount.value} checks)`,
-        `DOWN (${downCount.value} checks)`
-      ],
+      colors,
+      labels,
       legend: {
-        show: false // we use our custom legend below the chart
+        show: false // custom legend below
       },
       dataLabels: {
         enabled: true,
@@ -414,11 +435,11 @@ const apexOptions = computed((): any => {
               total: {
                 show: true,
                 showAlways: true,
-                label: 'Uptime',
+                label: isStatus ? 'Uptime' : `Avg ${activeMetric.value.toUpperCase()}`,
                 fontSize: '11px',
                 fontFamily: 'JetBrains Mono, monospace',
                 color: '#9CA3AF',
-                formatter: () => `${upPct.value}%`
+                formatter: () => isStatus ? `${upPct.value}%` : `${avgMetricVal.value}%`
               }
             }
           }
@@ -428,7 +449,7 @@ const apexOptions = computed((): any => {
       tooltip: {
         theme: 'dark',
         y: {
-          formatter: (val: number) => `${val} checks (${total > 0 ? Math.round((val / total) * 100) : 0}%)`
+          formatter: (val: number) => `${val} points (${total > 0 ? Math.round((val / total) * 100) : 0}%)`
         }
       }
     };
@@ -479,6 +500,9 @@ const apexOptions = computed((): any => {
     dataLabels: { enabled: false },
     xaxis: {
       type: 'datetime',
+      labels: {
+        datetimeUTC: false
+      },
       axisBorder: { color: '#26262A' },
       axisTicks: { color: '#26262A' }
     },

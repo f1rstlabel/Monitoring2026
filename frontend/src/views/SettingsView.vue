@@ -8,6 +8,7 @@
       </div>
 
       <button
+        v-if="authStore.canManageSettings"
         @click="handleSaveConfig"
         class="px-4 py-2 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 transition-all flex items-center gap-2"
       >
@@ -17,7 +18,7 @@
     </div>
 
     <!-- Section 1: Notification Channels -->
-    <div class="space-y-3">
+    <div v-if="authStore.hasPermission('settings.notifications')" class="space-y-3">
       <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 font-mono flex items-center gap-2">
         <Send class="w-4 h-4 text-[#7B96F5]" />
         Notification Channels
@@ -49,38 +50,43 @@
             {{ waTestMessage }}
           </div>
 
-          <div class="flex items-center justify-between pt-3 border-t border-[#26262A] text-xs">
-            <button
-              @click="handleWATest"
-              :disabled="!isWhatsAppConnected || isWATesting"
-              class="h-9 px-3.5 rounded-lg border border-[#26262A] bg-[#18181B] hover:bg-[#26262A] text-gray-200 text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-40"
-            >
-              <Send class="w-4 h-4 text-[#7B96F5]" />
-              <span>{{ isWATesting ? 'Sending...' : 'Send Test Notification' }}</span>
-            </button>
-            <div class="flex items-center gap-2.5">
+          <div class="pt-3 border-t border-[#26262A] space-y-2">
+            <!-- Row 1: Testing & Target Configuration -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
-                v-if="isWhatsAppConnected"
-                @click="handleWADisconnect"
-                class="h-9 px-3.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold flex items-center gap-2 transition-all"
-                title="Disconnect WhatsApp Gateway"
+                @click="handleWATest"
+                :disabled="!isWhatsAppConnected || isWATesting"
+                class="h-9 px-3 rounded-lg border border-[#26262A] bg-[#18181B] hover:bg-[#26262A] text-gray-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 whitespace-nowrap"
               >
-                <LogOut class="w-4 h-4 text-red-400" />
-                <span>Disconnect</span>
+                <Send class="w-3.5 h-3.5 text-[#7B96F5]" />
+                <span>{{ isWATesting ? 'Sending...' : 'Send Test Notification' }}</span>
               </button>
               <button
                 @click="isWATargetModalOpen = true"
-                class="h-9 px-3.5 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-2 shadow-sm shadow-[#7B96F5]/20 transition-all"
+                class="h-9 px-3 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm shadow-[#7B96F5]/20 transition-all whitespace-nowrap"
               >
-                <Target class="w-4 h-4" />
+                <Target class="w-3.5 h-3.5" />
                 <span>Configure Targets</span>
               </button>
+            </div>
+
+            <!-- Row 2: Connection Management (QR & Disconnect) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 @click="isWAModalOpen = true"
-                class="h-9 px-3.5 rounded-lg bg-[#18181B] border border-[#26262A] hover:bg-[#26262A] text-gray-200 text-xs font-semibold flex items-center gap-2 transition-all"
+                class="h-9 px-3 rounded-lg bg-[#18181B] border border-[#26262A] hover:bg-[#26262A] text-gray-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
               >
-                <QrCode class="w-4 h-4 text-gray-400" />
+                <QrCode class="w-3.5 h-3.5 text-gray-400" />
                 <span>QR Reconnect</span>
+              </button>
+              <button
+                v-if="isWhatsAppConnected"
+                @click="handleWADisconnect"
+                class="h-9 px-3 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
+                title="Disconnect WhatsApp Gateway"
+              >
+                <LogOut class="w-3.5 h-3.5 text-red-400" />
+                <span>Disconnect</span>
               </button>
             </div>
           </div>
@@ -108,29 +114,31 @@
             {{ tgTestMessage }}
           </div>
 
-          <div class="flex items-center justify-between pt-3 border-t border-[#26262A] text-xs">
-            <button
-              @click="handleTGTest"
-              :disabled="isTGTesting"
-              class="h-9 px-3.5 rounded-lg border border-[#26262A] bg-[#18181B] hover:bg-[#26262A] text-gray-200 text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-40"
-            >
-              <Send class="w-4 h-4 text-sky-400" />
-              <span>{{ isTGTesting ? 'Sending...' : 'Send Test Notification' }}</span>
-            </button>
-            <button
-              @click="isTGModalOpen = true"
-              class="h-9 px-3.5 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-2 shadow-sm shadow-[#7B96F5]/20 transition-all"
-            >
-              <Sliders class="w-4 h-4" />
-              <span>Configure Targets</span>
-            </button>
+          <div class="pt-3 border-t border-[#26262A]">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                @click="handleTGTest"
+                :disabled="isTGTesting"
+                class="h-9 px-3 rounded-lg border border-[#26262A] bg-[#18181B] hover:bg-[#26262A] text-gray-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 whitespace-nowrap"
+              >
+                <Send class="w-3.5 h-3.5 text-sky-400" />
+                <span>{{ isTGTesting ? 'Sending...' : 'Send Test Notification' }}</span>
+              </button>
+              <button
+                @click="isTGModalOpen = true"
+                class="h-9 px-3 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm shadow-[#7B96F5]/20 transition-all whitespace-nowrap"
+              >
+                <Sliders class="w-3.5 h-3.5" />
+                <span>Configure Targets</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Section 2: Engine Polling & Rate-Limit Configuration -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div v-if="authStore.hasPermission('settings.polling') || authStore.hasPermission('settings.thresholds')" class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Engine Polling Card -->
       <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-5 shadow-xl">
         <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
@@ -308,7 +316,7 @@
     </div>
 
     <!-- Section 3: Users & Roles Management -->
-    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
+    <div v-if="authStore.hasPermission('settings.users')" class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
       <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
         <h2 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-2">
           <Users class="w-4 h-4 text-[#7B96F5]" />
@@ -401,10 +409,15 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-[#26262A]">
-            <tr v-if="userLogs.length === 0">
+            <tr v-if="isLogsLoading">
+              <td colspan="5" class="p-0 border-0">
+                <SkeletonTable :rows="4" :cols="5" />
+              </td>
+            </tr>
+            <tr v-else-if="userLogs.length === 0">
               <td colspan="5" class="py-4 text-center text-gray-500 font-mono text-xs">No activity logs recorded yet</td>
             </tr>
-            <tr v-for="log in userLogs" :key="log.id" class="hover:bg-[#18181B]">
+            <tr v-else v-for="log in userLogs" :key="log.id" class="hover:bg-[#18181B]">
               <td class="py-2.5 px-3 font-semibold text-white">{{ log.userName || log.userId }}</td>
               <td class="py-2.5 px-3">
                 <span
@@ -435,6 +448,9 @@
         @change="fetchUserLogs"
       />
     </div>
+
+    <!-- Section 4: System Roles & Feature Access Permissions -->
+    <PermissionMatrix v-if="authStore.user.role === 'admin'" />
 
     <!-- Add User Modal (Direct Creation with Password) -->
     <Modal :is-open="isAddUserModalOpen" title="Add New User" @close="isAddUserModalOpen = false">
@@ -514,12 +530,15 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useSettingStore } from '../stores/settingStore';
+import { useAuthStore } from '../stores/authStore';
 import Modal from '../components/common/Modal.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
 import WhatsAppQRModal from '../components/settings/WhatsAppQRModal.vue';
 import TelegramConfigModal from '../components/settings/TelegramConfigModal.vue';
 import WhatsAppTargetModal from '../components/settings/WhatsAppTargetModal.vue';
 import UserEditModal from '../components/users/UserEditModal.vue';
+import PermissionMatrix from '../components/settings/PermissionMatrix.vue';
+import SkeletonTable from '../components/common/SkeletonTable.vue';
 import type { User, UserRole } from '../types';
 import {
   Save,
@@ -538,6 +557,7 @@ import api from '../api/client';
 import { wsClient } from '../ws/websocket';
 
 const settingStore = useSettingStore();
+const authStore = useAuthStore();
 const isSaveSuccess = ref(false);
 
 const isAddUserModalOpen = ref(false);

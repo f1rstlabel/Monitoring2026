@@ -80,8 +80,14 @@ type Device struct {
 	SNMPPort     int `json:"snmpPort,omitempty"`
 	SNMPIfIndex  int `json:"snmpIfIndex,omitempty"`
 	SNMPSysName  string `json:"snmpSysName,omitempty"`
+	SNMPSysDescr string `json:"snmpSysDescr,omitempty"`
+	SNMPSysUpTime string `json:"snmpSysUpTime,omitempty"`
+	SNMPSysContact string `json:"snmpSysContact,omitempty"`
+	SNMPSysLocation string `json:"snmpSysLocation,omitempty"`
 	UseCustomThreshold     bool `json:"useCustomThreshold"`
 	CustomFailureThreshold *int `json:"customFailureThreshold,omitempty"`
+	CreatedByUserID        string `json:"createdByUserId,omitempty"`
+	CreatedByUserName      string `json:"createdByUserName,omitempty"`
 }
 
 type DeviceDowntimeSummary struct {

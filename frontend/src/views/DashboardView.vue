@@ -177,36 +177,39 @@
         </template>
 
         <!-- List View -->
-        <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden">
-          <table class="w-full text-left text-xs text-gray-300">
-            <thead class="bg-[#18181B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-400">
-              <tr>
-                <th class="py-3 px-4">Device Name</th>
-                <th class="py-3 px-4">Type</th>
-                <th class="py-3 px-4">IP Address</th>
-                <th class="py-3 px-4">Location</th>
-                <th class="py-3 px-4">Status</th>
-                <th class="py-3 px-4 text-right">Checked</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[#26262A]">
-              <tr
-                v-for="device in deviceStore.devices"
-                :key="device.id"
-                @click="router.push(`/devices/${device.id}`)"
-                class="hover:bg-[#18181B] cursor-pointer transition-colors"
-                :class="{ 'bg-[#F16565]/5': device.status === 'DOWN' }"
-              >
-                <td class="py-3 px-4 font-semibold text-white">{{ device.name }}</td>
-                <td class="py-3 px-4 font-mono text-gray-400">{{ device.type }}</td>
-                <td class="py-3 px-4 font-mono text-gray-300">{{ device.ip }}</td>
-                <td class="py-3 px-4 text-gray-400">{{ device.location }}</td>
-                <td class="py-3 px-4"><StatusPill :status="device.status" /></td>
-                <td class="py-3 px-4 text-right font-mono text-gray-500">{{ device.checkedSecondsAgo }}s ago</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <template v-else-if="deviceStore.viewMode === 'list'">
+          <SkeletonTable v-if="deviceStore.isLoading" :rows="6" :cols="6" />
+          <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-[#18181B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-400">
+                <tr>
+                  <th class="py-3 px-4">Device Name</th>
+                  <th class="py-3 px-4">Type</th>
+                  <th class="py-3 px-4">IP Address</th>
+                  <th class="py-3 px-4">Location</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4 text-right">Checked</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#26262A]">
+                <tr
+                  v-for="device in deviceStore.devices"
+                  :key="device.id"
+                  @click="router.push(`/devices/${device.id}`)"
+                  class="hover:bg-[#18181B] cursor-pointer transition-colors"
+                  :class="{ 'bg-[#F16565]/5': device.status === 'DOWN' }"
+                >
+                  <td class="py-3 px-4 font-semibold text-white">{{ device.name }}</td>
+                  <td class="py-3 px-4 font-mono text-gray-400">{{ device.type }}</td>
+                  <td class="py-3 px-4 font-mono text-gray-300">{{ device.ip }}</td>
+                  <td class="py-3 px-4 text-gray-400">{{ device.location }}</td>
+                  <td class="py-3 px-4"><StatusPill :status="device.status" /></td>
+                  <td class="py-3 px-4 text-right font-mono text-gray-500">{{ device.checkedSecondsAgo }}s ago</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
 
         <!-- Pagination Control -->
         <div class="mt-4">
@@ -236,6 +239,7 @@ import { useDeviceStore } from '../stores/deviceStore';
 import { useAuthStore } from '../stores/authStore';
 import StatCard from '../components/common/StatCard.vue';
 import SkeletonCard from '../components/common/SkeletonCard.vue';
+import SkeletonTable from '../components/common/SkeletonTable.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import LiveFeedPanel from '../components/dashboard/LiveFeedPanel.vue';
 import StatusPill from '../components/common/StatusPill.vue';

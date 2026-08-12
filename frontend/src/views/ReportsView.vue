@@ -42,6 +42,7 @@
 
         <!-- Export Excel / CSV -->
         <button
+          v-if="authStore.hasPermission('reports.export')"
           @click="reportStore.exportCSV()"
           class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5"
           title="Export as Excel / CSV Spreadsheet"
@@ -52,6 +53,7 @@
 
         <!-- Export PDF -->
         <button
+          v-if="authStore.hasPermission('reports.export')"
           @click="handlePrintPDF()"
           class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-sky-400 font-semibold text-xs transition-all flex items-center gap-1.5"
           title="Export SLA Audit as PDF"
@@ -357,6 +359,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
 import { useReportStore } from '../stores/reportStore';
 import { useIncidentStore } from '../stores/incidentStore';
+import { useAuthStore } from '../stores/authStore';
 import DowntimeBarChart from '../components/reports/DowntimeBarChart.vue';
 import RecurringIssuesTable from '../components/reports/RecurringIssuesTable.vue';
 import PrintableSLAAudit from '../components/reports/PrintableSLAAudit.vue';
@@ -379,6 +382,7 @@ const incidentsPageSize = ref(10);
 
 const reportStore = useReportStore();
 const incidentStore = useIncidentStore();
+const authStore = useAuthStore();
 
 const paginatedDowntimeRows = computed(() => {
   const start = (downtimePage.value - 1) * downtimePageSize.value;

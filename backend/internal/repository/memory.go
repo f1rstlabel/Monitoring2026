@@ -146,6 +146,32 @@ func (r *MemoryDeviceRepository) UpdateSNMPSysName(deviceID, sysName string) err
 	return fmt.Errorf("device %s not found", deviceID)
 }
 
+func (r *MemoryDeviceRepository) UpdateSNMPMetadata(deviceID, sysName, sysDescr, sysUpTime, sysContact, sysLocation string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := range r.devices {
+		if r.devices[i].ID == deviceID {
+			if sysName != "" {
+				r.devices[i].SNMPSysName = sysName
+			}
+			if sysDescr != "" {
+				r.devices[i].SNMPSysDescr = sysDescr
+			}
+			if sysUpTime != "" {
+				r.devices[i].SNMPSysUpTime = sysUpTime
+			}
+			if sysContact != "" {
+				r.devices[i].SNMPSysContact = sysContact
+			}
+			if sysLocation != "" {
+				r.devices[i].SNMPSysLocation = sysLocation
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("device %s not found", deviceID)
+}
+
 func (r *MemoryDeviceRepository) Delete(id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

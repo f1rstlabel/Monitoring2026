@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import type { LiveFeedItem } from '../types';
 import { wsClient } from '../ws/websocket';
 import { useDeviceStore } from './deviceStore';
+import { useAuthStore } from './authStore';
 
 let isInitialized = false;
 let unsubscribeFn: (() => void) | null = null;
@@ -32,6 +33,11 @@ export const useLiveStore = defineStore('live', () => {
 
     if (data.type === 'STATUS_CHANGE' || data.type === 'DASHBOARD_UPDATE' || data.type === 'INCIDENT_ALERT') {
       deviceStore.fetchSummary();
+    }
+
+    if (data.type === 'ROLE_PERMISSIONS_UPDATED') {
+      const authStore = useAuthStore();
+      authStore.fetchMe();
     }
 
     if (data.type === 'BATCH_PROGRESS') {

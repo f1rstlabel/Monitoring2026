@@ -40,7 +40,7 @@
 
         <!-- Read-only badge for pimpinan -->
         <span
-          v-if="!authStore.canResolveIncident"
+          v-if="authStore.user.role === 'pimpinan'"
           class="px-3 py-1.5 rounded-lg border border-[#26262A] text-gray-500 text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5"
         >
           <Eye class="w-3.5 h-3.5" />
@@ -159,8 +159,24 @@
   </div>
 
   <!-- Loading State -->
-  <div v-else-if="pageState === 'loading'" class="p-8 text-center bg-[#151517] border border-[#26262A] rounded-xl space-y-4">
-    <SkeletonTable :rows="4" :cols="6" />
+  <div v-else-if="pageState === 'loading'" class="space-y-6">
+    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-6 space-y-3">
+      <Skeleton width="45%" height="1.5rem" />
+      <Skeleton width="60%" height="0.8rem" />
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
+        <Skeleton width="40%" height="1rem" />
+        <div v-for="i in 4" :key="i" class="p-3 bg-[#18181B] border border-[#26262A] rounded-lg space-y-2">
+          <Skeleton width="50%" height="0.8rem" />
+          <Skeleton width="80%" height="0.65rem" />
+        </div>
+      </div>
+      <div class="lg:col-span-1 bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
+        <Skeleton width="60%" height="1rem" />
+        <Skeleton v-for="i in 3" :key="i" width="100%" height="2.5rem" customClass="rounded-lg" />
+      </div>
+    </div>
   </div>
 
   <!-- 404 Not Found State -->
@@ -205,6 +221,7 @@ import { ref, onMounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import StatusPill from '../components/common/StatusPill.vue';
+import Skeleton from '../components/common/Skeleton.vue';
 import PrintableIncidentReport from '../components/reports/PrintableIncidentReport.vue';
 import ChannelChecklist from '../components/notifications/ChannelChecklist.vue';
 import {

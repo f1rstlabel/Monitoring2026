@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"govmonitor-it/backend/internal/domain"
+	"govmonitor-it/backend/internal/middleware"
 	"govmonitor-it/backend/internal/notifier"
 	"govmonitor-it/backend/internal/poller"
 	"govmonitor-it/backend/internal/repository"
@@ -144,27 +145,54 @@ func (h *Handler) RefreshNow(c *gin.Context) {
 }
 
 func getClientIP(c *gin.Context) string {
+	if clientIP := c.GetHeader("X-Client-IP"); clientIP != "" {
+		clientIP = strings.TrimSpace(clientIP)
+		if clientIP != "127.0.0.1" && clientIP != "::1" && clientIP != "localhost" && clientIP != "" {
+			return clientIP
+		}
+	}
+
 	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
 		parts := strings.Split(xff, ",")
-		ip := strings.TrimSpace(parts[0])
-		if ip != "" {
-			return ip
+		for _, p := range parts {
+			ip := strings.TrimSpace(p)
+			if host, _, err := net.SplitHostPort(ip); err == nil {
+				ip = host
+			}
+			ip = strings.Trim(ip, "[]")
+			if ip != "" && ip != "127.0.0.1" && ip != "::1" && ip != "localhost" {
+				return ip
+			}
 		}
 	}
+
 	if xri := c.GetHeader("X-Real-IP"); xri != "" {
 		ip := strings.TrimSpace(xri)
-		if ip != "" {
+		if host, _, err := net.SplitHostPort(ip); err == nil {
+			ip = host
+		}
+		ip = strings.Trim(ip, "[]")
+		if ip != "" && ip != "127.0.0.1" && ip != "::1" && ip != "localhost" {
 			return ip
 		}
 	}
-	ip := c.ClientIP()
-	if strings.Contains(ip, ":") && !strings.Contains(ip, "[") {
-		host, _, err := net.SplitHostPort(ip)
-		if err == nil {
-			return host
-		}
+
+	var rawIP string
+	if c.ClientIP() != "" {
+		rawIP = c.ClientIP()
+	} else if c.Request != nil {
+		rawIP = c.Request.RemoteAddr
 	}
-	return ip
+
+	if host, _, err := net.SplitHostPort(rawIP); err == nil {
+		rawIP = host
+	}
+	rawIP = strings.Trim(rawIP, "[]")
+
+	if rawIP == "" || rawIP == "::1" || rawIP == "localhost" {
+		return "127.0.0.1"
+	}
+	return rawIP
 }
 
 func paginateSlice[T any](c *gin.Context, items []T) {
@@ -220,6 +248,7 @@ func (h *Handler) Login(c *gin.Context) {
 		UsernameOrEmail string `json:"usernameOrEmail"`
 		Password        string `json:"password"`
 		RememberMe      bool   `json:"rememberMe"`
+		ClientIP        string `json:"clientIp"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -300,6 +329,9 @@ func (h *Handler) Login(c *gin.Context) {
 	c.SetCookie("govmonitor_session", tokenString, 1800, "/", "", false, true)
 
 	clientIP := getClientIP(c)
+	if (clientIP == "127.0.0.1" || clientIP == "::1" || clientIP == "localhost") && req.ClientIP != "" {
+		clientIP = req.ClientIP
+	}
 
 	logEntry := &domain.UserLog{
 		UserID:    user.ID,
@@ -545,6 +577,10 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 				dev.LocationID = newLoc.ID
 			}
 		}
+	}
+
+	if dev.CreatedByUserID == "" {
+		dev.CreatedByUserID = middleware.GetUserID(c)
 	}
 
 	createdDev, err := h.deviceRepo.Create(&dev)
@@ -1014,14 +1050,14 @@ func (h *Handler) GetDeviceMetrics(c *gin.Context) {
 		fromStr := c.Query("from")
 		toStr := c.Query("to")
 		if fromStr != "" {
-			if parsed, err := time.Parse("2006-01-02", fromStr); err == nil {
+			if parsed, err := time.ParseInLocation("2006-01-02", fromStr, time.Local); err == nil {
 				from = parsed
 			} else if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
 				from = parsed
 			}
 		}
 		if toStr != "" {
-			if parsed, err := time.Parse("2006-01-02", toStr); err == nil {
+			if parsed, err := time.ParseInLocation("2006-01-02", toStr, time.Local); err == nil {
 				now = parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 			} else if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
 				now = parsed
@@ -1495,6 +1531,15 @@ func (h *Handler) UpdatePermissions(c *gin.Context) {
 			Detail:    fmt.Sprintf("Updated per-role feature permission matrix (%d rules)", len(perms)),
 			IPAddress: c.ClientIP(),
 			UserAgent: c.Request.UserAgent(),
+		})
+	}
+
+	if h.hub != nil {
+		h.hub.BroadcastMessage(domain.WSMessage{
+			Type:        "ROLE_PERMISSIONS_UPDATED",
+			Title:       "Permissions Updated",
+			Description: "Role permission access control matrix updated",
+			Timestamp:   time.Now(),
 		})
 	}
 

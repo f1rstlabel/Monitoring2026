@@ -37,6 +37,9 @@ type DeviceRepository interface {
 	// UpdateSNMPSysName updates a device's snmp_sys_name field.
 	UpdateSNMPSysName(deviceID, sysName string) error
 
+	// UpdateSNMPMetadata updates a device's rich SNMP system metadata.
+	UpdateSNMPMetadata(deviceID, sysName, sysDescr, sysUpTime, sysContact, sysLocation string) error
+
 	// Delete removes a device by ID.
 	Delete(id string) error
 

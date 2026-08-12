@@ -8,11 +8,31 @@ const api = axios.create({
   }
 });
 
+let cachedClientIp = '';
+
+if (typeof window !== 'undefined') {
+  if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '::1') {
+    cachedClientIp = window.location.hostname;
+  } else {
+    fetch('https://api.ipify.org?format=json')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.ip) {
+          cachedClientIp = data.ip;
+        }
+      })
+      .catch(() => {});
+  }
+}
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('gov_monitor_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (cachedClientIp) {
+      config.headers['X-Client-IP'] = cachedClientIp;
     }
     return config;
   },

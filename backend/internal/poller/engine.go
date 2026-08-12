@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -472,11 +473,8 @@ func (e *Engine) pollDevice(dev domain.Device) {
 			if snmpResult.Up {
 				log.Printf("[PollerEngine] SNMP UP for %s (%s), sysName=%s", dev.Name, targetIP, snmpResult.SysName)
 				snmpUp = true
-				if snmpResult.SysName != "" && dev.SNMPSysName != snmpResult.SysName {
-					dev.SNMPSysName = snmpResult.SysName
-					if e.deviceRepo != nil {
-						_ = e.deviceRepo.UpdateSNMPSysName(dev.ID, snmpResult.SysName)
-					}
+				if e.deviceRepo != nil {
+					_ = e.deviceRepo.UpdateSNMPMetadata(dev.ID, snmpResult.SysName, snmpResult.SysDescr, snmpResult.SysUpTime, snmpResult.SysContact, snmpResult.SysLocation)
 				}
 			} else {
 				snmpErrMsg = snmpResult.Error
@@ -795,10 +793,48 @@ func (e *Engine) pollDevice(dev domain.Device) {
 
 // SNMPCheckResult holds the result of an SNMP check.
 type SNMPCheckResult struct {
-	Up        bool
-	SysUpTime string
-	SysName   string
-	Error     string
+	Up          bool
+	SysUpTime   string
+	SysName     string
+	SysDescr    string
+	SysContact  string
+	SysLocation string
+	Error       string
+}
+
+func formatTimeTicks(val interface{}) string {
+	if val == nil {
+		return ""
+	}
+	ticks := gosnmp.ToBigInt(val).Uint64()
+	if ticks == 0 {
+		return ""
+	}
+	seconds := ticks / 100
+	days := seconds / 86400
+	hours := (seconds % 86400) / 3600
+	minutes := (seconds % 3600) / 60
+	if days > 0 {
+		return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+	}
+	if hours > 0 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	}
+	return fmt.Sprintf("%dm %ds", minutes, seconds%60)
+}
+
+func extractPDUString(pdu gosnmp.SnmpPDU) string {
+	if pdu.Value == nil {
+		return ""
+	}
+	switch v := pdu.Value.(type) {
+	case []byte:
+		return strings.TrimSpace(string(v))
+	case string:
+		return strings.TrimSpace(v)
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", v))
+	}
 }
 
 func (e *Engine) snmpCheck(dev domain.Device, ip string) SNMPCheckResult {
@@ -831,8 +867,11 @@ func (e *Engine) snmpCheck(dev domain.Device, ip string) SNMPCheckResult {
 	defer gosp.Conn.Close()
 
 	oids := []string{
+		".1.3.6.1.2.1.1.1.0", // sysDescr.0
 		".1.3.6.1.2.1.1.3.0", // sysUpTime.0
+		".1.3.6.1.2.1.1.4.0", // sysContact.0
 		".1.3.6.1.2.1.1.5.0", // sysName.0
+		".1.3.6.1.2.1.1.6.0", // sysLocation.0
 	}
 	if dev.SNMPIfIndex > 0 {
 		// ifOperStatus.dev.SNMPIfIndex
@@ -847,16 +886,20 @@ func (e *Engine) snmpCheck(dev domain.Device, ip string) SNMPCheckResult {
 	result := SNMPCheckResult{Up: true}
 	for _, pdu := range resp.Variables {
 		switch pdu.Name {
+		case ".1.3.6.1.2.1.1.1.0": // sysDescr.0
+			result.SysDescr = extractPDUString(pdu)
 		case ".1.3.6.1.2.1.1.3.0": // sysUpTime.0
 			if pdu.Type == gosnmp.OctetString {
-				result.SysUpTime = string(pdu.Value.([]byte))
+				result.SysUpTime = extractPDUString(pdu)
 			} else {
-				result.SysUpTime = gosnmp.ToBigInt(pdu.Value).String()
+				result.SysUpTime = formatTimeTicks(pdu.Value)
 			}
+		case ".1.3.6.1.2.1.1.4.0": // sysContact.0
+			result.SysContact = extractPDUString(pdu)
 		case ".1.3.6.1.2.1.1.5.0": // sysName.0
-			if pdu.Type == gosnmp.OctetString {
-				result.SysName = string(pdu.Value.([]byte))
-			}
+			result.SysName = extractPDUString(pdu)
+		case ".1.3.6.1.2.1.1.6.0": // sysLocation.0
+			result.SysLocation = extractPDUString(pdu)
 		case fmt.Sprintf(".1.3.6.1.2.1.2.2.1.8.%d", dev.SNMPIfIndex): // ifOperStatus
 			if pdu.Type == gosnmp.Integer {
 				// ifOperStatus: 1=up, 2=down, 3=testing, 4=unknown, 5=dormant, 6=notPresent, 7=lowerLayerDown
@@ -868,6 +911,12 @@ func (e *Engine) snmpCheck(dev domain.Device, ip string) SNMPCheckResult {
 			}
 		}
 	}
+	if result.SysName == "" && result.SysDescr != "" {
+		result.SysName = result.SysDescr
+	}
+
+	log.Printf("[SNMP Raw OID] sysName response for %s (%s): sysName=%q, sysDescr=%q, sysUpTime=%s, sysContact=%q, sysLocation=%q",
+		dev.Name, ip, result.SysName, result.SysDescr, result.SysUpTime, result.SysContact, result.SysLocation)
 
 	// Fetch CPU & Memory metrics (HOST-RESOURCES-MIB) if metricRepo is available
 	if e.metricRepo != nil {
@@ -990,6 +1039,24 @@ func isPingSuccess(outStr string, err error) bool {
 	return false
 }
 
+func parsePingRTT(outStr string) (int64, bool) {
+	if regexp.MustCompile(`(?i)(time|waktu)\s*<\s*1ms`).MatchString(outStr) {
+		return 1, true
+	}
+	re := regexp.MustCompile(`(?i)(time|waktu)\s*[=<]\s*([0-9]+(?:\.[0-9]+)?)\s*ms`)
+	matches := re.FindStringSubmatch(outStr)
+	if len(matches) >= 3 {
+		if val, err := strconv.ParseFloat(matches[2], 64); err == nil {
+			rtt := int64(val)
+			if rtt <= 0 {
+				rtt = 1
+			}
+			return rtt, true
+		}
+	}
+	return 0, false
+}
+
 func (e *Engine) icmpCheckWithLatency(ip string) (bool, int64) {
 	if ip == "" {
 		return false, 0
@@ -1004,14 +1071,21 @@ func (e *Engine) icmpCheckWithLatency(ip string) (bool, int64) {
 	}
 
 	outBytes, err := cmd.CombinedOutput()
-	lat := time.Since(start).Milliseconds()
+	wallClockLat := time.Since(start).Milliseconds()
 	outStr := string(outBytes)
 
 	icmpUp := isPingSuccess(outStr, err)
 
-	// Explicit raw debug logging as required by §1.2
-	log.Printf("[PollerEngine] ICMP raw check for %s: received=%v, latency=%dms, err=%v, output=%q",
-		ip, icmpUp, lat, err, strings.TrimSpace(outStr))
+	var lat int64
+	if pureRTT, ok := parsePingRTT(outStr); ok {
+		lat = pureRTT
+	} else {
+		lat = wallClockLat
+	}
+
+	// Explicit raw debug logging
+	log.Printf("[PollerEngine] ICMP raw check for %s: received=%v, pure_rtt=%dms (wall_clock=%dms), err=%v",
+		ip, icmpUp, lat, wallClockLat, err)
 
 	if icmpUp {
 		if lat <= 0 {
@@ -1020,12 +1094,16 @@ func (e *Engine) icmpCheckWithLatency(ip string) (bool, int64) {
 		return true, lat
 	}
 
-	// Fallback to TCP port check
+	// Fallback to TCP port check with independent per-port timing
 	for _, port := range []string{"80", "443", "22", "53", "8080"} {
+		tcpStart := time.Now()
 		conn, tcpErr := net.DialTimeout("tcp", net.JoinHostPort(ip, port), 600*time.Millisecond)
 		if tcpErr == nil {
 			conn.Close()
-			tcpLat := time.Since(start).Milliseconds()
+			tcpLat := time.Since(tcpStart).Milliseconds()
+			if tcpLat <= 0 {
+				tcpLat = 1
+			}
 			log.Printf("[PollerEngine] TCP fallback UP for %s on port %s (latency: %dms)", ip, port, tcpLat)
 			return true, tcpLat
 		}

@@ -311,12 +311,11 @@ func main() {
 
 	// Settings
 	settings := v1.Group("/settings")
-	settings.Use(middleware.RequirePermission(permRepo, "settings.polling", "admin"))
 	{
 		settings.GET("", h.GetSettings)
-		settings.PUT("/thresholds", h.UpdateThresholds)
-		settings.PUT("/polling", h.UpdatePolling)
-		settings.PUT("/rate-limit", h.UpdateRateLimit)
+		settings.PUT("/thresholds", middleware.RequirePermission(permRepo, "settings.thresholds", "admin"), h.UpdateThresholds)
+		settings.PUT("/polling", middleware.RequirePermission(permRepo, "settings.polling", "admin"), h.UpdatePolling)
+		settings.PUT("/rate-limit", middleware.RequirePermission(permRepo, "settings.notifications", "admin"), h.UpdateRateLimit)
 	}
 
 	// Users
@@ -335,15 +334,16 @@ func main() {
 
 	// Integrations
 	integrations := v1.Group("/integrations")
+	integrations.Use(middleware.RequirePermission(permRepo, "settings.notifications", "admin"))
 	{
 		integrations.POST("/whatsapp/connect", integH.WhatsAppConnect)
 		integrations.GET("/whatsapp/qr", integH.WhatsAppQR)
 		integrations.GET("/whatsapp/status", integH.WhatsAppStatus)
 		integrations.POST("/whatsapp/disconnect", integH.WhatsAppDisconnect)
-		integrations.GET("/whatsapp/targets", integH.ListWhatsAppTargets) // New endpoint
-		integrations.POST("/whatsapp/targets", integH.CreateWhatsAppTarget) // New endpoint
-		integrations.PUT("/whatsapp/targets/:id", integH.UpdateWhatsAppTarget) // New endpoint
-		integrations.DELETE("/whatsapp/targets/:id", integH.DeleteWhatsAppTarget) // New endpoint
+		integrations.GET("/whatsapp/targets", integH.ListWhatsAppTargets)
+		integrations.POST("/whatsapp/targets", integH.CreateWhatsAppTarget)
+		integrations.PUT("/whatsapp/targets/:id", integH.UpdateWhatsAppTarget)
+		integrations.DELETE("/whatsapp/targets/:id", integH.DeleteWhatsAppTarget)
 		integrations.POST("/whatsapp/test", integH.WhatsAppTest)
 		integrations.GET("/telegram/config", integH.TelegramGetConfig)
 		integrations.POST("/telegram/config", integH.TelegramConfig)

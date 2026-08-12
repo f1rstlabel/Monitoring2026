@@ -22,6 +22,17 @@
       </button>
     </div>
 
+    <!-- Role-Wide Notice Banner -->
+    <div class="bg-[#7B96F5]/10 border border-[#7B96F5]/30 rounded-lg p-3 text-xs font-mono text-gray-200 flex items-center gap-2.5">
+      <ShieldCheck class="w-4 h-4 text-[#7B96F5] flex-shrink-0" />
+      <div>
+        <span class="font-bold text-[#7B96F5]">Role-Based Access Control:</span>
+        <span class="text-gray-300">
+          Feature access rules are configured per role. Editing permissions for <strong>Anggota NOC</strong> or <strong>Pimpinan</strong> immediately updates feature capabilities for <strong>all users</strong> assigned that role.
+        </span>
+      </div>
+    </div>
+
     <!-- Feedback Banner -->
     <div v-if="saveMessage" class="p-3 rounded-lg text-xs font-mono border" :class="saveSuccess ? 'bg-[#3ECF8E]/10 border-[#3ECF8E]/30 text-[#3ECF8E]' : 'bg-red-500/10 border-red-500/30 text-red-400'">
       {{ saveMessage }}
@@ -33,9 +44,18 @@
         <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-400 border-b border-[#26262A]">
           <tr>
             <th class="py-3 px-4">Feature Module &amp; Action</th>
-            <th class="py-3 px-4 text-center w-48">Pimpinan</th>
-            <th class="py-3 px-4 text-center w-48">Anggota NOC</th>
-            <th class="py-3 px-4 text-center w-36">Admin</th>
+            <th class="py-3 px-4 text-center w-48">
+              <div>Pimpinan</div>
+              <div class="text-[9px] text-[#7B96F5] font-semibold lowercase">({{ pimpinanCount }} user{{ pimpinanCount === 1 ? '' : 's' }})</div>
+            </th>
+            <th class="py-3 px-4 text-center w-48">
+              <div>Anggota NOC</div>
+              <div class="text-[9px] text-[#7B96F5] font-semibold lowercase">({{ anggotaCount }} user{{ anggotaCount === 1 ? '' : 's' }})</div>
+            </th>
+            <th class="py-3 px-4 text-center w-36">
+              <div>Admin</div>
+              <div class="text-[9px] text-[#3ECF8E] font-semibold lowercase">({{ adminCount }} user{{ adminCount === 1 ? '' : 's' }})</div>
+            </th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#26262A]">
@@ -56,59 +76,51 @@
                 </div>
               </td>
 
-              <!-- Pimpinan Radio Controls -->
+              <!-- Pimpinan ON / OFF Switch Controls -->
               <td class="py-3 px-4 text-center">
-                <div class="inline-flex items-center gap-3 bg-[#18181B] border border-[#26262A] px-2.5 py-1 rounded-lg text-[11px] font-mono">
-                  <label class="inline-flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      :name="'pimpinan-' + feat.key"
-                      :value="true"
-                      :checked="getPermission('pimpinan', feat.key) === true"
-                      @change="setPermission('pimpinan', feat.key, true)"
-                      class="text-[#7B96F5] focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
-                    />
-                    <span class="text-emerald-400 font-semibold">Allow</span>
-                  </label>
-                  <label class="inline-flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      :name="'pimpinan-' + feat.key"
-                      :value="false"
-                      :checked="getPermission('pimpinan', feat.key) === false"
-                      @change="setPermission('pimpinan', feat.key, false)"
-                      class="text-red-400 focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
-                    />
-                    <span class="text-gray-400">Deny</span>
-                  </label>
+                <div class="inline-flex p-0.5 rounded-lg bg-[#0A0A0B] border border-[#26262A]">
+                  <button
+                    type="button"
+                    @click="setPermission('pimpinan', feat.key, true)"
+                    :class="getPermission('pimpinan', feat.key) === true ? 'bg-[#3ECF8E]/20 text-[#3ECF8E] border-[#3ECF8E]/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('pimpinan', feat.key) === true ? 'bg-[#3ECF8E] pulsing-dot-green' : 'bg-gray-600'"></span>
+                    ON
+                  </button>
+                  <button
+                    type="button"
+                    @click="setPermission('pimpinan', feat.key, false)"
+                    :class="getPermission('pimpinan', feat.key) === false ? 'bg-red-500/20 text-red-400 border-red-500/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('pimpinan', feat.key) === false ? 'bg-red-400' : 'bg-gray-600'"></span>
+                    OFF
+                  </button>
                 </div>
               </td>
 
-              <!-- Anggota Radio Controls -->
+              <!-- Anggota ON / OFF Switch Controls -->
               <td class="py-3 px-4 text-center">
-                <div class="inline-flex items-center gap-3 bg-[#18181B] border border-[#26262A] px-2.5 py-1 rounded-lg text-[11px] font-mono">
-                  <label class="inline-flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      :name="'anggota-' + feat.key"
-                      :value="true"
-                      :checked="getPermission('anggota', feat.key) === true"
-                      @change="setPermission('anggota', feat.key, true)"
-                      class="text-[#7B96F5] focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
-                    />
-                    <span class="text-emerald-400 font-semibold">Allow</span>
-                  </label>
-                  <label class="inline-flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      :name="'anggota-' + feat.key"
-                      :value="false"
-                      :checked="getPermission('anggota', feat.key) === false"
-                      @change="setPermission('anggota', feat.key, false)"
-                      class="text-red-400 focus:ring-0 bg-[#0A0A0B] border-[#26262A]"
-                    />
-                    <span class="text-gray-400">Deny</span>
-                  </label>
+                <div class="inline-flex p-0.5 rounded-lg bg-[#0A0A0B] border border-[#26262A]">
+                  <button
+                    type="button"
+                    @click="setPermission('anggota', feat.key, true)"
+                    :class="getPermission('anggota', feat.key) === true ? 'bg-[#3ECF8E]/20 text-[#3ECF8E] border-[#3ECF8E]/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('anggota', feat.key) === true ? 'bg-[#3ECF8E] pulsing-dot-green' : 'bg-gray-600'"></span>
+                    ON
+                  </button>
+                  <button
+                    type="button"
+                    @click="setPermission('anggota', feat.key, false)"
+                    :class="getPermission('anggota', feat.key) === false ? 'bg-red-500/20 text-red-400 border-red-500/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('anggota', feat.key) === false ? 'bg-red-400' : 'bg-gray-600'"></span>
+                    OFF
+                  </button>
                 </div>
               </td>
 
@@ -127,10 +139,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { permissionsApi } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
-import { ShieldAlert, Save, Check } from 'lucide-vue-next';
+import { useSettingStore } from '../../stores/settingStore';
+import { ShieldAlert, ShieldCheck, Save, Check } from 'lucide-vue-next';
 
 interface FeatureDef {
   key: string;
@@ -157,8 +170,7 @@ const featureGroups: FeatureGroup[] = [
   {
     category: 'Incidents Queue',
     features: [
-      { key: 'incidents.view', label: 'View Active Incidents', description: 'Access incidents queue & timeline' },
-      { key: 'incidents.resolve', label: 'Mark Incident Resolved', description: 'Change status to RESOLVED' }
+      { key: 'incidents.view', label: 'View Active Incidents', description: 'Access incidents queue & timeline' }
     ]
   },
   {
@@ -181,6 +193,11 @@ const featureGroups: FeatureGroup[] = [
 ];
 
 const authStore = useAuthStore();
+const settingStore = useSettingStore();
+
+const pimpinanCount = computed(() => settingStore.users.filter(u => u.role === 'pimpinan').length);
+const anggotaCount = computed(() => settingStore.users.filter(u => u.role === 'anggota').length);
+const adminCount = computed(() => settingStore.users.filter(u => u.role === 'admin').length);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const isSaveSuccess = ref(false);
@@ -195,7 +212,6 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'devices.delete': false,
     'devices.import': false,
     'incidents.view': true,
-    'incidents.resolve': false,
     'reports.view': true,
     'reports.export': true,
     'settings.notifications': false,
@@ -211,7 +227,6 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'devices.delete': false,
     'devices.import': false,
     'incidents.view': true,
-    'incidents.resolve': true,
     'reports.view': true,
     'reports.export': true,
     'settings.notifications': false,

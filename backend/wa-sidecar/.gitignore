@@ -15,7 +15,8 @@ baileys_store*.json
 .env.local
 .env.production
 .env.development
-!.env.example
+.env.example
+env.example
 
 # ─── Logs ────────────────────────────────────────────────────────────────────
 *.log

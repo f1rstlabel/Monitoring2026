@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"govmonitor-it/backend/internal/domain"
+	"govmonitor-it/backend/internal/middleware"
 	"govmonitor-it/backend/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -254,6 +255,7 @@ func (h *ImportHandler) ImportDevices(c *gin.Context) {
 			}
 		}
 
+		dev.CreatedByUserID = middleware.GetUserID(c)
 		created, err := h.deviceRepo.Create(dev)
 		if err != nil {
 			result.Status = "failed"

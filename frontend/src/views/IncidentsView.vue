@@ -69,7 +69,18 @@
     </div>
 
     <!-- Skeleton while loading -->
-    <SkeletonTable v-if="incidentStore.isLoading" :rows="6" :cols="7" />
+    <template v-if="incidentStore.isLoading">
+      <div v-if="groupingMode !== 'none'" class="space-y-4">
+        <div v-for="g in 3" :key="g" class="bg-[#151517] border border-[#26262A] rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+            <Skeleton width="35%" height="1.1rem" />
+            <Skeleton width="15%" height="0.8rem" />
+          </div>
+          <SkeletonTable :rows="2" :cols="6" />
+        </div>
+      </div>
+      <SkeletonTable v-else :rows="6" :cols="7" />
+    </template>
 
     <!-- Grouped Accordion List (by Location, Device, Status) -->
     <div v-else-if="groupingMode !== 'none'" class="space-y-4">
@@ -271,6 +282,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
+import Skeleton from '../components/common/Skeleton.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
 import PrintableIncidentsList from '../components/reports/PrintableIncidentsList.vue';
 import { ChevronRight, CheckCircle, FileText, Printer, Search } from 'lucide-vue-next';

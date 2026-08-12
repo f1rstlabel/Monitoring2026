@@ -28,7 +28,13 @@ export interface Device {
   snmpPort?: number;
   snmpIfIndex?: number;
   snmpSysName?: string;
+  snmpSysDescr?: string;
+  snmpSysUpTime?: string;
+  snmpSysContact?: string;
+  snmpSysLocation?: string;
   latencyMs?: number;
+  createdByUserId?: string;
+  createdByUserName?: string;
 }
 
 export interface PaginatedResponse<T> {

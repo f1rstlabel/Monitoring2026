@@ -1,5 +1,32 @@
 <template>
-  <div v-if="device" class="space-y-6">
+  <!-- Skeleton loading state while device data fetches -->
+  <div v-if="isDetailLoading || deviceStore.isLoading" class="space-y-6">
+    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-6 space-y-3">
+      <Skeleton width="40%" height="1.5rem" />
+      <div class="flex gap-4">
+        <Skeleton width="120px" height="1rem" />
+        <Skeleton width="140px" height="1rem" />
+        <Skeleton width="100px" height="1rem" />
+      </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-1 bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
+        <Skeleton width="50%" height="1rem" />
+        <Skeleton width="120px" height="120px" customClass="rounded-full mx-auto" />
+        <Skeleton v-for="i in 5" :key="i" width="100%" height="0.8rem" />
+      </div>
+      <div class="lg:col-span-2 space-y-6">
+        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 h-72">
+          <Skeleton width="40%" height="1rem" />
+          <Skeleton width="100%" height="180px" />
+        </div>
+        <SkeletonTable :rows="3" :cols="5" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Real Device Detail Content -->
+  <div v-else-if="device" class="space-y-6">
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-xs font-mono text-gray-400">
       <router-link to="/devices" class="hover:text-[#7B96F5] transition-colors">Devices</router-link>
@@ -72,11 +99,32 @@
             <span class="text-gray-400 font-mono">Failure Threshold</span>
             <span class="font-mono text-white font-semibold">{{ device.useCustomThreshold && device.customFailureThreshold ? device.customFailureThreshold : device.failureThreshold }} fails</span>
           </div>
+
+          <div v-if="device.createdByUserName || device.createdByUserId" class="flex justify-between py-2 items-center">
+            <span class="text-gray-400 font-mono">Added By</span>
+            <span class="font-mono text-gray-200 font-semibold">{{ device.createdByUserName || device.createdByUserId }}</span>
+          </div>
           <!-- New SNMP Info Section -->
           <template v-if="device.snmpEnabled">
-            <div v-if="device.snmpSysName" class="flex justify-between py-2 items-center">
+            <div class="flex justify-between py-2 items-center">
               <span class="text-gray-400 font-mono">OS / System Name</span>
-              <span class="font-mono text-amber-400 font-bold truncate max-w-[160px]" :title="device.snmpSysName">{{ device.snmpSysName }}</span>
+              <span class="font-mono text-amber-400 font-bold truncate max-w-[160px]" :title="device.snmpSysName || 'Not Available'">{{ device.snmpSysName || 'Not Available' }}</span>
+            </div>
+            <div v-if="device.snmpSysDescr" class="flex justify-between py-2 items-start gap-2">
+              <span class="text-gray-400 font-mono flex-shrink-0">OS / Firmware</span>
+              <span class="font-mono text-gray-300 text-[11px] text-right truncate max-w-[170px]" :title="device.snmpSysDescr">{{ device.snmpSysDescr }}</span>
+            </div>
+            <div v-if="device.snmpSysUpTime" class="flex justify-between py-2 items-center">
+              <span class="text-gray-400 font-mono" title="Device's self-reported uptime since last reboot">System Uptime (Reboot)</span>
+              <span class="font-mono text-sky-400 font-semibold text-[11px]">{{ device.snmpSysUpTime }}</span>
+            </div>
+            <div v-if="device.snmpSysContact" class="flex justify-between py-2 items-center">
+              <span class="text-gray-400 font-mono">SNMP Contact</span>
+              <span class="font-mono text-gray-300 text-[11px] truncate max-w-[160px]" :title="device.snmpSysContact">{{ device.snmpSysContact }}</span>
+            </div>
+            <div v-if="device.snmpSysLocation" class="flex justify-between py-2 items-center">
+              <span class="text-gray-400 font-mono">SNMP Location</span>
+              <span class="font-mono text-gray-300 text-[11px] truncate max-w-[160px]" :title="device.snmpSysLocation">{{ device.snmpSysLocation }}</span>
             </div>
             <div class="flex justify-between py-2">
               <span class="text-gray-400 font-mono">SNMP Polling</span>
@@ -183,13 +231,14 @@
       />
     </div>
   </div>
+  <!-- 404 Not Found State -->
   <div v-else class="p-8 text-center bg-[#151517] border border-[#26262A] rounded-xl space-y-4">
     <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 text-amber-400">
       <AlertTriangle class="w-6 h-6" />
     </div>
-    <h3 class="text-sm font-bold text-white">Device Information Loading or Not Found</h3>
+    <h3 class="text-sm font-bold text-white">Device Information Not Found</h3>
     <p class="text-xs text-gray-400 max-w-md mx-auto">
-      The requested device ID could not be loaded from the inventory or is currently fetching.
+      The requested device ID could not be found in the inventory database.
     </p>
     <router-link to="/devices" class="inline-block px-4 py-2 text-xs font-semibold rounded-lg bg-[#7B96F5] text-white hover:bg-[#95ABF7]">
       Back to Devices List
@@ -218,6 +267,8 @@ import UptimeGauge from '../components/devices/UptimeGauge.vue';
 import StatusHistoryChart from '../components/devices/StatusHistoryChart.vue';
 import DeviceFormModal from '../components/devices/DeviceFormModal.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
+import Skeleton from '../components/common/Skeleton.vue';
+import SkeletonTable from '../components/common/SkeletonTable.vue';
 import {
   ChevronRight,
   Network,
@@ -232,6 +283,7 @@ const route = useRoute();
 const deviceStore = useDeviceStore();
 const authStore = useAuthStore();
 
+const isDetailLoading = ref(true);
 const isFormModalOpen = ref(false);
 const formModalMode = ref<'add' | 'edit'>('edit');
 
@@ -286,13 +338,23 @@ function openEditDevice() {
 }
 
 onMounted(async () => {
-  if (deviceStore.devices.length === 0) {
-    await deviceStore.fetchDevices();
+  isDetailLoading.value = true;
+  try {
+    if (deviceStore.devices.length === 0) {
+      await deviceStore.fetchDevices();
+    }
+    await fetchIncidentsForDevice();
+  } finally {
+    isDetailLoading.value = false;
   }
-  fetchIncidentsForDevice();
 });
 
-watch(deviceId, () => {
-  fetchIncidentsForDevice();
+watch(deviceId, async () => {
+  isDetailLoading.value = true;
+  try {
+    await fetchIncidentsForDevice();
+  } finally {
+    isDetailLoading.value = false;
+  }
 });
 </script>

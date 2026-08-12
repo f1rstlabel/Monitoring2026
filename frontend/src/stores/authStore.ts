@@ -49,20 +49,21 @@ export const useAuthStore = defineStore('auth', () => {
   });
 
   const featurePermissions = ref<Record<string, boolean>>({});
+  const isPermissionsLoaded = ref(false);
 
   function hasPermission(featureKey: string): boolean {
     if (user.value.role === 'admin') return true;
-    if (featurePermissions.value && featureKey in featurePermissions.value) {
+    if (isPermissionsLoaded.value && featurePermissions.value) {
       return !!featurePermissions.value[featureKey];
     }
-    // Baseline fallbacks if permissions not loaded yet
+    // Baseline defaults matching initial DB seed
     if (user.value.role === 'pimpinan') {
-      return featureKey.endsWith('.view') || featureKey === 'reports.export';
+      return featureKey === 'devices.view' || featureKey === 'incidents.view' || featureKey === 'reports.view' || featureKey === 'reports.export';
     }
     if (user.value.role === 'anggota') {
-      return !featureKey.startsWith('settings.') && featureKey !== 'devices.delete' && featureKey !== 'devices.import';
+      return featureKey === 'devices.view' || featureKey === 'devices.create' || featureKey === 'devices.edit' || featureKey === 'incidents.view' || featureKey === 'reports.view' || featureKey === 'reports.export';
     }
-    return true;
+    return false;
   }
 
   const isAuthenticated = computed(() => !!token.value);
@@ -72,9 +73,20 @@ export const useAuthStore = defineStore('auth', () => {
   const canEditDevice = computed(() => hasPermission('devices.edit'));
   const canDeleteDevice = computed(() => hasPermission('devices.delete'));
   const canImportDevices = computed(() => hasPermission('devices.import'));
-  const canResolveIncident = computed(() => hasPermission('incidents.resolve'));
-  const canSeeSettings = computed(() => user.value.role === 'admin' || user.value.role === 'anggota' || hasPermission('settings.view'));
-  const canManageSettings = computed(() => user.value.role === 'admin' || hasPermission('settings.polling'));
+  const canSeeSettings = computed(() =>
+    user.value.role === 'admin' ||
+    hasPermission('settings.notifications') ||
+    hasPermission('settings.polling') ||
+    hasPermission('settings.thresholds') ||
+    hasPermission('settings.users') ||
+    hasPermission('settings.permissions')
+  );
+  const canManageSettings = computed(() =>
+    user.value.role === 'admin' ||
+    hasPermission('settings.polling') ||
+    hasPermission('settings.thresholds') ||
+    hasPermission('settings.notifications')
+  );
   const canManageUsers = computed(() => user.value.role === 'admin' || hasPermission('settings.users'));
 
   // ─── Auth Actions ────────────────────────────────────────────────────────────
@@ -94,6 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
         };
         if (res.featurePermissions) {
           featurePermissions.value = res.featurePermissions;
+          isPermissionsLoaded.value = true;
         }
       }
     } catch (e) {
@@ -101,9 +114,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Automatically fetch fresh user info and permissions if authenticated on load
+  if (token.value) {
+    fetchMe();
+  }
+
   async function login(usernameOrEmail: string, password: string, rememberMe = true) {
     try {
-      const res = await authApi.login({ usernameOrEmail, password, rememberMe });
+      const clientIp = typeof window !== 'undefined' ? window.location.hostname : '';
+      const res = await authApi.login({ usernameOrEmail, password, rememberMe, clientIp } as any);
       token.value = res.token || 'demo-jwt-token-2.4.1';
       localStorage.setItem('gov_monitor_token', token.value!);
       if (res.user) {
@@ -197,7 +216,6 @@ export const useAuthStore = defineStore('auth', () => {
     canEditDevice,
     canDeleteDevice,
     canImportDevices,
-    canResolveIncident,
     canSeeSettings,
     canManageSettings,
     canManageUsers,
