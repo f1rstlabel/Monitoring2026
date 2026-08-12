@@ -54,6 +54,8 @@ debug.log
 bin/
 dist/
 node_modules/
+.vite/
+frontend/.vite/
 backend/uploads/*
 !backend/uploads/.gitkeep
 uploads/*
@@ -86,3 +88,5 @@ PROJECT_STRUCTURE.md
 scratch/
 .agents/
 docs/
+*.env.example
+.env.example
