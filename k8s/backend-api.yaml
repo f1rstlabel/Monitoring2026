@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: govmonitor-api
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: govmonitor-api
+  template:
+    metadata:
+      labels:
+        app: govmonitor-api
+    spec:
+      containers:
+        - name: govmonitor-api
+          image: ghcr.io/f1rstlabel/govmonitor-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: ENV
+              value: production
+            - name: DB_HOST
+              value: postgres-service
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: postgres
+            - name: DB_NAME
+              value: govmonitor
+            - name: CORS_ALLOWED_ORIGIN
+              value: "http://10.11.1.250:30082"
+            - name: DB_SSLMODE
+              value: disable
+            - name: REDIS_HOST
+              value: redis-service
+            - name: REDIS_PORT
+              value: "6379"
+            - name: SIDECAR_URL
+              value: http://wa-sidecar-service:3001
+          envFrom:
+            - secretRef:
+                name: govmonitor-secrets
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: govmonitor-api-service
+  namespace: default
+spec:
+  selector:
+    app: govmonitor-api
+  ports:
+    - port: 8080
+      targetPort: 8080

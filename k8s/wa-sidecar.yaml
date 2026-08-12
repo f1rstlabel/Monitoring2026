@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wa-sidecar
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wa-sidecar
+  template:
+    metadata:
+      labels:
+        app: wa-sidecar
+    spec:
+      containers:
+        - name: wa-sidecar
+          image: ghcr.io/f1rstlabel/govmonitor-wa-sidecar:latest
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - secretRef:
+                name: govmonitor-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wa-sidecar-service
+  namespace: default
+spec:
+  selector:
+    app: wa-sidecar
+  ports:
+    - port: 3001
+      targetPort: 3001

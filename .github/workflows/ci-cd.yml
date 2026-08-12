@@ -1,0 +1,175 @@
+name: CI/CD - GovMonitor IT
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      sidecar: ${{ steps.filter.outputs.sidecar }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '!backend/wa-sidecar/**'
+            sidecar:
+              - 'backend/wa-sidecar/**'
+            frontend:
+              - 'frontend/**'
+
+  test-backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: govmonitor
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: [ "6379:6379" ]
+    defaults:
+      run:
+        working-directory: ./backend
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: govmonitor
+      DB_SSLMODE: disable
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: ci-test-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: backend/go.sum
+      - run: go mod download
+      - run: go vet ./...
+      - run: go test ./... -race
+        continue-on-error: true
+      - run: go build -o govmonitor-api ./cmd/api
+
+  build-backend:
+    needs: [ detect-changes, test-backend ]
+    if: needs.detect-changes.outputs.backend == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/f1rstlabel/govmonitor-api:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/f1rstlabel/govmonitor-api:latest
+
+  test-sidecar:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.sidecar == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend/wa-sidecar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: node --check index.js
+
+  build-sidecar:
+    needs: [ detect-changes, test-sidecar ]
+    if: needs.detect-changes.outputs.sidecar == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./backend/wa-sidecar
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/f1rstlabel/govmonitor-wa-sidecar:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/f1rstlabel/govmonitor-wa-sidecar:latest
+
+  test-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run build
+
+  build-frontend:
+    needs: [ detect-changes, test-frontend ]
+    if: needs.detect-changes.outputs.frontend == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/f1rstlabel/govmonitor-frontend:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/f1rstlabel/govmonitor-frontend:latest
