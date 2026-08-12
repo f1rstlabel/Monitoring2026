@@ -47,3 +47,4 @@ docs/
 .env.example
 env.example
 dev-run.sh
+PROJECT_STRUCTURE.md
