@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
+	"sanoc/backend/internal/domain"
 )
 
 type PostgresDeviceRepository struct {
@@ -302,7 +302,7 @@ func NewPostgresUserRepository(db *sql.DB) *PostgresUserRepository {
 }
 
 func (r *PostgresUserRepository) GetAll() ([]domain.User, error) {
-	rows, err := r.db.Query(`SELECT id, name, email, role, status, COALESCE(avatar_url, ''), COALESCE(last_active, ''), COALESCE(permissions, '[]'::jsonb), COALESCE(is_active, true) FROM users WHERE COALESCE(is_active, true) = true`)
+	rows, err := r.db.Query(`SELECT id, COALESCE(username, ''), name, email, role, status, COALESCE(avatar_url, ''), COALESCE(last_active, ''), COALESCE(permissions, '[]'::jsonb), COALESCE(is_active, true), COALESCE(mfa_enabled, false) FROM users WHERE COALESCE(is_active, true) = true`)
 	if err != nil {
 		return nil, err
 	}
@@ -312,8 +312,12 @@ func (r *PostgresUserRepository) GetAll() ([]domain.User, error) {
 	for rows.Next() {
 		var u domain.User
 		var permJSON []byte
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Role, &u.Status, &u.AvatarURL, &u.LastActive, &permJSON, &u.IsActive); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Name, &u.Email, &u.Role, &u.Status, &u.AvatarURL, &u.LastActive, &permJSON, &u.IsActive, &u.MFAEnabled); err != nil {
 			return nil, err
+		}
+		if u.Username == "" && u.Email != "" {
+			parts := strings.Split(u.Email, "@")
+			u.Username = parts[0]
 		}
 		_ = json.Unmarshal(permJSON, &u.Permissions)
 		users = append(users, u)
@@ -327,10 +331,14 @@ func (r *PostgresUserRepository) GetAll() ([]domain.User, error) {
 func (r *PostgresUserRepository) GetByID(id string) (*domain.User, error) {
 	var u domain.User
 	var permJSON []byte
-	err := r.db.QueryRow(`SELECT id, name, email, role, status, COALESCE(avatar_url, ''), COALESCE(last_active, ''), COALESCE(permissions, '[]'::jsonb), COALESCE(is_active, true) FROM users WHERE id=$1`, id).
-		Scan(&u.ID, &u.Name, &u.Email, &u.Role, &u.Status, &u.AvatarURL, &u.LastActive, &permJSON, &u.IsActive)
+	err := r.db.QueryRow(`SELECT id, COALESCE(username, ''), name, email, role, status, COALESCE(avatar_url, ''), COALESCE(last_active, ''), COALESCE(permissions, '[]'::jsonb), COALESCE(is_active, true), COALESCE(mfa_enabled, false), COALESCE(mfa_secret, '') FROM users WHERE id=$1`, id).
+		Scan(&u.ID, &u.Username, &u.Name, &u.Email, &u.Role, &u.Status, &u.AvatarURL, &u.LastActive, &permJSON, &u.IsActive, &u.MFAEnabled, &u.MFASecret)
 	if err == sql.ErrNoRows {
 		return nil, nil
+	}
+	if u.Username == "" && u.Email != "" {
+		parts := strings.Split(u.Email, "@")
+		u.Username = parts[0]
 	}
 	_ = json.Unmarshal(permJSON, &u.Permissions)
 	return &u, err
@@ -342,13 +350,22 @@ func (r *PostgresUserRepository) GetByEmail(email string) (*domain.User, error) 
 }
 
 func (r *PostgresUserRepository) GetWithPasswordByEmail(email string) (*domain.User, string, error) {
+	return r.GetWithPasswordByUsernameOrEmail(email)
+}
+
+func (r *PostgresUserRepository) GetWithPasswordByUsernameOrEmail(identifier string) (*domain.User, string, error) {
 	var u domain.User
 	var passwordHash string
 	var permJSON []byte
-	err := r.db.QueryRow(`SELECT id, name, email, COALESCE(password, ''), role, status, COALESCE(avatar_url, ''), COALESCE(last_active, ''), COALESCE(permissions, '[]'::jsonb), COALESCE(is_active, true) FROM users WHERE LOWER(email)=LOWER($1) AND COALESCE(is_active, true) = true`, email).
-		Scan(&u.ID, &u.Name, &u.Email, &passwordHash, &u.Role, &u.Status, &u.AvatarURL, &u.LastActive, &permJSON, &u.IsActive)
+	clean := strings.TrimSpace(strings.ToLower(identifier))
+	err := r.db.QueryRow(`SELECT id, COALESCE(username, ''), name, email, COALESCE(password, ''), role, status, COALESCE(avatar_url, ''), COALESCE(last_active, ''), COALESCE(permissions, '[]'::jsonb), COALESCE(is_active, true), COALESCE(mfa_enabled, false), COALESCE(mfa_secret, '') FROM users WHERE (LOWER(email)=$1 OR LOWER(username)=$1) AND COALESCE(is_active, true) = true`, clean).
+		Scan(&u.ID, &u.Username, &u.Name, &u.Email, &passwordHash, &u.Role, &u.Status, &u.AvatarURL, &u.LastActive, &permJSON, &u.IsActive, &u.MFAEnabled, &u.MFASecret)
 	if err == sql.ErrNoRows {
 		return nil, "", nil
+	}
+	if u.Username == "" && u.Email != "" {
+		parts := strings.Split(u.Email, "@")
+		u.Username = parts[0]
 	}
 	_ = json.Unmarshal(permJSON, &u.Permissions)
 	return &u, passwordHash, err
@@ -358,12 +375,16 @@ func (r *PostgresUserRepository) Create(u *domain.User, passwordHash string) err
 	if u.ID == "" {
 		u.ID = fmt.Sprintf("u-%d", time.Now().UnixNano()/1e6)
 	}
+	if u.Username == "" {
+		parts := strings.Split(u.Email, "@")
+		u.Username = parts[0]
+	}
 	permBytes, _ := json.Marshal(u.Permissions)
 	if len(permBytes) == 0 {
 		permBytes = []byte("[]")
 	}
-	_, err := r.db.Exec(`INSERT INTO users (id, name, email, password, role, status, avatar_url, last_active, permissions, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		u.ID, u.Name, u.Email, passwordHash, u.Role, u.Status, u.AvatarURL, u.LastActive, permBytes, true)
+	_, err := r.db.Exec(`INSERT INTO users (id, username, name, email, password, role, status, avatar_url, last_active, permissions, is_active, mfa_enabled, mfa_secret) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		u.ID, u.Username, u.Name, u.Email, passwordHash, u.Role, u.Status, u.AvatarURL, u.LastActive, permBytes, true, u.MFAEnabled, u.MFASecret)
 	return err
 }
 
@@ -377,13 +398,37 @@ func (r *PostgresUserRepository) UpdateUser(u *domain.User) error {
 	if len(permBytes) == 0 {
 		permBytes = []byte("[]")
 	}
-	_, err := r.db.Exec(`UPDATE users SET name=$1, email=$2, role=$3, permissions=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5`,
-		u.Name, u.Email, u.Role, permBytes, u.ID)
+	if u.Username == "" && u.Email != "" {
+		parts := strings.Split(u.Email, "@")
+		u.Username = parts[0]
+	}
+	_, err := r.db.Exec(`UPDATE users SET username=$1, name=$2, email=$3, role=$4, permissions=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6`,
+		u.Username, u.Name, u.Email, u.Role, permBytes, u.ID)
 	return err
 }
 
 func (r *PostgresUserRepository) UpdatePassword(id string, passwordHash string) error {
 	_, err := r.db.Exec(`UPDATE users SET password=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2`, passwordHash, id)
+	return err
+}
+
+func (r *PostgresUserRepository) UpdateUserProfile(id string, username string, name string, email string, avatarUrl string, newPasswordHash string) error {
+	if username == "" && email != "" {
+		parts := strings.Split(email, "@")
+		username = parts[0]
+	}
+	if newPasswordHash != "" {
+		_, err := r.db.Exec(`UPDATE users SET username=$1, name=$2, email=$3, avatar_url=$4, password=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6`,
+			username, name, email, avatarUrl, newPasswordHash, id)
+		return err
+	}
+	_, err := r.db.Exec(`UPDATE users SET username=$1, name=$2, email=$3, avatar_url=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5`,
+		username, name, email, avatarUrl, id)
+	return err
+}
+
+func (r *PostgresUserRepository) UpdateMFA(id string, enabled bool, secret string) error {
+	_, err := r.db.Exec(`UPDATE users SET mfa_enabled=$1, mfa_secret=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3`, enabled, secret, id)
 	return err
 }
 

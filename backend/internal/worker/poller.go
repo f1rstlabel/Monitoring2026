@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/ws"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/ws"
 )
 
 type PollerEngine struct {

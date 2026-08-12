@@ -86,55 +86,61 @@ function generateInitialIncidents(): Incident[] {
         {
           id: 't-1',
           timestamp: '14:02:10 WIB',
-          title: 'Incident Detected',
-          description: 'ICMP Poller received 100% packet loss (0/5 replies received) for IP 10.20.1.18',
-          severity: 'critical'
+          title: 'Polling Check Failed',
+          description: 'Check 1/3 failed — ICMP ping timeout for IP 10.20.1.18',
+          severity: 'warning'
         },
         {
           id: 't-2',
-          timestamp: '14:02:25 WIB',
-          title: 'Debounce Threshold Reached',
-          description: 'Consecutive ICMP check failure count hit threshold = 3. Marking status to DOWN.',
-          severity: 'critical'
+          timestamp: '14:02:15 WIB',
+          title: 'Polling Check Failed',
+          description: 'Check 2/3 failed — ICMP ping timeout for IP 10.20.1.18',
+          severity: 'warning'
         },
         {
           id: 't-3',
-          timestamp: '14:02:28 WIB',
-          title: 'Dependency Check Executed',
-          description: 'Parent device "Distribution Switch Core-01" (10.20.0.2) is UP. Isolated issue confirmed.',
-          severity: 'info'
+          timestamp: '14:02:20 WIB',
+          title: 'Incident Created',
+          description: 'Check 3/3 failed — failure threshold reached, incident created',
+          severity: 'critical'
         },
         {
           id: 't-4',
-          timestamp: '14:02:30 WIB',
-          title: 'WhatsApp Alert Attempted',
-          description: 'Sending alert template via WhatsApp Gateway to NOC On-Call Group (+62 812-9000-8888)...',
-          severity: 'info',
-          channel: 'WhatsApp API'
+          timestamp: '14:02:22 WIB',
+          title: 'Aggregation Phase',
+          description: 'Single device alert in Gedung Sate Lt 2 — sent individually',
+          severity: 'info'
         },
         {
           id: 't-5',
-          timestamp: '14:02:35 WIB',
-          title: 'WhatsApp Delivery Failed',
-          description: 'Error: Gateway timeout (504). WhatsApp session temporarily unresponsive.',
-          severity: 'warning',
-          channel: 'WhatsApp API'
+          timestamp: '14:02:25 WIB',
+          title: 'Rate Limit Check',
+          description: 'Rate limit OK — dispatching notification now',
+          severity: 'info'
         },
         {
           id: 't-6',
-          timestamp: '14:02:36 WIB',
-          title: 'Telegram Fallback Triggered',
-          description: 'Automatic failover mechanism redirected dispatch to Telegram Bot (@GovMonitorJabarBot)...',
+          timestamp: '14:02:28 WIB',
+          title: 'Attempting Notification (WhatsApp)',
+          description: 'Attempting WhatsApp notification to NOC On-Call Group...',
           severity: 'info',
-          channel: 'Telegram Bot'
+          channel: 'WhatsApp'
         },
         {
           id: 't-7',
-          timestamp: '14:02:37 WIB',
-          title: 'Telegram Alert Delivered',
-          description: 'Message successfully delivered to NOC Channel ID -1001982736412.',
+          timestamp: '14:02:30 WIB',
+          title: '✅ Notification Delivered (WhatsApp)',
+          description: 'WhatsApp delivered successfully to +6281290008888',
           severity: 'info',
-          channel: 'Telegram Bot'
+          channel: 'WhatsApp'
+        },
+        {
+          id: 't-8',
+          timestamp: '14:02:31 WIB',
+          title: '⏭️ Telegram Skipped (Not Needed)',
+          description: 'Telegram skipped — WhatsApp delivered successfully to +6281290008888 (no fallback needed)',
+          severity: 'skipped',
+          channel: 'Telegram'
         }
       ],
       notificationLog: [

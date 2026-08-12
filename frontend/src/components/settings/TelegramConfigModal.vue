@@ -35,7 +35,7 @@
           v-model="form.chatId"
           type="text"
           required
-          placeholder="e.g. -1001982736412 or @GovMonitorAlerts"
+          placeholder="e.g. -1001982736412 or @SanocAlerts"
           class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 font-mono text-gray-200 focus:outline-none focus:border-[#7B96F5]"
           :class="chatIdError ? 'border-[#F16565]' : ''"
         />

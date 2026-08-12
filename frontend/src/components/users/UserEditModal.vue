@@ -4,7 +4,7 @@
       <form v-if="user" @submit.prevent="handleSubmit" class="space-y-5 text-xs">
         <!-- User Profile Bar -->
         <div class="flex items-center gap-3 bg-[#18181B] p-3 rounded-xl border border-[#26262A]">
-          <img :src="user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" class="w-10 h-10 rounded-full object-cover border border-[#26262A]" />
+          <img :src="user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" @error="(e: Event) => (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" class="w-10 h-10 rounded-full object-cover border border-[#26262A]" />
           <div>
             <h3 class="font-bold text-sm text-white">{{ form.name }}</h3>
             <p class="text-xs font-mono text-[#7B96F5]">{{ form.email }}</p>
@@ -14,8 +14,19 @@
           </span>
         </div>
 
-        <!-- Identity Fields: Name, Email, Role, Status -->
+        <!-- Identity Fields: Username, Name, Email, Role, Status -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Username -->
+          <div class="space-y-1">
+            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Username *</label>
+            <input
+              v-model="form.username"
+              type="text"
+              required
+              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+            />
+          </div>
+
           <!-- Name -->
           <div class="space-y-1">
             <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Full Name *</label>
@@ -28,7 +39,7 @@
           </div>
 
           <!-- Email -->
-          <div class="space-y-1">
+          <div class="space-y-1 md:col-span-2">
             <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Email Address *</label>
             <input
               v-model="form.email"
@@ -46,7 +57,7 @@
               class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
             >
               <option value="admin">ADMIN (Full Unrestricted Access)</option>
-              <option value="anggota">NOC STAFF (Operator - Technical Actions)</option>
+              <option value="anggota">SANOC STAFF (Operator - Technical Actions)</option>
               <option value="pimpinan">PIMPINAN (Executive Dashboard &amp; Reports)</option>
             </select>
             <p class="text-[10px] font-mono text-gray-500 mt-1">
@@ -152,6 +163,7 @@ const newPassword = ref('');
 const resetSuccessMsg = ref('');
 
 const form = reactive({
+  username: '',
   name: '',
   email: '',
   role: 'anggota' as UserRole,
@@ -162,6 +174,8 @@ watch(
   [() => props.user, () => props.isOpen],
   ([newUser, open]) => {
     if (newUser && open) {
+      const fallback = newUser.email ? newUser.email.split('@')[0] : '';
+      form.username = newUser.username || fallback || '';
       form.name = newUser.name || '';
       form.email = newUser.email || '';
       form.role = newUser.role || 'anggota';
@@ -199,6 +213,7 @@ async function handleSubmit() {
   errorMsg.value = '';
   try {
     await api.put(`/users/${props.user.id}`, {
+      username: form.username,
       name: form.name,
       email: form.email,
       role: form.role,

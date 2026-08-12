@@ -290,6 +290,7 @@ type SystemSettings struct {
 
 type User struct {
 	ID          string   `json:"id"`
+	Username    string   `json:"username"`
 	Name        string   `json:"name"`
 	Email       string   `json:"email"`
 	Role        Role     `json:"role"`
@@ -298,6 +299,17 @@ type User struct {
 	LastActive  string   `json:"lastActive"`
 	Permissions []string `json:"permissions"`
 	IsActive    bool     `json:"isActive"`
+	MFAEnabled  bool     `json:"mfaEnabled"`
+	MFASecret   string   `json:"-"`
+}
+
+type UpdateProfileRequest struct {
+	Username        string `json:"username,omitempty"`
+	Name            string `json:"name"`
+	Email           string `json:"email"`
+	AvatarURL       string `json:"avatarUrl"`
+	CurrentPassword string `json:"currentPassword,omitempty"`
+	NewPassword     string `json:"newPassword,omitempty"`
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────

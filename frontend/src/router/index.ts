@@ -7,6 +7,7 @@ import IncidentDetailView from '../views/IncidentDetailView.vue';
 import IncidentsView from '../views/IncidentsView.vue';
 import SettingsView from '../views/SettingsView.vue';
 import ReportsView from '../views/ReportsView.vue';
+import UserProfileView from '../views/UserProfileView.vue';
 import { useAuthStore } from '../stores/authStore';
 
 const routes = [
@@ -62,7 +63,13 @@ const routes = [
     path: '/settings',
     name: 'settings',
     component: SettingsView,
-    meta: { requiresAuth: true, featureKey: 'settings.view' }
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: UserProfileView,
+    meta: { requiresAuth: true }
   }
 ];
 

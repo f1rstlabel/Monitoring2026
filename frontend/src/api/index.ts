@@ -13,6 +13,22 @@ export const authApi = {
     const res = await api.post('/auth/login', credentials);
     return res.data;
   },
+  verifyLoginMFA: async (mfaToken: string, code: string) => {
+    const res = await api.post('/auth/verify-mfa', { mfaToken, code });
+    return res.data;
+  },
+  setupMFA: async () => {
+    const res = await api.post('/auth/mfa/setup');
+    return res.data;
+  },
+  verifyMFA: async (secret: string, code: string) => {
+    const res = await api.post('/auth/mfa/verify', { secret, code });
+    return res.data;
+  },
+  disableMFA: async (password?: string) => {
+    const res = await api.post('/auth/mfa/disable', { password });
+    return res.data;
+  },
   getMe: async () => {
     const res = await api.get('/auth/me');
     return res.data;
@@ -27,6 +43,18 @@ export const authApi = {
   },
   resetPassword: async (token: string, newPassword: string) => {
     const res = await api.post('/auth/reset-password', { token, newPassword });
+    return res.data;
+  },
+  updateProfile: async (data: { username?: string; name: string; email: string; avatarUrl: string; currentPassword?: string; newPassword?: string }) => {
+    const res = await api.put('/auth/profile', data);
+    return res.data;
+  },
+  uploadAvatar: async (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const res = await api.post('/auth/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return res.data;
   }
 };

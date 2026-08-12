@@ -40,16 +40,49 @@
           </button>
         </div>
 
-        <!-- Export Excel / CSV -->
-        <button
-          v-if="authStore.hasPermission('reports.export')"
-          @click="reportStore.exportCSV()"
-          class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5"
-          title="Export as Excel / CSV Spreadsheet"
-        >
-          <FileText class="w-3.5 h-3.5 text-emerald-400" />
-          Export Excel
-        </button>
+        <!-- Export Excel / CSV Dropdown -->
+        <div v-if="authStore.hasPermission('reports.export')" class="relative">
+          <button
+            @click="showExportDropdown = !showExportDropdown"
+            class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
+            title="Export as Excel / CSV Spreadsheet"
+          >
+            <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-400" />
+            <span>Export Data</span>
+            <ChevronDown class="w-3 h-3 text-emerald-500/70 ml-0.5" />
+          </button>
+
+          <!-- Dropdown Options -->
+          <div
+            v-if="showExportDropdown"
+            @click="showExportDropdown = false"
+            class="absolute right-0 mt-1.5 w-52 bg-[#1A1A1E] border border-[#26262A] rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+          >
+            <div class="px-3 py-1.5 border-b border-[#26262A]/60 font-mono text-[10px] uppercase font-bold text-gray-400">
+              Pilih Format Export
+            </div>
+            <button
+              @click="reportStore.exportData('xls', activeTab, incidentStore.incidents)"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+            >
+              <FileSpreadsheet class="w-4 h-4 text-emerald-400 shrink-0" />
+              <div>
+                <div class="font-bold">Excel Spreadsheet (.xls)</div>
+                <div class="text-[10px] text-gray-400 font-sans">Format tabel Excel terstruktur</div>
+              </div>
+            </button>
+            <button
+              @click="reportStore.exportData('csv', activeTab, incidentStore.incidents)"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+            >
+              <FileText class="w-4 h-4 text-sky-400 shrink-0" />
+              <div>
+                <div class="font-bold">CSV File (.csv)</div>
+                <div class="text-[10px] text-gray-400 font-sans">Dokumen CSV standar UTF-8</div>
+              </div>
+            </button>
+          </div>
+        </div>
 
         <!-- Export PDF -->
         <button
@@ -185,9 +218,15 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-[#26262A]">
-              <tr
-                v-for="(row, idx) in paginatedDowntimeRows"
-                :key="row.deviceId"
+              <tr v-if="reportStore.isLoading">
+                <td colspan="5" class="p-0 border-0">
+                  <SkeletonTable :rows="5" :cols="5" />
+                </td>
+              </tr>
+              <template v-else-if="paginatedDowntimeRows.length > 0">
+                <tr
+                  v-for="(row, idx) in paginatedDowntimeRows"
+                  :key="row.deviceId"
                 class="hover:bg-[#18181B] transition-colors"
                 :class="{ 'border-l-2 border-l-[#F5A65B]': row.downCount >= 5 }"
               >
@@ -219,7 +258,8 @@
                 </td>
                 <td class="py-3 px-4 font-mono text-gray-400 text-[11px]">{{ row.lastDown }}</td>
               </tr>
-              <tr v-if="reportStore.filteredRows.length === 0">
+              </template>
+              <tr v-else-if="reportStore.filteredRows.length === 0">
                 <td colspan="5" class="py-10 text-center text-gray-600 text-xs">
                   No downtime events for selected filters
                 </td>
@@ -287,9 +327,15 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-[#26262A]">
-              <tr
-                v-for="inc in paginatedIncidents"
-                :key="inc.id"
+              <tr v-if="incidentStore.isLoading || reportStore.isLoading">
+                <td colspan="8" class="p-0 border-0">
+                  <SkeletonTable :rows="5" :cols="8" />
+                </td>
+              </tr>
+              <template v-else-if="paginatedIncidents.length > 0">
+                <tr
+                  v-for="inc in paginatedIncidents"
+                  :key="inc.id"
                 class="hover:bg-[#18181B] transition-colors"
               >
                 <td class="py-3 px-4 font-mono font-bold text-[#7B96F5]">{{ inc.id }}</td>
@@ -326,7 +372,8 @@
                   </router-link>
                 </td>
               </tr>
-              <tr v-if="incidentStore.incidents.length === 0">
+              </template>
+              <tr v-else-if="incidentStore.incidents.length === 0">
                 <td colspan="8" class="py-10 text-center text-gray-600 text-xs">
                   No active or recent incidents reported
                 </td>
@@ -346,11 +393,14 @@
     <PrintableSLAAudit
       v-if="isPrintRendered"
       :period="reportStore.period"
+      :active-tab="activeTab"
       :avg-sla-uptime="reportStore.avgSlaUptime"
       :total-outage-events="reportStore.totalOutageEvents"
       :avg-mttr-minutes="reportStore.avgMttrMinutes"
       :alert-delivery-rate="reportStore.alertDeliveryRate"
       :rows="reportStore.filteredRows"
+      :flap-devices="reportStore.flapDevices"
+      :incidents="incidentStore.incidents"
     />
   </div>
 </template>
@@ -367,8 +417,9 @@ import PaginationControl from '../components/common/PaginationControl.vue';
 import SkeletonCard from '../components/common/SkeletonCard.vue';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
 import Skeleton from '../components/common/Skeleton.vue';
-import { FileText, Printer, Calendar } from 'lucide-vue-next';
+import { FileText, Printer, Calendar, ChevronDown, FileSpreadsheet } from 'lucide-vue-next';
 
+const showExportDropdown = ref(false);
 const activeTab = ref<'downtime' | 'recurring' | 'active_incidents'>('downtime');
 
 const downtimePage = ref(1);
@@ -438,8 +489,16 @@ function formatLiveDuration(startedAtStr: string | undefined, status: string, du
 
 async function handlePrintPDF() {
   reportStore.isLoading = true;
+  const originalTitle = document.title;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const tabSlug = activeTab.value.replace(/_/g, '-');
+  document.title = `sanoc-pdf-${tabSlug}-${reportStore.period}-${dateStr}`;
+
   try {
     await reportStore.fetchReport();
+    if (activeTab.value === 'active_incidents') {
+      await incidentStore.fetchIncidents();
+    }
     isPrintRendered.value = true;
     await nextTick();
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -449,6 +508,7 @@ async function handlePrintPDF() {
   } finally {
     reportStore.isLoading = false;
     isPrintRendered.value = false;
+    document.title = originalTitle;
   }
 }
 

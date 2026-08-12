@@ -50,7 +50,7 @@
 
     <template #footer>
       <div class="flex items-center justify-between w-full text-xs">
-        <span class="text-gray-500 font-mono text-[10px]">Baileys Node.js HTTP Sidecar v2.4</span>
+        <span class="text-gray-500 font-mono text-[10px]">Baileys Node.js HTTP Sidecar v2.6.0</span>
         <button
           @click="$emit('close')"
           class="px-4 py-2 rounded-lg border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs font-medium transition-colors"

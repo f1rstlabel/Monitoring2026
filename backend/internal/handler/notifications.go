@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"govmonitor-it/backend/internal/repository"
+	"sanoc/backend/internal/repository"
 
 	"github.com/gin-gonic/gin"
 )

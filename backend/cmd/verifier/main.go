@@ -7,12 +7,12 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"govmonitor-it/backend/internal/notifier"
+	"sanoc/backend/internal/notifier"
 )
 
 func main() {
 	fmt.Println("=== 1. Verifying github.com/lib/pq Module Import ===")
-	dsn := "postgres://postgres@localhost:5432/govmonitor?sslmode=disable"
+	dsn := "postgres://postgres@localhost:5432/sanoc?sslmode=disable"
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatalf("Failed to open DB: %v", err)

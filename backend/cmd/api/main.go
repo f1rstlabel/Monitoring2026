@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"govmonitor-it/backend/internal/config"
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/handler"
-	"govmonitor-it/backend/internal/middleware"
-	"govmonitor-it/backend/internal/notifier"
-	"govmonitor-it/backend/internal/poller"
-	"govmonitor-it/backend/internal/repository"
-	"govmonitor-it/backend/internal/ws"
+	"sanoc/backend/internal/config"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/handler"
+	"sanoc/backend/internal/middleware"
+	"sanoc/backend/internal/notifier"
+	"sanoc/backend/internal/poller"
+	"sanoc/backend/internal/repository"
+	"sanoc/backend/internal/ws"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -28,7 +28,7 @@ import (
 func main() {
 	// ─── Configuration ────────────────────────────────────────────────────────
 	cfg := config.LoadConfig()
-	log.Printf("[GovMonitor IT] Environment configuration loaded. DB Host=%s, Redis Host=%s", cfg.DBHost, cfg.RedisHost)
+	log.Printf("[SANOC] Environment configuration loaded. DB Host=%s, Redis Host=%s", cfg.DBHost, cfg.RedisHost)
 
 	// ─── Database & Cache Connections ─────────────────────────────────────────
 	db, err := repository.InitPostgres(cfg)
@@ -60,7 +60,7 @@ func main() {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("[FATAL] Failed to run database migrations: %v", err)
 	}
-	log.Println("[GovMonitor IT] Database migrations applied successfully.")
+	log.Println("[SANOC] Database migrations applied successfully.")
 
 
 	redisClient, err := repository.InitRedis(cfg)
@@ -69,6 +69,7 @@ func main() {
 	}
 
 	router := gin.Default()
+	router.Use(middleware.SecurityHeaders())
 
 	// ─── CORS ──────────────────────────────────────────────────────────────────
 	corsOrigin := cfg.CORSAllowedOrigin
@@ -78,8 +79,8 @@ func main() {
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{corsOrigin},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-CSRF-Token", "X-Requested-With"},
+		ExposeHeaders:    []string{"Content-Length", "X-CSRF-Token"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -137,7 +138,7 @@ func main() {
 			if err != nil {
 				log.Printf("[WARN] Failed to seed WhatsApp target from .env: %v", err)
 			} else {
-				log.Printf("[GovMonitor IT] Seeded WhatsApp target from .env: %s", newTarget.PhoneNumber)
+				log.Printf("[SANOC] Seeded WhatsApp target from .env: %s", newTarget.PhoneNumber)
 			}
 		}
 	}
@@ -148,12 +149,12 @@ func main() {
 	if err := settingsRepo.GetJSON("telegram", &tgCfg); err == nil && tgCfg.BotToken != "" {
 		tgBotToken = tgCfg.BotToken
 		tgChatID = tgCfg.ChatID
-		log.Printf("[GovMonitor IT] Loaded Telegram credentials from PostgreSQL: chat_id=%s", tgChatID)
+		log.Printf("[SANOC] Loaded Telegram credentials from PostgreSQL: chat_id=%s", tgChatID)
 	} else if cfg.TelegramBotToken != "" && cfg.TelegramChatID != "" {
 		tgBotToken = cfg.TelegramBotToken
 		tgChatID = cfg.TelegramChatID
 		_ = settingsRepo.SetJSON("telegram", handler.TelegramDBConfig{BotToken: tgBotToken, ChatID: tgChatID})
-		log.Printf("[GovMonitor IT] Saved Telegram credentials from env to PostgreSQL: chat_id=%s", tgChatID)
+		log.Printf("[SANOC] Saved Telegram credentials from env to PostgreSQL: chat_id=%s", tgChatID)
 	}
 
 	// ─── Asynq Client Setup ──────────────────────────────────────────────────
@@ -231,17 +232,26 @@ func main() {
 	h.SetNotifLogRepo(notifLogRepo)
 	h.SetLocationRepo(locationRepo)
 	h.SetPermissionRepo(permRepo)
+	h.SetWhatsAppTargetRepo(whatsappTargetRepo)
 	importH := handler.NewImportHandler(deviceRepo, locationRepo)
 
 	// Integrations handler — uses real sidecar proxy (URL + internal token from .env)
 	integH := handler.NewIntegrationsHandler(hub, pipeline, settingsRepo, whatsappTargetRepo, cfg.WhatsAppGatewayURL, cfg.WASidecarToken)
-	log.Printf("[GovMonitor IT] WhatsApp sidecar URL: %s (token auth: %v)", cfg.WhatsAppGatewayURL, cfg.WASidecarToken != "")
+	log.Printf("[SANOC] WhatsApp sidecar URL: %s (token auth: %v)", cfg.WhatsAppGatewayURL, cfg.WASidecarToken != "")
 
-	// ─── Health & Root Landing Route ───────────────────────────────────────────
+	// ─── Health, Static Files & Root Landing Route ────────────────────────────────
 	router.GET("/", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(200, `<!DOCTYPE html><html><body><h1>GovMonitor IT API</h1></body></html>`)
+		c.String(200, `<!DOCTYPE html><html><body><h1>SANOC API</h1></body></html>`)
 	})
+	// Static uploaded files with security headers
+	uploadsGroup := router.Group("/uploads")
+	uploadsGroup.Use(func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Content-Security-Policy", "default-src 'none'; img-src 'self'")
+		c.Next()
+	})
+	uploadsGroup.Static("", "./uploads")
 
 	// ─── WebSocket ────────────────────────────────────────────────────────────
 	router.GET("/ws/live", hub.HandleWS)
@@ -249,10 +259,18 @@ func main() {
 	// ─── REST API v1 ───────────────────────────────────────────────────────────
 	v1 := router.Group("/api/v1")
 	v1.Use(middleware.JWTMiddleware())
+	v1.Use(middleware.CSRFProtection())
 
 	// Auth routes
 	v1.GET("/auth/me", h.GetMe)
-	router.POST("/api/v1/auth/login", h.Login)
+	v1.PUT("/auth/profile", h.UpdateProfile)
+	v1.POST("/auth/avatar", h.UploadAvatar)
+	v1.POST("/auth/mfa/setup", h.SetupMFA)
+	v1.POST("/auth/mfa/verify", h.VerifyMFA)
+	v1.POST("/auth/mfa/disable", h.DisableMFA)
+
+	router.POST("/api/v1/auth/login", middleware.RateLimitLogin(cfg.RateLimitLoginMax, 1*time.Minute), h.Login)
+	router.POST("/api/v1/auth/verify-mfa", middleware.RateLimitLogin(cfg.RateLimitLoginMax, 1*time.Minute), h.VerifyLoginMFA)
 	router.POST("/api/v1/auth/logout", h.Logout)
 	router.POST("/api/v1/auth/forgot-password", h.ForgotPassword)
 	router.POST("/api/v1/auth/reset-password", h.ResetPassword)
@@ -351,7 +369,7 @@ func main() {
 	}
 
 
-	log.Printf("[GovMonitor IT] Go Backend listening on :%s...", cfg.ServerPort)
+	log.Printf("[SANOC] Go Backend listening on :%s...", cfg.ServerPort)
 	if err := router.Run(":" + cfg.ServerPort); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

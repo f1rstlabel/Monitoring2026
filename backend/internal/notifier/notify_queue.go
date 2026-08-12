@@ -9,7 +9,7 @@ import (
 	"text/template"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
+	"sanoc/backend/internal/domain"
 )
 
 type EventType string

@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/notifier"
-	"govmonitor-it/backend/internal/repository"
-	"govmonitor-it/backend/internal/ws"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/notifier"
+	"sanoc/backend/internal/repository"
+	"sanoc/backend/internal/ws"
 
 	"github.com/gin-gonic/gin"
 )
@@ -309,7 +309,7 @@ func (h *IntegrationsHandler) TelegramTest(c *gin.Context) {
 		return
 	}
 
-	msg := fmt.Sprintf("🟢 <b>GovMonitor IT — Test Connection</b>\n\nTelegram Bot integration is active and operating normally.\nTarget Channel ID: <code>%s</code>\nTime: %s", chatID, time.Now().Format("15:04:05 WIB"))
+	msg := fmt.Sprintf("🟢 <b>SANOC — Test Connection</b>\n\nTelegram Bot integration is active and operating normally.\nTarget Channel ID: <code>%s</code>\nTime: %s", chatID, time.Now().Format("15:04:05 WIB"))
 
 	err := SendTelegramMessage(token, chatID, msg)
 	if err != nil {
@@ -684,7 +684,7 @@ func (h *IntegrationsHandler) WhatsAppTest(c *gin.Context) {
 	msg := req.Message
 	if msg == "" {
 		linkedNum, _ := status["linkedNumber"].(string)
-		msg = fmt.Sprintf("🟢 *GovMonitor IT — WhatsApp Test*\n\nBaileys gateway is connected and operational.\nLinked Number: %s\nTarget: %s\nTime: %s", linkedNum, target.PhoneNumber, time.Now().Format("15:04:05 WIB"))
+		msg = fmt.Sprintf("🟢 *SANOC — WhatsApp Test*\n\nBaileys gateway is connected and operational.\nLinked Number: %s\nTarget: %s\nTime: %s", linkedNum, target.PhoneNumber, time.Now().Format("15:04:05 WIB"))
 	} else {
 		msg = notifier.FormatForWhatsApp(msg)
 	}

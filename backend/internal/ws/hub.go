@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"govmonitor-it/backend/internal/domain"
+	"sanoc/backend/internal/domain"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"

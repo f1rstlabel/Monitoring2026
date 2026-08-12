@@ -49,13 +49,18 @@
         </button>
       </div>
 
-      <!-- Active Role Badge -->
-      <div class="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-[#151517] text-xs font-mono font-semibold" :class="roleBadgeClass">
+      <!-- Active Role Badge & Profile Quick Link -->
+      <router-link
+        to="/profile"
+        title="View & Edit User Profile"
+        class="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-[#151517] text-xs font-mono font-semibold hover:ring-1 hover:ring-[#7B96F5] transition-all cursor-pointer"
+        :class="roleBadgeClass"
+      >
         <ShieldCheck v-if="authStore.user.role === 'admin'" class="w-3.5 h-3.5" />
         <Eye v-else-if="authStore.user.role === 'pimpinan'" class="w-3.5 h-3.5" />
         <Cpu v-else class="w-3.5 h-3.5" />
         <span class="uppercase text-[10px] tracking-wider">{{ roleBadgeLabel }}</span>
-      </div>
+      </router-link>
 
       <!-- Notifications Bell Button & Dropdown -->
       <div class="relative">
@@ -138,10 +143,10 @@
           <div class="flex items-center justify-between border-b border-[#26262A] pb-2">
             <h3 class="text-xs font-bold text-white flex items-center gap-2 font-mono">
               <HelpCircle class="w-4 h-4 text-[#7B96F5]" />
-              Bantuan &amp; Dukungan NOC
+              Bantuan &amp; Dukungan SANOC
             </h3>
             <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#7B96F5]/10 text-[#7B96F5] border border-[#7B96F5]/30">
-              v2.4.1-stable
+              v2.6.0-stable
             </span>
           </div>
 
@@ -151,12 +156,12 @@
               target="_blank"
               class="flex items-center justify-between p-2.5 rounded-lg bg-[#18181B] border border-[#26262A] hover:border-[#7B96F5] text-gray-200 transition-colors"
             >
-              <span>Dokumentasi Sistem NOC</span>
+              <span>Dokumentasi Sistem SANOC</span>
               <ExternalLink class="w-3.5 h-3.5 text-gray-400" />
             </a>
 
             <div class="p-3 rounded-lg bg-[#18181B] border border-[#26262A] space-y-1">
-              <p class="font-mono text-[10px] uppercase text-gray-400 font-bold">Layanan Helpdesk NOC</p>
+              <p class="font-mono text-[10px] uppercase text-gray-400 font-bold">Layanan Helpdesk SANOC</p>
               <p class="text-xs font-mono text-[#7B96F5]">noc.alerts@jabarprov.go.id</p>
               <p class="text-[11px] text-gray-400">Ext: 4401 / 4402 (Hotline Biro Umum)</p>
               <p class="text-[10px] text-gray-500 pt-1 border-t border-[#26262A] mt-2">Jam Operasional: 24/7 Monitoring</p>
@@ -257,7 +262,7 @@ const roleBadgeLabel = computed(() => {
   const map: Record<string, string> = {
     admin: 'ADMIN',
     pimpinan: 'PIMPINAN',
-    anggota: 'ANGGOTA NOC'
+    anggota: 'ANGGOTA SANOC'
   };
   return map[authStore.user.role] ?? authStore.user.role;
 });

@@ -1,5 +1,5 @@
 # ==============================================================================
-# GovMonitor IT — Root .gitignore
+# SANOC — Smart Agent & Network Operations Center Root .gitignore
 # ==============================================================================
 
 # ─── IDE, Editors & Workspace Settings ───────────────────────────────────────
@@ -26,25 +26,62 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# ─── Logs and Run Artifacts ──────────────────────────────────────────────────
+# ─── Environment Variables & Sensitive Credentials ─────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.pfx
+*.keystore
+*.jks
+credentials.json
+secrets.json
+*.secret
+*.config.local.json
+
+# ─── Logs, Diagnostics & Run Artifacts ────────────────────────────────────────
 *.log
 logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+debug.log
 
-# ─── Local Binaries & Builds ─────────────────────────────────────────────────
+# ─── Local Binaries, Builds & Dependencies ──────────────────────────────────
 bin/
 dist/
 node_modules/
-docs/
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+backend/wa-sidecar/auth_sessions/
+auth_sessions/
 
-# ─── Root Environment Variables ──────────────────────────────────────────────
-.env
-.env.local
-*.env
-.env.example
-env.example
+# ─── Compiled Go & Node Artifacts ─────────────────────────────────────────────
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.cover
+*.apk
+*.aab
+
+# ─── Database Dumps & Local Storage ──────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.bak
+
+# ─── Temporary Scripts & Scratch Files ───────────────────────────────────────
 dev-run.sh
 PROJECT_STRUCTURE.md
+scratch/
+.agents/

@@ -1,5 +1,5 @@
--- GovMonitor IT — Complete Schema Migration
--- Run with: sqlite3 govmonitor.db < migrations/001_init.sql
+-- SANOC — Complete Schema Migration
+-- Run with: sqlite3 sanoc.db < migrations/001_init.sql
 
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;

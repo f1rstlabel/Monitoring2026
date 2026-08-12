@@ -94,7 +94,7 @@ async function connectToWhatsApp() {
       auth: state,
       printQRInTerminal: false, // We handle QR ourselves
       logger: pino({ level: 'silent' }),
-      browser: ['GovMonitor IT', 'Chrome', '126.0.0'],
+      browser: ['SANOC', 'Chrome', '126.0.0'],
       generateHighQualityLinkPreview: false,
       syncFullHistory: false
     });
@@ -315,7 +315,7 @@ app.post('/send', async (req, res) => {
 
 // ─── Start Server ────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`\x1b[32m[GovMonitor IT Baileys Sidecar]\x1b[0m Listening on http://localhost:${PORT}`);
+  console.log(`\x1b[32m[SANOC Baileys Sidecar]\x1b[0m Listening on http://localhost:${PORT}`);
   console.log(`[Baileys Sidecar] Auth session path: ${AUTH_DIR}`);
   console.log(`[Baileys Sidecar] Internal token auth: ${getInternalToken() ? 'ENABLED' : 'DISABLED (dev mode)'}`);
 

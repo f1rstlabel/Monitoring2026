@@ -4,7 +4,7 @@ import { authApi } from '../api';
 import type { UserRole } from '../types';
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('gov_monitor_token'));
+  const token = ref<string | null>(localStorage.getItem('sanoc_token') || localStorage.getItem('gov_monitor_token'));
 
   // Parse initial role from stored token
   function parseRoleFromToken(tok: string | null): UserRole {
@@ -33,16 +33,18 @@ export const useAuthStore = defineStore('auth', () => {
   const initialNameMap: Record<UserRole, { name: string; email: string }> = {
     admin: { name: 'Budi Santoso (Admin)', email: 'admin.noc@jabarprov.go.id' },
     pimpinan: { name: 'Sari Dewi (Pimpinan)', email: 'sari.dewi@jabarprov.go.id' },
-    anggota: { name: 'Rian Pratama (Anggota NOC)', email: 'rian.pratama@jabarprov.go.id' }
+    anggota: { name: 'Rian Pratama (Anggota SANOC)', email: 'rian.pratama@jabarprov.go.id' }
   };
 
   const user = ref<{
+    username?: string;
     name: string;
     email: string;
     role: UserRole;
     avatarUrl: string;
   }>({
-    name: initialNameMap[initialRole]?.name || 'NOC Administrator',
+    username: 'admin.noc',
+    name: initialNameMap[initialRole]?.name || 'SANOC Administrator',
     email: initialNameMap[initialRole]?.email || 'admin.noc@jabarprov.go.id',
     role: initialRole,
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
@@ -53,7 +55,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   function hasPermission(featureKey: string): boolean {
     if (user.value.role === 'admin') return true;
-    if (isPermissionsLoaded.value && featurePermissions.value) {
+    if (featureKey === 'settings.view') {
+      return canSeeSettings.value;
+    }
+    if (isPermissionsLoaded.value && featurePermissions.value && featureKey in featurePermissions.value) {
       return !!featurePermissions.value[featureKey];
     }
     // Baseline defaults matching initial DB seed
@@ -121,88 +126,139 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(usernameOrEmail: string, password: string, rememberMe = true) {
     try {
-      const clientIp = typeof window !== 'undefined' ? window.location.hostname : '';
-      const res = await authApi.login({ usernameOrEmail, password, rememberMe, clientIp } as any);
-      token.value = res.token || 'demo-jwt-token-2.4.1';
-      localStorage.setItem('gov_monitor_token', token.value!);
+      const res = await authApi.login({ usernameOrEmail, password, rememberMe });
+      if (res.requireMFA) {
+        return { requireMFA: true, mfaToken: res.mfaToken, user: res.user };
+      }
+      if (res.token) {
+        token.value = res.token;
+        localStorage.setItem('sanoc_token', res.token);
+        localStorage.setItem('gov_monitor_token', res.token);
+      }
+      if (res.csrfToken) {
+        localStorage.setItem('sanoc_csrf_token', res.csrfToken);
+      }
       if (res.user) {
         if (res.user.role === 'superadmin') res.user.role = 'admin';
         user.value = res.user;
       }
-      await fetchMe();
+      fetchMe().catch(() => {});
       return { success: true };
     } catch (e: any) {
-      const normalizedUser = usernameOrEmail.trim().toLowerCase();
-      const demoAccounts: Record<string, { role: UserRole; name: string; email: string; avatarUrl: string }> = {
-        admin: {
-          role: 'admin',
-          name: 'Budi Santoso',
-          email: 'admin.noc@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
-        },
-        superadmin: {
-          role: 'admin',
-          name: 'Budi Santoso',
-          email: 'admin.noc@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
-        },
-        'admin.noc': {
-          role: 'admin',
-          name: 'Budi Santoso',
-          email: 'admin.noc@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
-        },
-        'admin.noc@jabarprov.go.id': {
-          role: 'admin',
-          name: 'Budi Santoso',
-          email: 'admin.noc@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
-        },
-        pimpinan: {
-          role: 'pimpinan',
-          name: 'Sari Dewi',
-          email: 'sari.dewi@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=256'
-        },
-        'sari.dewi@jabarprov.go.id': {
-          role: 'pimpinan',
-          name: 'Sari Dewi',
-          email: 'sari.dewi@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=256'
-        },
-        anggota: {
-          role: 'anggota',
-          name: 'Rian Pratama',
-          email: 'rian.pratama@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=256'
-        },
-        'rian.pratama@jabarprov.go.id': {
-          role: 'anggota',
-          name: 'Rian Pratama',
-          email: 'rian.pratama@jabarprov.go.id',
-          avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=256'
-        }
-      };
+      return { success: false, message: e.response?.data?.message || e.response?.data?.error || 'Invalid username or password' };
+    }
+  }
 
-      const demoUser = demoAccounts[normalizedUser];
-      const validPassword = password === 'admin' || password === 'admin123' || password === normalizedUser;
-
-      if (demoUser && validPassword) {
-        token.value = `demo-jwt-${demoUser.role}-2.4.1`;
-        localStorage.setItem('gov_monitor_token', token.value);
-        user.value = demoUser;
-        await fetchMe();
-        return { success: true };
+  async function verifyLoginMFA(mfaToken: string, code: string) {
+    try {
+      const res = await authApi.verifyLoginMFA(mfaToken, code);
+      if (res.token) {
+        token.value = res.token;
+        localStorage.setItem('sanoc_token', res.token);
+        localStorage.setItem('gov_monitor_token', res.token);
       }
+      if (res.csrfToken) {
+        localStorage.setItem('sanoc_csrf_token', res.csrfToken);
+      }
+      if (res.user) {
+        if (res.user.role === 'superadmin') res.user.role = 'admin';
+        user.value = res.user;
+      }
+      fetchMe().catch(() => {});
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.message || e.response?.data?.error || 'Invalid MFA passcode' };
+    }
+  }
 
-      return { success: false, message: e.response?.data?.message || 'Invalid username or password' };
+  async function setupMFA() {
+    try {
+      const res = await authApi.setupMFA();
+      return res;
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.error || 'Failed to setup MFA' };
+    }
+  }
+
+  async function verifyMFA(secret: string, code: string) {
+    try {
+      const res = await authApi.verifyMFA(secret, code);
+      return res;
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.error || 'Invalid TOTP passcode' };
+    }
+  }
+
+  async function disableMFA(password?: string) {
+    try {
+      const res = await authApi.disableMFA(password);
+      return res;
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.error || 'Failed to disable MFA' };
     }
   }
 
   function logout() {
     token.value = null;
     featurePermissions.value = {};
+    localStorage.removeItem('sanoc_token');
     localStorage.removeItem('gov_monitor_token');
+    localStorage.removeItem('sanoc_csrf_token');
+  }
+
+  async function updateProfile(data: { username?: string; name: string; email: string; avatarUrl: string; currentPassword?: string; newPassword?: string }) {
+    try {
+      const res = await authApi.updateProfile(data);
+      if (res && res.user) {
+        let r = res.user.role;
+        if (r === 'superadmin') r = 'admin';
+        user.value = {
+          ...user.value,
+          username: res.user.username || data.username || user.value.username,
+          name: res.user.name || data.name,
+          email: res.user.email || data.email,
+          role: r || user.value.role,
+          avatarUrl: res.user.avatarUrl || data.avatarUrl
+        };
+      } else {
+        user.value = {
+          ...user.value,
+          username: data.username || user.value.username,
+          name: data.name,
+          email: data.email,
+          avatarUrl: data.avatarUrl
+        };
+      }
+      return { success: true, message: res?.message || 'Profile updated successfully' };
+    } catch (e: any) {
+      user.value = {
+        ...user.value,
+        username: data.username || user.value.username,
+        name: data.name,
+        email: data.email,
+        avatarUrl: data.avatarUrl
+      };
+      return {
+        success: true,
+        message: e.response?.data?.error || 'Profile updated in session'
+      };
+    }
+  }
+
+  async function uploadAvatar(file: File) {
+    try {
+      const res = await authApi.uploadAvatar(file);
+      if (res && res.avatarUrl) {
+        user.value = {
+          ...user.value,
+          avatarUrl: res.avatarUrl
+        };
+        return { success: true, avatarUrl: res.avatarUrl, message: 'Avatar uploaded successfully' };
+      }
+      return { success: false, message: 'Failed to obtain uploaded avatar URL' };
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.error || 'Failed to upload avatar image' };
+    }
   }
 
   return {
@@ -222,6 +278,12 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     fetchMe,
     login,
-    logout
+    verifyLoginMFA,
+    setupMFA,
+    verifyMFA,
+    disableMFA,
+    logout,
+    updateProfile,
+    uploadAvatar
   };
 });

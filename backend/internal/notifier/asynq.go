@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
+	"sanoc/backend/internal/domain"
 
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"

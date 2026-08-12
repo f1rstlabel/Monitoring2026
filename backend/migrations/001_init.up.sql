@@ -1,4 +1,4 @@
--- GovMonitor IT — PostgreSQL Schema Migration
+-- SANOC — PostgreSQL Schema Migration
 
 CREATE TABLE IF NOT EXISTS users (
     id          VARCHAR(64) PRIMARY KEY,

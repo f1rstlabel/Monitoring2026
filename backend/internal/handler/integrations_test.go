@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"govmonitor-it/backend/internal/handler"
-	"govmonitor-it/backend/internal/notifier"
-	"govmonitor-it/backend/internal/repository"
-	"govmonitor-it/backend/internal/ws"
+	"sanoc/backend/internal/handler"
+	"sanoc/backend/internal/notifier"
+	"sanoc/backend/internal/repository"
+	"sanoc/backend/internal/ws"
 
 	"github.com/gin-gonic/gin"
 )

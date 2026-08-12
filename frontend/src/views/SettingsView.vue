@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
       <div>
         <h1 class="text-xl font-extrabold text-white tracking-tight">System Configuration</h1>
-        <p class="text-xs text-gray-400 mt-1">Configure polling engine, alert gateways, failure thresholds, and NOC access control</p>
+        <p class="text-xs text-gray-400 mt-1">Configure polling engine, alert gateways, failure thresholds, and SANOC access control</p>
       </div>
 
       <button
@@ -24,7 +24,11 @@
         Notification Channels
       </h2>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div v-if="settingStore.isLoading" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SkeletonCard v-for="i in 2" :key="i" />
+      </div>
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- WhatsApp API Card -->
         <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
           <div class="flex items-start justify-between">
@@ -138,7 +142,12 @@
     </div>
 
     <!-- Section 2: Engine Polling & Rate-Limit Configuration -->
-    <div v-if="authStore.hasPermission('settings.polling') || authStore.hasPermission('settings.thresholds')" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div v-if="authStore.hasPermission('settings.polling') || authStore.hasPermission('settings.thresholds')">
+      <div v-if="settingStore.isLoading" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <SkeletonCard v-for="i in 2" :key="i" />
+      </div>
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Engine Polling Card -->
       <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-5 shadow-xl">
         <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
@@ -314,6 +323,7 @@
         </div>
       </div>
     </div>
+  </div>
 
     <!-- Section 3: Users & Roles Management -->
     <div v-if="authStore.hasPermission('settings.users')" class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
@@ -344,11 +354,22 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-[#26262A]">
-            <tr v-for="usr in settingStore.users" :key="usr.id" class="hover:bg-[#18181B]">
+            <tr v-if="settingStore.isLoading">
+              <td colspan="5" class="p-0 border-0">
+                <SkeletonTable :rows="3" :cols="5" />
+              </td>
+            </tr>
+            <tr v-else-if="paginatedUsers.length === 0">
+              <td colspan="5" class="py-4 text-center text-gray-500 font-mono text-xs">No user accounts registered</td>
+            </tr>
+            <tr v-else v-for="usr in paginatedUsers" :key="usr.id" class="hover:bg-[#18181B]">
               <td class="py-3 px-4 flex items-center gap-3">
-                <img :src="usr.avatarUrl" class="w-7 h-7 rounded-full object-cover border border-[#26262A]" />
+                <img :src="usr.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" @error="(e: Event) => (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" class="w-7 h-7 rounded-full object-cover border border-[#26262A]" />
                 <div>
-                  <h4 class="font-bold text-white">{{ usr.name }}</h4>
+                  <h4 class="font-bold text-white flex items-center gap-2">
+                    <span>{{ usr.name }}</span>
+                    <span v-if="usr.username" class="text-[10px] font-mono text-[#7B96F5]">@{{ usr.username }}</span>
+                  </h4>
                   <p class="text-[10px] font-mono text-gray-500">{{ usr.email }}</p>
                 </div>
               </td>
@@ -376,6 +397,12 @@
           </tbody>
         </table>
       </div>
+
+      <PaginationControl
+        v-model:current-page="usersPage"
+        v-model:page-size="usersPageSize"
+        :total="usersTotal"
+      />
     </div>
 
     <!-- Section 3: User Activity & Session Logs (Paginated & Realtime WS Broadcast) -->
@@ -409,7 +436,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-[#26262A]">
-            <tr v-if="isLogsLoading">
+            <tr v-if="isLogsLoading || settingStore.isLoading">
               <td colspan="5" class="p-0 border-0">
                 <SkeletonTable :rows="4" :cols="5" />
               </td>
@@ -457,6 +484,17 @@
       <template #default>
         <form @submit.prevent="handleAddUser" class="space-y-4 text-xs">
           <div class="space-y-1.5">
+            <label class="block font-mono uppercase text-[10px] text-gray-400">Username *</label>
+            <input
+              v-model="addUserForm.username"
+              type="text"
+              required
+              placeholder="e.g. ahmad.hidayat"
+              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+            />
+          </div>
+
+          <div class="space-y-1.5">
             <label class="block font-mono uppercase text-[10px] text-gray-400">Full Name *</label>
             <input
               v-model="addUserForm.name"
@@ -496,7 +534,7 @@
               class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
             >
               <option value="admin">ADMIN (Full Unrestricted Access)</option>
-              <option value="anggota">NOC STAFF (Operator)</option>
+              <option value="anggota">SANOC STAFF (Operator)</option>
               <option value="pimpinan">PIMPINAN (Executive)</option>
             </select>
           </div>
@@ -539,6 +577,7 @@ import WhatsAppTargetModal from '../components/settings/WhatsAppTargetModal.vue'
 import UserEditModal from '../components/users/UserEditModal.vue';
 import PermissionMatrix from '../components/settings/PermissionMatrix.vue';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
+import SkeletonCard from '../components/common/SkeletonCard.vue';
 import type { User, UserRole } from '../types';
 import {
   Save,
@@ -614,10 +653,19 @@ async function handleManualRefresh() {
 }
 
 const addUserForm = reactive({
+  username: '',
   name: '',
   email: '',
   password: '',
   role: 'anggota' as UserRole
+});
+
+const usersPage = ref(1);
+const usersPageSize = ref(5);
+const usersTotal = computed(() => settingStore.users.length);
+const paginatedUsers = computed(() => {
+  const start = (usersPage.value - 1) * usersPageSize.value;
+  return settingStore.users.slice(start, start + usersPageSize.value);
 });
 
 const userLogs = ref<any[]>([]);
@@ -767,12 +815,14 @@ async function handleAddUser() {
   if (!addUserForm.name || !addUserForm.email || !addUserForm.password) return;
   try {
     await api.post('/users', {
+      username: addUserForm.username,
       name: addUserForm.name,
       email: addUserForm.email,
       role: addUserForm.role,
       password: addUserForm.password
     });
     await settingStore.fetchUsers();
+    addUserForm.username = '';
     addUserForm.name = '';
     addUserForm.email = '';
     addUserForm.password = '';

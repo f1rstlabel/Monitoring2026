@@ -27,9 +27,13 @@ if (typeof window !== 'undefined') {
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('gov_monitor_token');
+    const token = localStorage.getItem('sanoc_token') || localStorage.getItem('gov_monitor_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const csrfToken = localStorage.getItem('sanoc_csrf_token');
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
     }
     if (cachedClientIp) {
       config.headers['X-Client-IP'] = cachedClientIp;
@@ -40,10 +44,18 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const csrfToken = response.headers['x-csrf-token'];
+    if (csrfToken) {
+      localStorage.setItem('sanoc_csrf_token', csrfToken);
+    }
+    return response;
+  },
   (error) => {
     if (error.response && error.response.status === 401) {
+      localStorage.removeItem('sanoc_token');
       localStorage.removeItem('gov_monitor_token');
+      localStorage.removeItem('sanoc_csrf_token');
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

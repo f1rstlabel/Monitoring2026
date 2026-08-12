@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { ReportRow, FlapDevice } from '../types';
 
 import api from '../api/client';
+import { downloadCSV, downloadXLS } from '../utils/exportUtils';
 
 export const useReportStore = defineStore('reports', () => {
   const period = ref<'daily' | 'weekly' | 'monthly' | 'custom'>('monthly');
@@ -79,24 +80,68 @@ export const useReportStore = defineStore('reports', () => {
     }
   }
 
+  function exportData(
+    format: 'csv' | 'xls' = 'xls',
+    activeTab: 'downtime' | 'recurring' | 'active_incidents' = 'downtime',
+    incidentsData: any[] = []
+  ) {
+    let headers: string[] = [];
+    let rowsData: (string | number)[][] = [];
+    let reportTitle = '';
+    let filePrefix = 'sanoc-report';
+
+    if (activeTab === 'recurring') {
+      reportTitle = `Laporan Audit SLA — Recurring Issues (Flapping Devices)`;
+      filePrefix = `recurring-issues-${period.value}`;
+      headers = ['#', 'Nama Perangkat', 'Tipe', 'Lokasi', 'Jumlah Down (7 Hari)'];
+      rowsData = flapDevices.value.map((d, idx) => [
+        idx + 1,
+        d.deviceName,
+        d.deviceType,
+        d.location,
+        `${d.downCount7d}x`
+      ]);
+    } else if (activeTab === 'active_incidents') {
+      reportTitle = `Laporan Audit SLA — Antrean Active Incidents`;
+      filePrefix = `active-incidents-${period.value}`;
+      headers = ['Ticket ID', 'Nama Perangkat', 'Tipe', 'IP Address', 'Durasi', 'Jumlah Terdampak', 'Status'];
+      rowsData = incidentsData.map((inc) => [
+        inc.id,
+        inc.deviceName,
+        inc.deviceType,
+        inc.deviceIp,
+        inc.duration || '0m',
+        inc.affectedDevicesCount || 1,
+        inc.status
+      ]);
+    } else {
+      reportTitle = `Laporan Audit SLA — Downtime per Perangkat`;
+      filePrefix = `downtime-by-device-${period.value}`;
+      headers = ['#', 'Nama Perangkat', 'Tipe', 'Lokasi', 'Jumlah Downtime', 'Total Durasi Downtime', 'Terakhir Down'];
+      rowsData = filteredRows.value.map((r, idx) => [
+        idx + 1,
+        r.deviceName,
+        r.deviceType,
+        r.location,
+        `${r.downCount}x`,
+        formatDowntime(r.totalDowntimeMinutes),
+        r.lastDown || '-'
+      ]);
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const typePrefix = format === 'csv' ? 'sanoc-csv' : 'sanoc-excel';
+    const filename = `${typePrefix}-${filePrefix}-${dateStr}`;
+
+    if (format === 'csv') {
+      downloadCSV(filename, headers, rowsData);
+    } else {
+      downloadXLS(filename, reportTitle, headers, rowsData);
+    }
+  }
+
   function exportCSV() {
-    const headers = ['Device Name', 'Type', 'Location', 'Down Count', 'Total Downtime', 'Last Down'];
-    const rowsData = filteredRows.value.map(r => [
-      r.deviceName,
-      r.deviceType,
-      r.location,
-      r.downCount,
-      formatDowntime(r.totalDowntimeMinutes),
-      r.lastDown
-    ]);
-    const csv = [headers, ...rowsData].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `govmonitor-report-${period.value}-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportData('csv', 'downtime');
   }
 
   return {
@@ -116,6 +161,7 @@ export const useReportStore = defineStore('reports', () => {
     uniqueLocations,
     formatDowntime,
     fetchReport,
+    exportData,
     exportCSV,
     exportPDF() {
       window.print();

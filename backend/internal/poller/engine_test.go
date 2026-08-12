@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/middleware"
-	"govmonitor-it/backend/internal/notifier"
-	"govmonitor-it/backend/internal/poller"
-	"govmonitor-it/backend/internal/repository"
-	"govmonitor-it/backend/internal/simulator"
-	"govmonitor-it/backend/internal/ws"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/middleware"
+	"sanoc/backend/internal/notifier"
+	"sanoc/backend/internal/poller"
+	"sanoc/backend/internal/repository"
+	"sanoc/backend/internal/simulator"
+	"sanoc/backend/internal/ws"
 
 	"github.com/gin-gonic/gin"
 )

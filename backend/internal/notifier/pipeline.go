@@ -15,8 +15,8 @@ import (
 	"text/template"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/repository"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/repository"
 
 	"github.com/hibiken/asynq"
 )

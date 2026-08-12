@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/middleware"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )

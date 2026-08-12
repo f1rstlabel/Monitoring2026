@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"govmonitor-it/backend/internal/simulator"
+	"sanoc/backend/internal/simulator"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 	flag.Parse()
 
 	log.Println("==========================================================")
-	log.Println("🌐 GovMonitor IT — Standalone Device Simulator")
+	log.Println("🌐 SANOC — Standalone Device Simulator")
 	log.Printf("   Configured: %d devices | %d flaky nodes\n", *deviceCount, *flakyCount)
 	log.Println("==========================================================")
 

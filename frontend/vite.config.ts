@@ -11,20 +11,34 @@ const isOfflineError = (err: any) => {
     code === 'ECONNABORTED' ||
     code === 'EPIPE' ||
     code === 'ENOTFOUND' ||
+    code === 'ETIMEDOUT' ||
     err?.name === 'AggregateError' ||
     msg.includes('ECONNREFUSED') ||
     msg.includes('ECONNRESET') ||
-    msg.includes('ECONNABORTED')
+    msg.includes('ECONNABORTED') ||
+    msg.includes('EPIPE')
   );
 };
 
 const setupSilentProxy = (proxy: any) => {
+  proxy.on('error', (err: any) => {
+    if (isOfflineError(err)) {
+      return; // Silence offline/aborted connection errors
+    }
+  });
+
+  proxy.on('proxyReqWsError', (err: any) => {
+    if (isOfflineError(err)) {
+      return; // Silence WebSocket disconnect/abort errors
+    }
+  });
+
   const originalEmit = proxy.emit;
   proxy.emit = function (event: string, ...args: any[]) {
-    if (event === 'error') {
+    if (event === 'error' || event === 'proxyReqWsError') {
       const err = args[0];
       if (isOfflineError(err)) {
-        return false; // Silence ECONNREFUSED when backend is offline
+        return false;
       }
     }
     return originalEmit.apply(this, [event, ...args]);
@@ -51,6 +65,12 @@ export default defineConfig({
       '/ws': {
         target: 'ws://127.0.0.1:8080',
         ws: true,
+        xfwd: true,
+        configure: setupSilentProxy
+      },
+      '/uploads': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
         xfwd: true,
         configure: setupSilentProxy
       }

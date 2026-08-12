@@ -107,7 +107,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
             <!-- ── Step 1: Column Mapping ────────────────────────────────── -->
             <div v-else-if="step === 1" class="space-y-4">
               <p class="text-xs text-gray-400">
-                Map each column from your file to the corresponding GovMonitor field.
+                Map each column from your file to the corresponding SANOC field.
                 Unrecognized columns can be skipped.
               </p>
               <div class="space-y-2">

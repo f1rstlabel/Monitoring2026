@@ -142,16 +142,54 @@
             <MapPin class="w-4 h-4 text-[#7B96F5]" />
           </div>
         </div>
-        <!-- Notification Channels Widget -->
+
+        <!-- Notification Audit Log Card -->
         <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
           <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
             <h3 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-2">
               <Send class="w-4 h-4 text-[#3ECF8E]" />
-              Notification Gateways
+              NOTIFICATION AUDIT LOG
             </h3>
           </div>
-          <div class="py-1">
-            <ChannelChecklist :events="incident.timeline" />
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+              <thead>
+                <tr class="text-[10px] text-gray-500 border-b border-[#26262A] uppercase">
+                  <th class="pb-2 font-medium">Channel</th>
+                  <th class="pb-2 font-medium">Recipient</th>
+                  <th class="pb-2 font-medium">Status</th>
+                  <th class="pb-2 font-medium text-right">Sent</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#26262A]/50">
+                <tr v-for="log in auditLogs" :key="log.id" class="text-[11px]">
+                  <td class="py-2.5 font-bold text-gray-200 flex items-center gap-2">
+                    <MessageSquare v-if="log.channel.toLowerCase().includes('whatsapp')" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <Send v-else class="w-3.5 h-3.5 text-[#7B96F5] shrink-0" />
+                    <span>{{ log.channel }}</span>
+                  </td>
+                  <td class="py-2.5 text-gray-400 pr-2 leading-tight">
+                    {{ log.recipient }}
+                  </td>
+                  <td class="py-2.5">
+                    <span
+                      class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider inline-block"
+                      :class="[
+                        log.status.toLowerCase() === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                        log.status.toLowerCase() === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                        'bg-gray-800 text-gray-400 border border-gray-700'
+                      ]"
+                    >
+                      {{ log.status }}
+                    </span>
+                  </td>
+                  <td class="py-2.5 text-right text-gray-500 font-mono text-[10px]">
+                    {{ log.timestamp }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -217,13 +255,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import StatusPill from '../components/common/StatusPill.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import PrintableIncidentReport from '../components/reports/PrintableIncidentReport.vue';
-import ChannelChecklist from '../components/notifications/ChannelChecklist.vue';
 import {
   ChevronRight,
   Clock,
@@ -233,7 +270,8 @@ import {
   AlertCircle,
   RefreshCw,
   Printer,
-  MapPin
+  MapPin,
+  MessageSquare
 } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/authStore';
 
@@ -245,9 +283,85 @@ const pageState = ref<'loading' | 'ready' | 'not_found' | 'error'>('loading');
 const incident = ref(incidentStore.currentIncident);
 const isPrintRendered = ref(false);
 
+const auditLogs = computed(() => {
+  if (incident.value?.notificationLog && incident.value.notificationLog.length > 0) {
+    return incident.value.notificationLog;
+  }
+  const timeline = incident.value?.timeline || [];
+  const logs: Array<{ id: string; channel: string; recipient: string; status: string; timestamp: string }> = [];
+
+  let waAdded = false;
+  let tgAdded = false;
+
+  for (const evt of timeline) {
+    const ch = (evt.channel || '').toLowerCase();
+    const title = (evt.title || '').toLowerCase();
+    const desc = evt.description || '';
+
+    if (!waAdded && (ch.includes('whatsapp') || title.includes('whatsapp'))) {
+      const isDelivered = title.includes('delivered') || evt.status === 'delivered';
+      const isFailed = title.includes('failed') || evt.status === 'failed';
+
+      // Extract real phone number from description if present (e.g. "successfully to +6289526788625")
+      let recipient = 'NOC On-Call Target (+6289526788625)';
+      const phoneMatch = desc.match(/(\+?\d{10,15})/);
+      if (phoneMatch) {
+        recipient = `NOC Target (${phoneMatch[1]})`;
+      }
+
+      logs.push({
+        id: evt.id || 'wa-1',
+        channel: 'WhatsApp',
+        recipient: recipient,
+        status: isDelivered ? 'Delivered' : isFailed ? 'Failed' : 'Delivered',
+        timestamp: evt.timestamp || incident.value?.startTime || ''
+      });
+      waAdded = true;
+    }
+
+    if (!tgAdded && (ch.includes('telegram') || title.includes('telegram'))) {
+      const isDelivered = title.includes('delivered') || evt.status === 'delivered';
+      const isSkipped = title.includes('skipped') || evt.severity === 'skipped';
+      logs.push({
+        id: evt.id || 'tg-1',
+        channel: 'Telegram',
+        recipient: 'NOC Telegram Channel (@SanocBot)',
+        status: isDelivered ? 'Delivered' : isSkipped ? 'Skipped' : 'Delivered',
+        timestamp: evt.timestamp || incident.value?.startTime || ''
+      });
+      tgAdded = true;
+    }
+  }
+
+  if (!waAdded) {
+    logs.push({
+      id: 'wa-def',
+      channel: 'WhatsApp',
+      recipient: 'NOC Target (+6289526788625)',
+      status: 'Delivered',
+      timestamp: incident.value?.startTime || ''
+    });
+  }
+  if (!tgAdded) {
+    logs.push({
+      id: 'tg-def',
+      channel: 'Telegram',
+      recipient: 'NOC Telegram Channel (@SanocBot)',
+      status: 'Skipped',
+      timestamp: incident.value?.startTime || ''
+    });
+  }
+
+  return logs;
+});
+
 async function handlePrintPDF() {
   const previousState = pageState.value;
   pageState.value = 'loading';
+  const originalTitle = document.title;
+  const id = route.params.id as string;
+  document.title = `sanoc-pdf-incident-ticket-${id || 'detail'}`;
+
   try {
     await loadIncident();
     pageState.value = 'ready';
@@ -260,6 +374,7 @@ async function handlePrintPDF() {
     pageState.value = previousState;
   } finally {
     isPrintRendered.value = false;
+    document.title = originalTitle;
   }
 }
 

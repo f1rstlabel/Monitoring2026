@@ -140,7 +140,6 @@ export interface PollingEngineConfig {
 }
 
 export interface SystemSettings {
-  channels: NotificationChannelSetting[];
   rateLimitMaxMsgPerMin: number;
   thresholds: ThresholdDefault[];
   polling: PollingEngineConfig;
@@ -148,6 +147,7 @@ export interface SystemSettings {
 
 export interface User {
   id: string;
+  username?: string;
   name: string;
   email: string;
   role: UserRole;

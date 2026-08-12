@@ -22,6 +22,11 @@ type Config struct {
 
 	JWTSecret          string
 	CORSAllowedOrigin  string
+	CookieSecure       bool
+	CookieSameSite     string
+	RateLimitLoginMax  int
+	RecaptchaEnabled   bool
+	RecaptchaSecret    string
 
 	WhatsAppTargetNumber string
 	WhatsAppGatewayURL   string // base URL of the Baileys wa-sidecar
@@ -35,12 +40,19 @@ type Config struct {
 func LoadConfig() *Config {
 	_ = godotenv.Load(".env")
 
+	cookieSecure := getEnv("COOKIE_SECURE", "false") == "true"
+	recaptchaEnabled := getEnv("RECAPTCHA_ENABLED", "false") == "true"
+	rateLimitMax := 5
+	if maxStr := getEnv("RATE_LIMIT_LOGIN_MAX", "5"); maxStr != "" {
+		fmt.Sscanf(maxStr, "%d", &rateLimitMax)
+	}
+
 	return &Config{
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: getEnv("DB_PASSWORD", ""),
-		DBName:     getEnv("DB_NAME", "govmonitor"),
+		DBName:     getEnv("DB_NAME", "sanoc"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 
 		RedisHost: getEnv("REDIS_HOST", "localhost"),
@@ -48,8 +60,13 @@ func LoadConfig() *Config {
 
 		ServerPort: getEnv("PORT", "8080"),
 
-		JWTSecret:         getEnv("JWT_SECRET", "govmonitor-dev-secret-change-in-prod"),
+		JWTSecret:         getEnv("JWT_SECRET", "sanoc-dev-secret-key-production-change-this"),
 		CORSAllowedOrigin: getEnv("CORS_ALLOWED_ORIGIN", "http://localhost:5173"),
+		CookieSecure:      cookieSecure,
+		CookieSameSite:    getEnv("COOKIE_SAMESITE", "Strict"),
+		RateLimitLoginMax: rateLimitMax,
+		RecaptchaEnabled:  recaptchaEnabled,
+		RecaptchaSecret:   getEnv("RECAPTCHA_SECRET_KEY", ""),
 
 		WhatsAppTargetNumber: getEnv("WHATSAPP_TARGET_NUMBER", "+6281290008888"),
 		WhatsAppGatewayURL:   getEnv("WHATSAPP_GATEWAY_URL", "http://localhost:3001"),

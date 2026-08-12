@@ -3,14 +3,15 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
-	"govmonitor-it/backend/internal/domain"
+	"sanoc/backend/internal/config"
+	"sanoc/backend/internal/domain"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
-
-var jwtSecret = []byte("govmonitor-secret-key-2.4.1")
 
 // contextKey constants for values injected into Gin context.
 const (
@@ -19,9 +20,112 @@ const (
 	ContextUserName = "userName"
 )
 
+// SecurityHeaders injects OWASP recommended HTTP security headers.
+func SecurityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("X-XSS-Protection", "1; mode=block")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' ws: wss: https:;")
+		c.Next()
+	}
+}
+
+// rateLimiter tracking structure for login endpoint
+type loginRateLimiter struct {
+	mu       sync.Mutex
+	attempts map[string][]time.Time
+}
+
+var loginLimiter = &loginRateLimiter{
+	attempts: make(map[string][]time.Time),
+}
+
+func (l *loginRateLimiter) RecordFailedAttempt(ip string) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-1 * time.Minute)
+
+	var valid []time.Time
+	for _, t := range l.attempts[ip] {
+		if t.After(cutoff) {
+			valid = append(valid, t)
+		}
+	}
+	valid = append(valid, now)
+	l.attempts[ip] = valid
+	return len(valid)
+}
+
+func RecordFailedLoginAttempt(ip string) int {
+	return loginLimiter.RecordFailedAttempt(ip)
+}
+
+// RateLimitLogin prevents brute-force attempts on login endpoint.
+func RateLimitLogin(maxAttempts int, window time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		clientIP := c.ClientIP()
+		if clientIP == "" {
+			clientIP = c.Request.RemoteAddr
+		}
+
+		loginLimiter.mu.Lock()
+		now := time.Now()
+		cutoff := now.Add(-window)
+
+		// Filter out old timestamps
+		var valid []time.Time
+		for _, t := range loginLimiter.attempts[clientIP] {
+			if t.After(cutoff) {
+				valid = append(valid, t)
+			}
+		}
+
+		if len(valid) >= maxAttempts {
+			loginLimiter.attempts[clientIP] = valid
+			loginLimiter.mu.Unlock()
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"error":   "Too many login attempts. Please wait a minute before trying again.",
+				"retryIn": 60,
+			})
+			return
+		}
+
+		loginLimiter.attempts[clientIP] = append(valid, now)
+		loginLimiter.mu.Unlock()
+		c.Next()
+	}
+}
+
+// CSRFProtection verifies X-CSRF-Token for state-changing requests when session cookie is present.
+func CSRFProtection() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH" || c.Request.Method == "DELETE" {
+			if _, err := c.Cookie("sanoc_session"); err == nil {
+				csrfHeader := c.GetHeader("X-CSRF-Token")
+				if csrfHeader == "" {
+					csrfHeader = c.GetHeader("X-Requested-With")
+				}
+				if csrfHeader == "" {
+					c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+						"error": "CSRF token missing or invalid",
+					})
+					return
+				}
+			}
+		}
+		c.Next()
+	}
+}
+
 // JWTMiddleware validates the Bearer token and injects user claims into context.
 // Routes without a token will get a 401.
 func JWTMiddleware() gin.HandlerFunc {
+	cfg := config.LoadConfig()
+	jwtSecret := []byte(cfg.JWTSecret)
+
 	return func(c *gin.Context) {
 		var tokenStr string
 
@@ -34,7 +138,7 @@ func JWTMiddleware() gin.HandlerFunc {
 		}
 
 		if tokenStr == "" {
-			if cookie, err := c.Cookie("govmonitor_session"); err == nil && cookie != "" {
+			if cookie, err := c.Cookie("sanoc_session"); err == nil && cookie != "" {
 				tokenStr = cookie
 			}
 		}
@@ -44,22 +148,6 @@ func JWTMiddleware() gin.HandlerFunc {
 				"error": "Authentication required — missing session token or authorization header",
 			})
 			return
-		}
-
-		// Accept demo tokens for local dev without signature verification.
-		if strings.HasPrefix(tokenStr, "demo-jwt-") {
-			segments := strings.Split(tokenStr, "-")
-			if len(segments) >= 3 {
-				role := segments[2]
-				if role == "superadmin" {
-					role = "admin"
-				}
-				c.Set(ContextUserID, "demo-user")
-				c.Set(ContextUserRole, role)
-				c.Set(ContextUserName, "Demo "+strings.Title(role))
-				c.Next()
-				return
-			}
 		}
 
 		// Standard JWT validation.

@@ -329,10 +329,15 @@
           </template>
           <tr v-else>
             <td colspan="8" class="py-16 text-center">
-              <div class="flex flex-col items-center gap-3">
-                <Search class="w-8 h-8 text-gray-600" />
-                <p class="text-gray-500 font-medium">No devices match your filters</p>
-                <button @click="clearFilters" class="text-xs text-[#7B96F5] hover:underline">Clear filters</button>
+              <div class="flex flex-col items-center gap-2 max-w-md mx-auto">
+                <div class="w-12 h-12 rounded-xl bg-[#18181B] border border-[#26262A] flex items-center justify-center text-gray-500 mb-1">
+                  <Search class="w-6 h-6" />
+                </div>
+                <h3 class="text-sm font-bold text-white">No infrastructure nodes match your search</h3>
+                <p class="text-xs text-gray-500 font-mono">No active device inventory records match the selected status or category filters.</p>
+                <button @click="clearFilters" class="mt-2 px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#26262A] text-xs font-mono text-[#7B96F5] hover:border-[#7B96F5] transition-colors">
+                  Reset Search Filters
+                </button>
               </div>
             </td>
           </tr>

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/notifier"
-	"govmonitor-it/backend/internal/repository"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/notifier"
+	"sanoc/backend/internal/repository"
 )
 
 const flapThreshold = 5 // downs in 7 days before flagging as recurring issue

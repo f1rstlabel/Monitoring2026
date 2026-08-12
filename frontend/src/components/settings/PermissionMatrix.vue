@@ -28,7 +28,7 @@
       <div>
         <span class="font-bold text-[#7B96F5]">Role-Based Access Control:</span>
         <span class="text-gray-300">
-          Feature access rules are configured per role. Editing permissions for <strong>Anggota NOC</strong> or <strong>Pimpinan</strong> immediately updates feature capabilities for <strong>all users</strong> assigned that role.
+          Feature access rules are configured per role. Editing permissions for <strong>Anggota SANOC</strong> or <strong>Pimpinan</strong> immediately updates feature capabilities for <strong>all users</strong> assigned that role.
         </span>
       </div>
     </div>
@@ -49,7 +49,7 @@
               <div class="text-[9px] text-[#7B96F5] font-semibold lowercase">({{ pimpinanCount }} user{{ pimpinanCount === 1 ? '' : 's' }})</div>
             </th>
             <th class="py-3 px-4 text-center w-48">
-              <div>Anggota NOC</div>
+              <div>Anggota SANOC</div>
               <div class="text-[9px] text-[#7B96F5] font-semibold lowercase">({{ anggotaCount }} user{{ anggotaCount === 1 ? '' : 's' }})</div>
             </th>
             <th class="py-3 px-4 text-center w-36">
@@ -59,7 +59,12 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-[#26262A]">
-          <template v-for="group in featureGroups" :key="group.category">
+          <tr v-if="isLoading">
+            <td colspan="4" class="p-0 border-0">
+              <SkeletonTable :rows="6" :cols="4" />
+            </td>
+          </tr>
+          <template v-else v-for="group in featureGroups" :key="group.category">
             <!-- Category Header Row -->
             <tr class="bg-[#18181B]/60 text-[#7B96F5] font-mono text-[11px] font-bold">
               <td colspan="4" class="py-2.5 px-4 uppercase tracking-wider bg-[#18181B]">
@@ -144,6 +149,7 @@ import { permissionsApi } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import { useSettingStore } from '../../stores/settingStore';
 import { ShieldAlert, ShieldCheck, Save, Check } from 'lucide-vue-next';
+import SkeletonTable from '../common/SkeletonTable.vue';
 
 interface FeatureDef {
   key: string;

@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
       <div>
         <h1 class="text-xl font-extrabold text-white tracking-tight">Active Incident Queue</h1>
-        <p class="text-xs text-gray-400 mt-1">Real-time infrastructure outage alerts requiring NOC intervention</p>
+        <p class="text-xs text-gray-400 mt-1">Real-time infrastructure outage alerts requiring SANOC intervention</p>
       </div>
 
       <div class="flex items-center gap-3">
@@ -12,14 +12,49 @@
           {{ incidentStore.incidents.filter((i: Incident) => i.status === 'ACTIVE').length }} Active
         </span>
 
-        <button
-          @click="exportIncidentsCSV"
-          class="px-3 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5"
-          title="Export Incidents to Excel / CSV"
-        >
-          <FileText class="w-3.5 h-3.5 text-emerald-400" />
-          Export Excel
-        </button>
+        <!-- Export Excel / CSV Dropdown -->
+        <div v-if="authStore.hasPermission('reports.export')" class="relative">
+          <button
+            @click="showExportDropdown = !showExportDropdown"
+            class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
+            title="Export Incidents to Excel / CSV"
+          >
+            <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-400" />
+            <span>Export Data</span>
+            <ChevronDown class="w-3 h-3 text-emerald-500/70 ml-0.5" />
+          </button>
+
+          <!-- Dropdown Options -->
+          <div
+            v-if="showExportDropdown"
+            @click="showExportDropdown = false"
+            class="absolute right-0 mt-1.5 w-52 bg-[#1A1A1E] border border-[#26262A] rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+          >
+            <div class="px-3 py-1.5 border-b border-[#26262A]/60 font-mono text-[10px] uppercase font-bold text-gray-400">
+              Pilih Format Export
+            </div>
+            <button
+              @click="exportIncidentsData('xls')"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+            >
+              <FileSpreadsheet class="w-4 h-4 text-emerald-400 shrink-0" />
+              <div>
+                <div class="font-bold">Excel Spreadsheet (.xls)</div>
+                <div class="text-[10px] text-gray-400 font-sans">Format tabel Excel terstruktur</div>
+              </div>
+            </button>
+            <button
+              @click="exportIncidentsData('csv')"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+            >
+              <FileText class="w-4 h-4 text-sky-400 shrink-0" />
+              <div>
+                <div class="font-bold">CSV File (.csv)</div>
+                <div class="text-[10px] text-gray-400 font-sans">Dokumen CSV standar UTF-8</div>
+              </div>
+            </button>
+          </div>
+        </div>
 
         <button
           @click="exportIncidentsPDF"
@@ -207,9 +242,14 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-[#26262A]">
-          <template v-if="filteredIncidents.length > 0">
+          <tr v-if="incidentStore.isLoading">
+            <td colspan="8" class="p-0 border-0">
+              <SkeletonTable :rows="6" :cols="8" />
+            </td>
+          </tr>
+          <template v-else-if="filteredIncidents.length > 0">
             <tr
-              v-for="inc in incidentStore.incidents"
+              v-for="inc in filteredIncidents"
               :key="inc.id"
               @click="router.push(`/incidents/${inc.id}`)"
               class="hover:bg-[#18181B] transition-colors cursor-pointer group"
@@ -281,11 +321,13 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
+import { useAuthStore } from '../stores/authStore';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
 import PrintableIncidentsList from '../components/reports/PrintableIncidentsList.vue';
-import { ChevronRight, CheckCircle, FileText, Printer, Search } from 'lucide-vue-next';
+import { ChevronRight, CheckCircle, FileText, Printer, Search, ChevronDown, FileSpreadsheet } from 'lucide-vue-next';
+import { downloadCSV, downloadXLS } from '../utils/exportUtils';
 import type { Incident } from '../types';
 
 const currentPage = ref(1);
@@ -293,12 +335,51 @@ const pageSize = ref(10);
 
 const router = useRouter();
 const incidentStore = useIncidentStore();
+const authStore = useAuthStore();
 
 const searchQuery = ref('');
 const statusFilter = ref('ALL');
 const groupingMode = ref<'none' | 'location' | 'device' | 'status'>('none');
 const expandedGroups = ref<Record<string, boolean>>({});
+const showExportDropdown = ref(false);
 const isPrintRendered = ref(false);
+
+function exportIncidentsData(format: 'csv' | 'xls' = 'xls') {
+  const headers = ['Ticket ID', 'Nama Perangkat', 'Tipe Perangkat', 'IP Address', 'Durasi Outage', 'Jumlah Terdampak', 'Status Tiket'];
+  const rows = filteredIncidents.value.map((i: Incident) => [
+    i.id,
+    i.deviceName,
+    i.deviceType,
+    i.deviceIp,
+    i.duration,
+    i.affectedDevicesCount,
+    i.status
+  ]);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const typePrefix = format === 'csv' ? 'sanoc-csv' : 'sanoc-excel';
+  const filename = `${typePrefix}-incidents-list-${dateStr}`;
+
+  if (format === 'csv') {
+    downloadCSV(filename, headers, rows);
+  } else {
+    downloadXLS(filename, 'Daftar Antrean Outage Kejadian Infrastruktur NOC', headers, rows);
+  }
+}
+
+async function exportIncidentsPDF() {
+  const originalTitle = document.title;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  document.title = `sanoc-pdf-incidents-list-${dateStr}`;
+  try {
+    isPrintRendered.value = true;
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 100)); // allow rendering thread sync
+    window.print();
+  } finally {
+    isPrintRendered.value = false;
+    document.title = originalTitle;
+  }
+}
 
 const filteredIncidents = computed(() => {
   return incidentStore.incidents.filter((inc: Incident) => {
@@ -370,35 +451,6 @@ function toggleGroupExpand(name: string) {
   } else {
     expandedGroups.value[name] = !expandedGroups.value[name];
   }
-}
-
-function exportIncidentsCSV() {
-  const headers = ['Ticket ID', 'Device Name', 'Type', 'IP Address', 'Duration', 'Affected Count', 'Status'];
-  const rows = filteredIncidents.value.map((i: Incident) => [
-    i.id,
-    i.deviceName,
-    i.deviceType,
-    i.deviceIp,
-    i.duration,
-    i.affectedDevicesCount,
-    i.status
-  ]);
-  const csv = [headers, ...rows].map(r => r.map((v: any) => `"${v}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `govmonitor-incidents-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-async function exportIncidentsPDF() {
-  isPrintRendered.value = true;
-  await nextTick();
-  await new Promise((resolve) => setTimeout(resolve, 100)); // allow rendering thread sync
-  window.print();
-  isPrintRendered.value = false;
 }
 
 function loadIncidents() {

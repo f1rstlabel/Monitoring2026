@@ -5,15 +5,15 @@
       <!-- Header / Logo -->
       <div class="px-5 py-5 border-b border-[#26262A]/60 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-[#7B96F5]/15 border border-[#7B96F5]/30 flex items-center justify-center text-[#7B96F5] shadow-sm shadow-[#7B96F5]/10">
-            <Shield class="w-5 h-5" />
+          <div class="w-9 h-9 rounded-lg bg-[#0082FF]/10 border border-[#0082FF]/30 flex items-center justify-center p-1.5 shadow-sm shadow-[#0082FF]/20">
+            <img src="../../assets/logo-sanoc-mark.svg" alt="SANOC Logo" class="w-full h-full object-contain" />
           </div>
           <div>
-            <h1 class="text-sm font-bold text-white tracking-tight leading-none">GovMonitor <span class="text-[#7B96F5]">IT</span></h1>
-            <p class="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-wider">Jabar Regional NOC</p>
+            <h1 class="text-sm font-black text-white tracking-wider leading-none">SANOC</h1>
+            <p class="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-wider">Jabar Regional SANOC</p>
           </div>
         </div>
-        <span class="text-[10px] font-mono bg-[#18181B] text-[#7B96F5] px-1.5 py-0.5 rounded border border-[#26262A]">v2.4.1</span>
+        <span class="text-[10px] font-mono bg-[#18181B] text-[#7B96F5] px-1.5 py-0.5 rounded border border-[#26262A]">v2.6.0</span>
       </div>
 
       <!-- Navigation Items — conditionally rendered per feature permissions -->
@@ -97,17 +97,18 @@
     <!-- Bottom User Section -->
     <div class="p-3 border-t border-[#26262A]/60 bg-[#0A0A0B]/50">
       <div class="flex items-center justify-between p-2 rounded-lg bg-[#151517] border border-[#26262A]">
-        <div class="flex items-center gap-2.5 overflow-hidden">
+        <router-link to="/profile" class="flex items-center gap-2.5 overflow-hidden group flex-1 mr-1" title="View & Edit Profile">
           <img
             :src="authStore.user.avatarUrl"
             alt="User Avatar"
-            class="w-8 h-8 rounded-full object-cover border border-[#7B96F5]/40 shrink-0"
+            @error="(e: Event) => (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'"
+            class="w-8 h-8 rounded-full object-cover border border-[#7B96F5]/40 shrink-0 group-hover:ring-2 group-hover:ring-[#7B96F5] transition-all"
           />
           <div class="overflow-hidden">
-            <p class="text-xs font-medium text-gray-200 truncate leading-tight">{{ authStore.user.name }}</p>
+            <p class="text-xs font-medium text-gray-200 truncate leading-tight group-hover:text-[#7B96F5] transition-colors">{{ authStore.user.name }}</p>
             <p class="text-[10px] text-gray-500 truncate mt-0.5">{{ authStore.user.email }}</p>
           </div>
-        </div>
+        </router-link>
         <button
           @click="handleLogout"
           title="Sign Out"
@@ -116,6 +117,9 @@
           <LogOut class="w-4 h-4" />
         </button>
       </div>
+      <p class="mt-2 text-center text-[9px] font-mono text-gray-500 tracking-tight">
+        © SANOC Team — UTB 2026.
+      </p>
     </div>
   </aside>
 </template>
@@ -126,7 +130,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useDeviceStore } from '../../stores/deviceStore';
 import {
-  Shield,
   LayoutGrid,
   Server,
   AlertTriangle,
@@ -155,7 +158,7 @@ const roleLabel = computed(() => {
   const map: Record<string, string> = {
     admin: 'Admin',
     pimpinan: 'Pimpinan',
-    anggota: 'Anggota NOC'
+    anggota: 'Anggota SANOC'
   };
   return map[authStore.user.role] ?? authStore.user.role;
 });

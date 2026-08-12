@@ -11,7 +11,10 @@
       </div>
     </div>
 
-    <table v-if="devices.length > 0" class="w-full text-xs text-gray-300">
+    <div v-if="isLoading" class="p-4">
+      <SkeletonTable :rows="4" :cols="6" />
+    </div>
+    <table v-else-if="devices.length > 0" class="w-full text-xs text-gray-300">
       <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-500 border-b border-[#26262A]">
         <tr>
           <th class="py-2.5 px-4">Device</th>
@@ -64,8 +67,12 @@
 <script setup lang="ts">
 import type { FlapDevice } from '../../types';
 import { AlertTriangle } from 'lucide-vue-next';
+import SkeletonTable from '../common/SkeletonTable.vue';
 
-defineProps<{ devices: FlapDevice[] }>();
+defineProps<{
+  devices: FlapDevice[];
+  isLoading?: boolean;
+}>();
 
 function formatTime(minutes: number): string {
   const h = Math.floor(minutes / 60);

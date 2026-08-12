@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
+	"sanoc/backend/internal/domain"
 )
 
 // ─── In-Memory Device Repository ─────────────────────────────────────────────

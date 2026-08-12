@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/middleware"
-	"govmonitor-it/backend/internal/repository"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/middleware"
+	"sanoc/backend/internal/repository"
 
 	"github.com/gin-gonic/gin"
 )

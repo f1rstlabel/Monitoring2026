@@ -5,7 +5,7 @@
       <div class="border-b-2 border-slate-900 pb-4 mb-6 flex items-center justify-between">
         <div>
           <h2 class="text-sm font-extrabold tracking-wider uppercase text-slate-900">PEMERINTAH PROVINSI JAWA BARAT</h2>
-          <h1 class="text-lg font-black tracking-tight text-indigo-900">DINAS KOMUNIKASI DAN INFORMATIKA — NOC IT</h1>
+          <h1 class="text-lg font-black tracking-tight text-indigo-900">DINAS KOMUNIKASI DAN INFORMATIKA — SANOC</h1>
           <p class="text-[10px] font-mono text-slate-600">Laporan Resmi Insiden Infrastruktur &amp; Disaster Recovery Audit</p>
         </div>
         <div class="text-right font-mono text-[10px] text-slate-600 bg-slate-100 p-2.5 rounded border border-slate-200">
@@ -25,7 +25,7 @@
             <div><span class="text-slate-500 font-mono">Nama Perangkat:</span> <strong class="text-slate-900 font-bold text-sm">{{ incident.deviceName }}</strong></div>
             <div><span class="text-slate-500 font-mono">Tipe &amp; Kategori:</span> <span class="font-mono text-slate-800">{{ incident.deviceType }}</span></div>
             <div><span class="text-slate-500 font-mono">Alamat IP:</span> <span class="font-mono font-bold text-indigo-900">{{ incident.deviceIp }}</span></div>
-            <div><span class="text-slate-500 font-mono">Lokasi Fisik:</span> <span class="font-semibold text-slate-800">{{ incident.location || 'Gedung Sate / NOC Server Room' }}</span></div>
+            <div><span class="text-slate-500 font-mono">Lokasi Fisik:</span> <span class="font-semibold text-slate-800">{{ incident.location || 'Gedung Sate / SANOC Server Room' }}</span></div>
           </div>
           <div class="space-y-1.5">
             <div><span class="text-slate-500 font-mono">Status Insiden:</span> <span class="font-mono font-bold uppercase px-2 py-0.5 rounded text-[10px]" :class="incident.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'">{{ incident.status }}</span></div>
@@ -38,7 +38,7 @@
 
       <!-- Tabel Detail Dampak & Audit -->
       <div class="mb-6 break-inside-avoid page-break-inside-avoid">
-        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">2. ANALISIS DAMPAK</h3>
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">ANALISIS DAMPAK</h3>
         <table class="w-full text-left border-collapse border border-slate-300 text-xs" style="table-layout: fixed; width: 100%;">
           <colgroup>
             <col style="width: 35%;">
@@ -69,7 +69,7 @@
 
       <!-- Event Timeline Logs -->
       <div class="mb-6 break-inside-avoid page-break-inside-avoid">
-        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">3. EVENT TIMELINE LOGS</h3>
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">EVENT TIMELINE LOGS</h3>
         <table class="w-full text-left border-collapse border border-slate-300 text-xs" style="table-layout: fixed; width: 100%;">
           <colgroup>
             <col style="width: 25%;">
@@ -103,7 +103,7 @@
 
       <!-- Notification Log -->
       <div class="mb-6 break-inside-avoid page-break-inside-avoid">
-        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">4. NOTIFIKASI AUDIT LOG</h3>
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 font-mono mb-2">NOTIFIKASI AUDIT LOG</h3>
         <table class="w-full text-left border-collapse border border-slate-300 text-xs" style="table-layout: fixed; width: 100%;">
           <colgroup>
             <col style="width: 20%;">
@@ -142,9 +142,9 @@
       <!-- Tanda Tangan & Pengesahan Dokumen -->
       <div class="mt-12 pt-6 border-t-2 border-slate-300 grid grid-cols-2 gap-12 text-center text-xs break-inside-avoid page-break-inside-avoid">
         <div>
-          <p class="text-slate-600 font-mono text-[10px] mb-12">Petugas Operator NOC (Diskominfo Jabar)</p>
+          <p class="text-slate-600 font-mono text-[10px] mb-12">Petugas Operator SANOC (Diskominfo Jabar)</p>
           <div class="border-b border-slate-900 w-44 mx-auto mb-1"></div>
-          <p class="font-bold text-slate-900">Tim Operasional NOC</p>
+          <p class="font-bold text-slate-900">Tim Operasional SANOC</p>
           <p class="text-[10px] text-slate-500 font-mono">NIP: 19880412 201403 1 002</p>
         </div>
         <div>

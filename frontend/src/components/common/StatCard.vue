@@ -12,7 +12,7 @@
         <p class="text-[11px] font-mono tracking-wider uppercase text-gray-400 font-medium">{{ title }}</p>
         <div class="flex items-baseline gap-2 mt-2">
           <h2 
-            class="text-3xl font-extrabold tracking-tight"
+            class="text-3xl font-extrabold tracking-tight font-mono"
             :class="[
               isAlert ? 'text-red-400' : 'text-white'
             ]"

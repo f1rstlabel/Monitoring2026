@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/notifier"
-	"govmonitor-it/backend/internal/repository"
-	"govmonitor-it/backend/internal/ws"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/notifier"
+	"sanoc/backend/internal/repository"
+	"sanoc/backend/internal/ws"
 
 	"github.com/gosnmp/gosnmp"
 )

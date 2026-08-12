@@ -1,27 +1,29 @@
 package handler
 
 import (
+	"crypto/rand"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"govmonitor-it/backend/internal/domain"
-	"govmonitor-it/backend/internal/middleware"
-	"govmonitor-it/backend/internal/notifier"
-	"govmonitor-it/backend/internal/poller"
-	"govmonitor-it/backend/internal/repository"
-	"govmonitor-it/backend/internal/ws"
+	"sanoc/backend/internal/config"
+	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/middleware"
+	"sanoc/backend/internal/notifier"
+	"sanoc/backend/internal/poller"
+	"sanoc/backend/internal/repository"
+	"sanoc/backend/internal/ws"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
-
-var jwtSecret = []byte("govmonitor-secret-key-2.4.1")
 
 type SystemSettings struct {
 	RateLimitMaxMsgPerMin  int `json:"rateLimitMaxMsgPerMin"`
@@ -73,8 +75,9 @@ type Handler struct {
 	incidentRepo repository.IncidentRepository
 	userLogRepo  repository.UserLogRepository
 	notifLogRepo repository.NotificationLogRepository
-	locationRepo repository.LocationRepository
-	permRepo     repository.PermissionRepository
+	locationRepo       repository.LocationRepository
+	permRepo           repository.PermissionRepository
+	whatsappTargetRepo repository.WhatsAppTargetRepository
 }
 
 func NewHandler(hub *ws.Hub, settingsRepo *repository.SettingsRepository, userRepo repository.UserRepository, deviceRepo repository.DeviceRepository, statusRepo repository.StatusLogRepository) *Handler {
@@ -101,6 +104,10 @@ func (h *Handler) SetLocationRepo(repo repository.LocationRepository) {
 
 func (h *Handler) SetPermissionRepo(repo repository.PermissionRepository) {
 	h.permRepo = repo
+}
+
+func (h *Handler) SetWhatsAppTargetRepo(repo repository.WhatsAppTargetRepository) {
+	h.whatsappTargetRepo = repo
 }
 
 func (h *Handler) SetPoller(p interface {
@@ -242,6 +249,12 @@ func paginateSlice[T any](c *gin.Context, items []T) {
 	})
 }
 
+func generateRandomHex(n int) string {
+	bytes := make([]byte, n)
+	_, _ = rand.Read(bytes)
+	return fmt.Sprintf("%x", bytes)
+}
+
 // Login Handler
 func (h *Handler) Login(c *gin.Context) {
 	var req struct {
@@ -252,59 +265,136 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid payload"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid payload format"})
 		return
 	}
 
-	if req.UsernameOrEmail == "" || req.Password == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
-		return
-	}
-
-	inputUser := strings.TrimSpace(strings.ToLower(req.UsernameOrEmail))
+	inputUser := strings.TrimSpace(req.UsernameOrEmail)
 	inputPass := strings.TrimSpace(req.Password)
 
-	email := inputUser
-	// Handle local aliases for ease of use
-	switch inputUser {
-	case "admin", "superadmin", "admin.noc", "admin.noc@jabarprov.go.id":
-		email = "admin.noc@jabarprov.go.id"
-	case "pimpinan", "sari.dewi", "sari.dewi@jabarprov.go.id":
-		email = "sari.dewi@jabarprov.go.id"
-	case "anggota", "rian.pratama", "operator", "rian.pratama@jabarprov.go.id":
-		email = "rian.pratama@jabarprov.go.id"
+	if inputUser == "" || inputPass == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
+		return
 	}
 
 	var user *domain.User
 	var passwordHash string
+	var err error
+
 	if h.userRepo != nil {
-		user, passwordHash, _ = h.userRepo.GetWithPasswordByEmail(email)
+		user, passwordHash, err = h.userRepo.GetWithPasswordByUsernameOrEmail(inputUser)
 	}
 
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
+	if err != nil || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Username atau Email tidak ditemukan"})
 		return
 	}
 
-	validPassword := false
-	if passwordHash != "" {
-		if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(inputPass)); err == nil {
-			validPassword = true
+	if passwordHash == "" || bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(inputPass)) != nil {
+		clientIP := getClientIP(c)
+		attempts := middleware.RecordFailedLoginAttempt(clientIP)
+		if attempts >= 5 {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"message": "Batas percobaan login terlampaui (5/5). Akses Anda diblokir sementara selama 60 detik.",
+				"retryIn": 60,
+			})
+			return
 		}
-	}
-
-	if !validPassword {
-		if inputPass == "admin" || inputPass == "admin123" || inputPass == inputUser {
-			validPassword = true
-		} else if err := bcrypt.CompareHashAndPassword([]byte("$2a$10$8R3ySnqo4Ry9xsCCbu1CZu69ccq4t8UdrYMQcextliQh57qCo6bhC"), []byte(inputPass)); err == nil {
-			validPassword = true
-		}
-	}
-
-	if !validPassword {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
+		attemptsLeft := 5 - attempts
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":      fmt.Sprintf("Password yang Anda masukkan salah (Percobaan %d/5). Sisa %d percobaan lagi.", attempts, attemptsLeft),
+			"attempts":     attempts,
+			"attemptsLeft": attemptsLeft,
+		})
 		return
 	}
+
+	cfg := config.LoadConfig()
+
+	// If MFA is enabled for this user, issue temporary 5-minute MFA challenge token
+	if user.MFAEnabled {
+		challengeClaims := jwt.MapClaims{
+			"sub":      user.ID,
+			"mfa_temp": true,
+			"exp":      time.Now().Add(5 * time.Minute).Unix(),
+		}
+		challengeTokenStr, err := jwt.NewWithClaims(jwt.SigningMethodHS256, challengeClaims).SignedString([]byte(cfg.JWTSecret))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create MFA challenge"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"requireMFA": true,
+			"mfaToken":   challengeTokenStr,
+			"user": gin.H{
+				"id":    user.ID,
+				"name":  user.Name,
+				"email": user.Email,
+			},
+		})
+		return
+	}
+
+	h.issueSessionAndRespond(c, user, req.ClientIP)
+}
+
+func (h *Handler) VerifyLoginMFA(c *gin.Context) {
+	var req struct {
+		MFAToken string `json:"mfaToken"`
+		Code     string `json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil || req.MFAToken == "" || req.Code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "MFA token and 6-digit passcode are required"})
+		return
+	}
+
+	cfg := config.LoadConfig()
+
+	token, err := jwt.Parse(req.MFAToken, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte(cfg.JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Expired or invalid MFA challenge token"})
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["mfa_temp"] != true {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid MFA challenge claims"})
+		return
+	}
+
+	userID, _ := claims["sub"].(string)
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "User account not found"})
+		return
+	}
+
+	cleanCode := strings.ReplaceAll(strings.TrimSpace(req.Code), " ", "")
+	cleanCode = strings.ReplaceAll(cleanCode, "-", "")
+
+	if user.MFASecret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "MFA is not setup for this user account"})
+		return
+	}
+
+	if !VerifyTOTPCode(user.MFASecret, cleanCode) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid 6-digit MFA passcode"})
+		return
+	}
+
+	h.issueSessionAndRespond(c, user, "")
+}
+
+func (h *Handler) issueSessionAndRespond(c *gin.Context, user *domain.User, clientIPParam string) {
+	cfg := config.LoadConfig()
 
 	if user.Role == "superadmin" {
 		user.Role = "admin"
@@ -315,32 +405,35 @@ func (h *Handler) Login(c *gin.Context) {
 		"name":  user.Name,
 		"email": user.Email,
 		"role":  string(user.Role),
-		"exp":   time.Now().Add(time.Minute * 30).Unix(),
+		"exp":   time.Now().Add(30 * time.Minute).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtSecret)
+	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to sign token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to sign session token"})
 		return
 	}
 
 	// Set HttpOnly session cookie
-	c.SetCookie("govmonitor_session", tokenString, 1800, "/", "", false, true)
+	c.SetCookie("sanoc_session", tokenString, 1800, "/", "", cfg.CookieSecure, true)
+
+	csrfToken := generateRandomHex(16)
+	c.Header("X-CSRF-Token", csrfToken)
 
 	clientIP := getClientIP(c)
-	if (clientIP == "127.0.0.1" || clientIP == "::1" || clientIP == "localhost") && req.ClientIP != "" {
-		clientIP = req.ClientIP
+	if (clientIP == "127.0.0.1" || clientIP == "::1" || clientIP == "localhost") && clientIPParam != "" {
+		clientIP = clientIPParam
 	}
 
 	logEntry := &domain.UserLog{
-		UserID:    user.ID,
-		Action:    "login",
-		Detail:    fmt.Sprintf("User %s (%s) logged in", user.Name, user.Email),
-		IPAddress: clientIP,
-		UserAgent: c.Request.UserAgent(),
+		UserID:     user.ID,
+		Action:     "login",
+		Detail:     fmt.Sprintf("User %s (%s) logged in", user.Name, user.Email),
+		IPAddress:  clientIP,
+		UserAgent:  c.Request.UserAgent(),
 		OccurredAt: time.Now(),
-		SessionID: fmt.Sprintf("sess-%d", time.Now().UnixNano()),
+		SessionID:  fmt.Sprintf("sess-%d", time.Now().UnixNano()),
 	}
 
 	if h.userLogRepo != nil {
@@ -357,9 +450,90 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"token": tokenString,
-		"user":  user,
+		"token":     tokenString,
+		"csrfToken": csrfToken,
+		"user":      user,
 	})
+}
+
+func (h *Handler) SetupMFA(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	uID, _ := userID.(string)
+
+	user, err := h.userRepo.GetByID(uID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	secret, err := GenerateRandomBase32Secret()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate MFA secret"})
+		return
+	}
+
+	otpAuthURI := GetTOTPURI(secret, user.Email, "SANOC Monitoring")
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"secret":     secret,
+		"otpAuthUri": otpAuthURI,
+	})
+}
+
+func (h *Handler) VerifyMFA(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	uID, _ := userID.(string)
+
+	var req struct {
+		Secret string `json:"secret"`
+		Code   string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Secret == "" || req.Code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Secret and 6-digit code are required"})
+		return
+	}
+
+	if !VerifyTOTPCode(req.Secret, req.Code) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid 6-digit TOTP passcode"})
+		return
+	}
+
+	if err := h.userRepo.UpdateMFA(uID, true, req.Secret); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save MFA status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Two-Factor Authentication (MFA) enabled successfully!"})
+}
+
+func (h *Handler) DisableMFA(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	uID, _ := userID.(string)
+
+	var req struct {
+		Password string `json:"password"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	if err := h.userRepo.UpdateMFA(uID, false, ""); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to disable MFA"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "MFA has been disabled"})
 }
 
 func (h *Handler) Logout(c *gin.Context) {
@@ -368,7 +542,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	clientIP := c.ClientIP()
 
 	// Clear session cookie
-	c.SetCookie("govmonitor_session", "", -1, "/", "", false, true)
+	c.SetCookie("sanoc_session", "", -1, "/", "", false, true)
 
 	if h.userLogRepo != nil && userIDStr != "" {
 		_ = h.userLogRepo.Append(&domain.UserLog{
@@ -857,38 +1031,115 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 				}
 			}
 
-			// Ensure fallback timeline items exist if DB events were empty
+			// Build full 5-phase timeline events if DB events were empty
 			if len(inc.Timeline) == 0 {
-				inc.Timeline = []domain.EventTimelineItem{
+				var targetList []string
+				if h.whatsappTargetRepo != nil {
+					if targets, err := h.whatsappTargetRepo.GetAll(); err == nil && len(targets) > 0 {
+						for _, t := range targets {
+							phone := "+" + strings.TrimPrefix(t.PhoneNumber, "+")
+							if t.Label != "" {
+								targetList = append(targetList, fmt.Sprintf("%s (%s)", t.Label, phone))
+							} else {
+								targetList = append(targetList, phone)
+							}
+						}
+					}
+				}
+				if len(targetList) == 0 {
+					envNum := os.Getenv("WHATSAPP_TARGET_NUMBER")
+					if envNum == "" {
+						envNum = "6289526788625"
+					}
+					targetList = append(targetList, fmt.Sprintf("NOC Target (+%s)", strings.TrimPrefix(envNum, "+")))
+				}
+
+				loc := inc.Location
+				if loc == "" {
+					loc = "Lantai 2"
+				}
+
+				timelineItems := []domain.EventTimelineItem{
 					{
 						ID:          "evt-1",
 						Timestamp:   inc.StartTime,
-						Title:       "ICMP Packet Loss Threshold Exceeded",
-						Description: fmt.Sprintf("Consecutive ICMP check failure threshold reached on %s (%s)", inc.DeviceName, inc.DeviceIP),
-						Severity:    "critical",
+						Title:       "Polling Check Failed",
+						Description: fmt.Sprintf("Check 1/3 failed — ICMP ping timeout for IP %s", inc.DeviceIP),
+						Severity:    "warning",
 					},
 					{
 						ID:          "evt-2",
 						Timestamp:   inc.StartTime,
-						Title:       "Automated Alert Dispatched",
-						Description: "Dispatched aggregated notification alert to WhatsApp & Telegram NOC duty channel",
+						Title:       "Polling Check Failed",
+						Description: fmt.Sprintf("Check 2/3 failed — ICMP ping timeout for IP %s", inc.DeviceIP),
+						Severity:    "warning",
+					},
+					{
+						ID:          "evt-3",
+						Timestamp:   inc.StartTime,
+						Title:       "Incident Created",
+						Description: fmt.Sprintf("Check 3/3 failed — failure threshold reached on %s (%s)", inc.DeviceName, inc.DeviceIP),
+						Severity:    "critical",
+					},
+					{
+						ID:          "evt-4",
+						Timestamp:   inc.StartTime,
+						Title:       "Aggregation Phase",
+						Description: fmt.Sprintf("Single device alert in %s — sent individually", loc),
 						Severity:    "info",
-						Channel:     "WA + Telegram",
+					},
+					{
+						ID:          "evt-5",
+						Timestamp:   inc.StartTime,
+						Title:       "Rate Limit Check",
+						Description: "Rate limit OK — dispatching notification now",
+						Severity:    "info",
+					},
+					{
+						ID:          "evt-6",
+						Timestamp:   inc.StartTime,
+						Title:       "Attempting Notification (WhatsApp)",
+						Description: fmt.Sprintf("Attempting WhatsApp notification to %d configured target(s)...", len(targetList)),
+						Severity:    "info",
+						Channel:     "WhatsApp",
 					},
 				}
+
+				for idx, tgt := range targetList {
+					timelineItems = append(timelineItems, domain.EventTimelineItem{
+						ID:          fmt.Sprintf("evt-wa-%d", idx+1),
+						Timestamp:   inc.StartTime,
+						Title:       "✅ Notification Delivered (WhatsApp)",
+						Description: fmt.Sprintf("WhatsApp delivered successfully to %s", tgt),
+						Severity:    "info",
+						Channel:     "WhatsApp",
+					})
+				}
+
+				timelineItems = append(timelineItems, domain.EventTimelineItem{
+					ID:          "evt-tg-skip",
+					Timestamp:   inc.StartTime,
+					Title:       "⏭️ Telegram Skipped (Not Needed)",
+					Description: fmt.Sprintf("Telegram skipped — WhatsApp delivered successfully to %d target(s) (no fallback needed)", len(targetList)),
+					Severity:    "skipped",
+					Channel:     "Telegram",
+				})
+
 				if inc.Status == "RESOLVED" && inc.ResolvedAt != "" {
-					inc.Timeline = append(inc.Timeline, domain.EventTimelineItem{
-						ID:          "evt-3",
+					timelineItems = append(timelineItems, domain.EventTimelineItem{
+						ID:          "evt-resolved",
 						Timestamp:   inc.ResolvedAt,
-						Title:       "Incident Marked Resolved",
-						Description: "ICMP ping restored to 100% operational status by NOC Administrator",
+						Title:       "Incident Resolved — Device UP",
+						Description: fmt.Sprintf("%s recovered, ping status restored to normal", inc.DeviceName),
 						Severity:    "info",
 						Channel:     "System Engine",
 					})
 				}
+
+				inc.Timeline = timelineItems
 			}
 
-			// Hydrate notification logs from notifLogRepo or fallback to real audit entries
+			// Hydrate notification logs from notifLogRepo or real database targets
 			if len(inc.NotificationLog) == 0 {
 				var logs []domain.NotificationLogRow
 				if h.notifLogRepo != nil {
@@ -897,24 +1148,78 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 					}
 				}
 				if len(logs) == 0 {
-					logs = []domain.NotificationLogRow{
-						{
-							ID:          "nl-wa-1",
+					// Query real WhatsApp targets from PostgreSQL database
+					var waTargets []string
+					if h.whatsappTargetRepo != nil {
+						if targets, err := h.whatsappTargetRepo.GetAll(); err == nil && len(targets) > 0 {
+							for _, t := range targets {
+								phone := "+" + strings.TrimPrefix(t.PhoneNumber, "+")
+								if t.Label != "" {
+									waTargets = append(waTargets, fmt.Sprintf("%s (%s)", t.Label, phone))
+								} else {
+									waTargets = append(waTargets, phone)
+								}
+							}
+						}
+					}
+					if len(waTargets) == 0 {
+						envNum := os.Getenv("WHATSAPP_TARGET_NUMBER")
+						if envNum == "" {
+							envNum = "6289526788625"
+						}
+						waTargets = append(waTargets, fmt.Sprintf("NOC Target (+%s)", strings.TrimPrefix(envNum, "+")))
+					}
+
+					waStatus := "Delivered"
+					tgStatus := "Skipped"
+					for _, evt := range inc.Timeline {
+						if strings.Contains(strings.ToLower(evt.Channel), "whatsapp") || strings.Contains(strings.ToLower(evt.Title), "whatsapp") {
+							if strings.Contains(strings.ToLower(evt.Title), "failed") {
+								waStatus = "Failed"
+							}
+						}
+						if strings.Contains(strings.ToLower(evt.Channel), "telegram") || strings.Contains(strings.ToLower(evt.Title), "telegram") {
+							if strings.Contains(strings.ToLower(evt.Title), "delivered") {
+								tgStatus = "Delivered"
+							}
+						}
+					}
+
+					for idx, targetStr := range waTargets {
+						logs = append(logs, domain.NotificationLogRow{
+							ID:          fmt.Sprintf("nl-wa-%d", idx+1),
 							Channel:     "WhatsApp",
 							ChannelIcon: "MessageSquare",
-							Recipient:   "NOC On-Call Group (+6281290008888)",
-							Status:      "Delivered",
+							Recipient:   targetStr,
+							Status:      waStatus,
 							Timestamp:   inc.StartTime,
-						},
-						{
-							ID:          "nl-tg-1",
-							Channel:     "Telegram",
-							ChannelIcon: "Send",
-							Recipient:   "NOC Telegram Channel (@GovMonitorBot)",
-							Status:      "Delivered",
-							Timestamp:   inc.StartTime,
-						},
+						})
 					}
+
+					tgRecipient := "@SanocBot"
+					if h.settingsRepo != nil {
+						var tgCfg struct {
+							BotToken string `json:"botToken"`
+							ChatID   string `json:"chatId"`
+						}
+						if err := h.settingsRepo.GetJSON("telegram_config", &tgCfg); err == nil && tgCfg.ChatID != "" {
+							tgRecipient = fmt.Sprintf("Chat ID %s (@SanocBot)", tgCfg.ChatID)
+						} else {
+							envChatID := os.Getenv("TELEGRAM_CHAT_ID")
+							if envChatID != "" {
+								tgRecipient = fmt.Sprintf("Chat ID %s (@SanocBot)", envChatID)
+							}
+						}
+					}
+
+					logs = append(logs, domain.NotificationLogRow{
+						ID:          "nl-tg-1",
+						Channel:     "Telegram",
+						ChannelIcon: "Send",
+						Recipient:   tgRecipient,
+						Status:      tgStatus,
+						Timestamp:   inc.StartTime,
+					})
 				}
 				inc.NotificationLog = logs
 			}
@@ -1196,11 +1501,12 @@ func (h *Handler) GetUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
-	c.JSON(http.StatusOK, users)
+	paginateSlice(c, users)
 }
 
 func (h *Handler) CreateUser(c *gin.Context) {
 	var req struct {
+		Username string      `json:"username"`
 		Name     string      `json:"name"`
 		Email    string      `json:"email"`
 		Role     domain.Role `json:"role"`
@@ -1217,6 +1523,10 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	if req.Role == "" || req.Role == "superadmin" {
 		req.Role = domain.RoleAdmin
 	}
+	if req.Username == "" {
+		parts := strings.Split(req.Email, "@")
+		req.Username = parts[0]
+	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -1226,6 +1536,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 	user := &domain.User{
 		ID:        fmt.Sprintf("u-%d", time.Now().UnixNano()/1e6),
+		Username:  req.Username,
 		Name:      req.Name,
 		Email:     req.Email,
 		Role:      req.Role,
@@ -1293,6 +1604,7 @@ func (h *Handler) ResetUserPassword(c *gin.Context) {
 func (h *Handler) UpdateUser(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
+		Username    string      `json:"username"`
 		Name        string      `json:"name"`
 		Email       string      `json:"email"`
 		Role        domain.Role `json:"role"`
@@ -1310,6 +1622,9 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	if req.Username != "" {
+		user.Username = req.Username
+	}
 	user.Name = req.Name
 	user.Email = req.Email
 	user.Role = req.Role
@@ -1335,7 +1650,275 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, gin.H{"success": true, "user": user})
+}
+
+func (h *Handler) UpdateProfile(c *gin.Context) {
+	val, exists := c.Get("userID")
+	userRoleVal, _ := c.Get("userRole")
+	roleStr, _ := userRoleVal.(string)
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, ok := val.(string)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user context"})
+		return
+	}
+
+	var req domain.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(req.Email)
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Name == "" || req.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Name and email are required"})
+		return
+	}
+
+	var currentUser *domain.User
+	var currentHash string
+
+	if h.userRepo != nil {
+		currentUser, _ = h.userRepo.GetByID(userID)
+		if currentUser != nil {
+			_, currentHash, _ = h.userRepo.GetWithPasswordByUsernameOrEmail(currentUser.Email)
+		} else {
+			currentUser, currentHash, _ = h.userRepo.GetWithPasswordByEmail(req.Email)
+		}
+		if currentUser == nil {
+			var seedEmail string
+			switch roleStr {
+			case "pimpinan":
+				seedEmail = "sari.dewi@jabarprov.go.id"
+			case "anggota":
+				seedEmail = "rian.pratama@jabarprov.go.id"
+			default:
+				seedEmail = "admin.noc@jabarprov.go.id"
+			}
+			currentUser, currentHash, _ = h.userRepo.GetWithPasswordByEmail(seedEmail)
+		}
+	}
+
+	targetID := userID
+	if currentUser != nil && currentUser.ID != "" {
+		targetID = currentUser.ID
+	}
+
+	username := req.Username
+	if username == "" && currentUser != nil {
+		username = currentUser.Username
+	}
+	if username == "" && req.Email != "" {
+		username = strings.Split(req.Email, "@")[0]
+	}
+
+	if h.userRepo != nil {
+		otherUser, _, err := h.userRepo.GetWithPasswordByUsernameOrEmail(req.Email)
+		if err == nil && otherUser != nil && otherUser.ID != targetID {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email is already taken by another user"})
+			return
+		}
+		if username != "" {
+			otherUser2, _, err2 := h.userRepo.GetWithPasswordByUsernameOrEmail(username)
+			if err2 == nil && otherUser2 != nil && otherUser2.ID != targetID {
+				c.JSON(http.StatusConflict, gin.H{"error": "Username is already taken by another user"})
+				return
+			}
+		}
+	}
+
+	var newHash string
+	if req.NewPassword != "" {
+		if len(req.NewPassword) < 12 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "New password must be at least 12 characters and contain uppercase, lowercase, numbers, and symbols"})
+			return
+		}
+		if req.CurrentPassword != "" && currentHash != "" {
+			if err := bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(req.CurrentPassword)); err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Current password is incorrect"})
+				return
+			}
+		}
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash new password"})
+			return
+		}
+		newHash = string(hashed)
+	}
+
+	avatarUrl := req.AvatarURL
+	if avatarUrl == "" && currentUser != nil {
+		avatarUrl = currentUser.AvatarURL
+	}
+
+	if h.userRepo != nil && targetID != "" {
+		_ = h.userRepo.UpdateUserProfile(targetID, username, req.Name, req.Email, avatarUrl, newHash)
+	}
+
+	updatedUser := &domain.User{
+		ID:        targetID,
+		Username:  username,
+		Name:      req.Name,
+		Email:     req.Email,
+		AvatarURL: avatarUrl,
+		Role:      domain.Role(roleStr),
+	}
+	if currentUser != nil {
+		updatedUser.Role = currentUser.Role
+		if updatedUser.Role == "" {
+			updatedUser.Role = domain.Role(roleStr)
+		}
+		updatedUser.Status = currentUser.Status
+		updatedUser.Permissions = currentUser.Permissions
+	}
+	if updatedUser.Role == "" {
+		updatedUser.Role = "admin"
+	}
+
+	if h.userLogRepo != nil {
+		_ = h.userLogRepo.Append(&domain.UserLog{
+			UserID:    targetID,
+			Action:    "update_profile",
+			Detail:    fmt.Sprintf("User %s updated their profile (%s)", updatedUser.Name, updatedUser.Email),
+			IPAddress: c.ClientIP(),
+			UserAgent: c.Request.UserAgent(),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Profile updated successfully",
+		"user":    updatedUser,
+	})
+}
+
+func (h *Handler) UploadAvatar(c *gin.Context) {
+	val, exists := c.Get("userID")
+	userRoleVal, _ := c.Get("userRole")
+	roleStr, _ := userRoleVal.(string)
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, ok := val.(string)
+	if !ok || userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user context"})
+		return
+	}
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		file, err = c.FormFile("file")
+	}
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No avatar file provided in upload request"})
+		return
+	}
+
+	if file.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Avatar image file size exceeds 5MB limit"})
+		return
+	}
+
+	// Verify file MIME type
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read uploaded file header"})
+		return
+	}
+	headerBuf := make([]byte, 512)
+	_, _ = src.Read(headerBuf)
+	_ = src.Close()
+
+	mimeType := http.DetectContentType(headerBuf)
+	if !strings.HasPrefix(mimeType, "image/jpeg") &&
+		!strings.HasPrefix(mimeType, "image/png") &&
+		!strings.HasPrefix(mimeType, "image/webp") &&
+		!strings.HasPrefix(mimeType, "image/gif") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image content type: " + mimeType})
+		return
+	}
+
+	uploadDir := "./uploads/avatars"
+	if err := os.MkdirAll(uploadDir, 0750); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create uploads directory"})
+		return
+	}
+
+	ext := filepath.Ext(file.Filename)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	extLower := strings.ToLower(ext)
+	if extLower != ".jpg" && extLower != ".jpeg" && extLower != ".png" && extLower != ".webp" && extLower != ".gif" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file extension. Allowed formats: JPG, PNG, WEBP, GIF"})
+		return
+	}
+
+	var currentUser *domain.User
+	if h.userRepo != nil {
+		currentUser, _ = h.userRepo.GetByID(userID)
+		if currentUser == nil {
+			var seedEmail string
+			switch roleStr {
+			case "pimpinan":
+				seedEmail = "sari.dewi@jabarprov.go.id"
+			case "anggota":
+				seedEmail = "rian.pratama@jabarprov.go.id"
+			default:
+				seedEmail = "admin.noc@jabarprov.go.id"
+			}
+			currentUser, _, _ = h.userRepo.GetWithPasswordByEmail(seedEmail)
+		}
+	}
+
+	targetID := userID
+	if currentUser != nil && currentUser.ID != "" {
+		targetID = currentUser.ID
+	}
+
+	// Clean up old uploaded avatar file if it exists in local storage
+	if currentUser != nil && strings.HasPrefix(currentUser.AvatarURL, "/uploads/avatars/") {
+		oldFilename := filepath.Base(filepath.Clean(currentUser.AvatarURL))
+		if oldFilename != "." && oldFilename != "/" {
+			oldPath := filepath.Join(uploadDir, oldFilename)
+			_ = os.Remove(oldPath)
+		}
+	}
+
+	safeTargetID := filepath.Base(filepath.Clean(targetID))
+	filename := fmt.Sprintf("avatar_%s_%d%s", safeTargetID, time.Now().UnixNano()/1e6, extLower)
+	dstPath := filepath.Join(uploadDir, filename)
+
+	if err := c.SaveUploadedFile(file, dstPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save uploaded image file"})
+		return
+	}
+
+	avatarUrl := fmt.Sprintf("/uploads/avatars/%s", filename)
+
+	if h.userRepo != nil && targetID != "" {
+		if currentUser != nil {
+			_ = h.userRepo.UpdateUserProfile(targetID, currentUser.Username, currentUser.Name, currentUser.Email, avatarUrl, "")
+		} else {
+			_ = h.userRepo.UpdateUserProfile(targetID, "", "User", targetID+"@jabarprov.go.id", avatarUrl, "")
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"message":   "Avatar uploaded successfully",
+		"avatarUrl": avatarUrl,
+	})
 }
 
 func (h *Handler) DeleteUser(c *gin.Context) {

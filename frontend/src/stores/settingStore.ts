@@ -5,10 +5,6 @@ import { settingsApi, usersApi } from '../api';
 
 export const useSettingStore = defineStore('settings', () => {
   const settings = ref<SystemSettings>({
-    channels: [
-      { id: 'ch-1', name: 'WhatsApp API Gateway', type: 'whatsapp', connected: true, handleOrNumber: '+62 812-9000-8888 (NOC Gateway)', lastSync: '2 min ago' },
-      { id: 'ch-2', name: 'Telegram Emergency Bot', type: 'telegram', connected: true, handleOrNumber: '@GovMonitorJabarBot', lastSync: 'Just now' }
-    ],
     rateLimitMaxMsgPerMin: 60,
     thresholds: [
       { type: 'Access Point', consecutiveFailures: 3 },

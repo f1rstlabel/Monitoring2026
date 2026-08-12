@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"govmonitor-it/backend/internal/domain"
+	"sanoc/backend/internal/domain"
 	"time"
 )
 
@@ -107,10 +107,13 @@ type UserRepository interface {
 	GetByID(id string) (*domain.User, error)
 	GetByEmail(email string) (*domain.User, error)
 	GetWithPasswordByEmail(email string) (*domain.User, string, error)
+	GetWithPasswordByUsernameOrEmail(identifier string) (*domain.User, string, error)
 	Create(u *domain.User, passwordHash string) error
 	UpdateRole(id string, role domain.Role) error
 	UpdateUser(u *domain.User) error
 	UpdatePassword(id string, passwordHash string) error
+	UpdateUserProfile(id string, username string, name string, email string, avatarUrl string, newPasswordHash string) error
+	UpdateMFA(id string, enabled bool, secret string) error
 	DeactivateUser(id string) error
 }
 

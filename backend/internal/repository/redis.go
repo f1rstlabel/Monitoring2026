@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"govmonitor-it/backend/internal/config"
+	"sanoc/backend/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )
