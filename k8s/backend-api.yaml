@@ -30,7 +30,7 @@ spec:
             - name: DB_USER
               value: postgres
             - name: DB_NAME
-              value: govmonitor
+              value: sanoc
             - name: CORS_ALLOWED_ORIGIN
               value: "http://10.11.1.250:30082"
             - name: DB_SSLMODE
