@@ -37,11 +37,13 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   const user = ref<{
+    id?: string;
     username?: string;
     name: string;
     email: string;
     role: UserRole;
     avatarUrl: string;
+    mfaEnabled?: boolean;
   }>({
     username: 'admin.noc',
     name: initialNameMap[initialRole]?.name || 'SANOC Administrator',
@@ -82,15 +84,19 @@ export const useAuthStore = defineStore('auth', () => {
     user.value.role === 'admin' ||
     hasPermission('settings.notifications') ||
     hasPermission('settings.polling') ||
-    hasPermission('settings.thresholds') ||
+    hasPermission('settings.network') ||
+    hasPermission('settings.retention') ||
+    hasPermission('settings.locations') ||
     hasPermission('settings.users') ||
-    hasPermission('settings.permissions')
+    hasPermission('settings.audit')
   );
   const canManageSettings = computed(() =>
     user.value.role === 'admin' ||
+    hasPermission('settings.notifications') ||
     hasPermission('settings.polling') ||
-    hasPermission('settings.thresholds') ||
-    hasPermission('settings.notifications')
+    hasPermission('settings.network') ||
+    hasPermission('settings.retention') ||
+    hasPermission('settings.locations')
   );
   const canManageUsers = computed(() => user.value.role === 'admin' || hasPermission('settings.users'));
 
@@ -124,9 +130,9 @@ export const useAuthStore = defineStore('auth', () => {
     fetchMe();
   }
 
-  async function login(usernameOrEmail: string, password: string, rememberMe = true) {
+  async function login(usernameOrEmail: string, password: string, rememberMe = true, recaptchaToken?: string) {
     try {
-      const res = await authApi.login({ usernameOrEmail, password, rememberMe });
+      const res = await authApi.login({ usernameOrEmail, password, rememberMe, recaptchaToken });
       if (res.requireMFA) {
         return { requireMFA: true, mfaToken: res.mfaToken, user: res.user };
       }

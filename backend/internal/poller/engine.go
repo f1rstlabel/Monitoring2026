@@ -30,29 +30,52 @@ func nowWIB() time.Time {
 	return time.Now().In(wibLocation)
 }
 
-// DebounceState tracks consecutive failure count per device.
+// DebounceState tracks consecutive failure and recovery confirmation counts per device.
 type DebounceState struct {
-	mu          sync.Mutex
-	consecutive map[string]int // deviceID → consecutive fail count
+	mu                  sync.Mutex
+	consecutiveFail     map[string]int // deviceID -> consecutive fail count
+	consecutiveRecovery map[string]int // deviceID -> consecutive recovery success count
 }
 
 func newDebounceState() *DebounceState {
-	return &DebounceState{consecutive: make(map[string]int)}
+	return &DebounceState{
+		consecutiveFail:     make(map[string]int),
+		consecutiveRecovery: make(map[string]int),
+	}
 }
 
-// RecordFail increments the fail count and returns the new value.
-func (d *DebounceState) RecordFail(deviceID string) int {
+// RecordFail increments the fail count, resets recovery count, and returns (newFailCount, prevRecoveryCount).
+func (d *DebounceState) RecordFail(deviceID string) (int, int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.consecutive[deviceID]++
-	return d.consecutive[deviceID]
+	d.consecutiveFail[deviceID]++
+	prevRecovery := d.consecutiveRecovery[deviceID]
+	d.consecutiveRecovery[deviceID] = 0
+	return d.consecutiveFail[deviceID], prevRecovery
 }
 
-// RecordSuccess resets the fail count.
-func (d *DebounceState) RecordSuccess(deviceID string) {
+// RecordSuccess increments recovery count, resets fail count, and returns the new recovery count.
+func (d *DebounceState) RecordSuccess(deviceID string) int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.consecutive[deviceID] = 0
+	d.consecutiveFail[deviceID] = 0
+	d.consecutiveRecovery[deviceID]++
+	return d.consecutiveRecovery[deviceID]
+}
+
+// ResetRecovery resets only the recovery count.
+func (d *DebounceState) ResetRecovery(deviceID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.consecutiveRecovery[deviceID] = 0
+}
+
+// ResetAll resets both failure and recovery counts.
+func (d *DebounceState) ResetAll(deviceID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.consecutiveFail[deviceID] = 0
+	d.consecutiveRecovery[deviceID] = 0
 }
 
 // ─── Engine ──────────────────────────────────────────────────────────────────
@@ -78,15 +101,33 @@ type Engine struct {
 
 	debounce *DebounceState
 
-	stateMu       sync.Mutex
-	notifiedState map[string]domain.DeviceStatus
+	stateMu           sync.Mutex
+	notifiedState     map[string]domain.DeviceStatus
 	preIncidentEvents map[string][]domain.IncidentEvent
+
+	devLockMu   sync.Mutex
+	deviceLocks map[string]*sync.Mutex
 
 	// reloadChan signals the main loop to rebuild its ticker with a new interval
 	reloadChan chan struct{}
 	stopChan   chan struct{}
 	cycleMu    sync.Mutex
 }
+
+func (e *Engine) getDeviceMutex(id string) *sync.Mutex {
+	e.devLockMu.Lock()
+	defer e.devLockMu.Unlock()
+	if e.deviceLocks == nil {
+		e.deviceLocks = make(map[string]*sync.Mutex)
+	}
+	mu, ok := e.deviceLocks[id]
+	if !ok {
+		mu = &sync.Mutex{}
+		e.deviceLocks[id] = mu
+	}
+	return mu
+}
+
 
 // EngineConfig carries tunable parameters sourced from Settings UI.
 type EngineConfig struct {
@@ -119,7 +160,7 @@ func NewEngine(hub *ws.Hub, deviceRepo repository.DeviceRepository, statusRepo r
 	if flapWindow <= 0 {
 		flapWindow = 10
 	}
-	return &Engine{
+	eng := &Engine{
 		hub:                hub,
 		deviceRepo:         deviceRepo,
 		statusRepo:         statusRepo,
@@ -134,6 +175,16 @@ func NewEngine(hub *ws.Hub, deviceRepo repository.DeviceRepository, statusRepo r
 		reloadChan:         make(chan struct{}, 1),
 		stopChan:           make(chan struct{}),
 	}
+	if deviceRepo != nil {
+		if devs, err := deviceRepo.GetAll("", "", ""); err == nil {
+			for _, d := range devs {
+				if d.Status != "" {
+					eng.notifiedState[d.ID] = d.Status
+				}
+			}
+		}
+	}
+	return eng
 }
 
 func (e *Engine) SetPipeline(p *notifier.Pipeline) {
@@ -211,6 +262,29 @@ func (e *Engine) getThresholds() map[domain.DeviceType]int {
 	e.cfgMu.RLock()
 	defer e.cfgMu.RUnlock()
 	return e.thresholds
+}
+
+func (e *Engine) getDeviceThreshold(dev domain.Device) int {
+	if dev.UseCustomThreshold && dev.CustomFailureThreshold != nil && *dev.CustomFailureThreshold > 0 {
+		return *dev.CustomFailureThreshold
+	}
+	thresholds := e.getThresholds()
+	if t, ok := thresholds[dev.Type]; ok && t > 0 {
+		return t
+	}
+	if dev.FailureThreshold > 0 {
+		return dev.FailureThreshold
+	}
+	return 3
+}
+
+func (e *Engine) getFlapReuseWindowMin() int {
+	e.cfgMu.RLock()
+	defer e.cfgMu.RUnlock()
+	if e.flapReuseWindowMin <= 0 {
+		return 10
+	}
+	return e.flapReuseWindowMin
 }
 
 // Start launches the background polling ticker. Non-blocking.
@@ -458,6 +532,8 @@ func (e *Engine) pollDevice(dev domain.Device) {
 	var (
 		snmpUp     bool
 		snmpErrMsg string
+		snmpCPU    *float64
+		snmpMem    *float64
 		icmpUp     bool
 		latencyMs  int64
 		wg         sync.WaitGroup
@@ -473,6 +549,8 @@ func (e *Engine) pollDevice(dev domain.Device) {
 			if snmpResult.Up {
 				log.Printf("[PollerEngine] SNMP UP for %s (%s), sysName=%s", dev.Name, targetIP, snmpResult.SysName)
 				snmpUp = true
+				snmpCPU = snmpResult.CPUVal
+				snmpMem = snmpResult.MemPct
 				if e.deviceRepo != nil {
 					_ = e.deviceRepo.UpdateSNMPMetadata(dev.ID, snmpResult.SysName, snmpResult.SysDescr, snmpResult.SysUpTime, snmpResult.SysContact, snmpResult.SysLocation)
 				}
@@ -493,6 +571,23 @@ func (e *Engine) pollDevice(dev domain.Device) {
 
 	up := icmpUp
 
+	snmpStatus := "DISABLED"
+	if dev.SNMPEnabled {
+		if snmpUp {
+			snmpStatus = "OK"
+		} else {
+			snmpStatus = fmt.Sprintf("FAIL (%s)", snmpErrMsg)
+		}
+	}
+
+	e.processPollResult(dev, targetIP, up, latencyMs, snmpStatus, snmpCPU, snmpMem)
+}
+
+func (e *Engine) ProcessPollResultForTest(dev domain.Device, targetIP string, up bool, latencyMs int64) {
+	e.processPollResult(dev, targetIP, up, latencyMs, "DISABLED", nil, nil)
+}
+
+func (e *Engine) processPollResult(dev domain.Device, targetIP string, up bool, latencyMs int64, snmpStatus string, cpuVal *float64, memPct *float64) {
 	// Always record latency metric for per-poll time-series (0 ms for DOWN/timeout)
 	if e.metricRepo != nil {
 		latVal := float64(latencyMs)
@@ -505,15 +600,6 @@ func (e *Engine) pollDevice(dev domain.Device) {
 			Value:      latVal,
 			RecordedAt: time.Now(),
 		})
-	}
-
-	snmpStatus := "DISABLED"
-	if dev.SNMPEnabled {
-		if snmpUp {
-			snmpStatus = "OK"
-		} else {
-			snmpStatus = fmt.Sprintf("FAIL (%s)", snmpErrMsg)
-		}
 	}
 
 	// High-frequency Live Feed broadcast per device per poll cycle
@@ -537,115 +623,157 @@ func (e *Engine) pollDevice(dev domain.Device) {
 			Severity:    feedSeverity,
 			Timestamp:   nowWIB(),
 			LatencyMs:   latencyMs,
+			CPU:         cpuVal,
+			Memory:      memPct,
 		})
 	}
 
-	thresholds := e.getThresholds()
+	threshold := e.getDeviceThreshold(dev)
 
 	if up {
 		log.Printf("[PollerEngine] Device %q (%s) -> Status: UP | ICMP: ok (%dms) | SNMP: %s", dev.Name, targetIP, latencyMs, snmpStatus)
-		prevStatus := dev.Status
+
+		devMu := e.getDeviceMutex(dev.ID)
+		devMu.Lock()
+
 		notified := e.getNotifiedState(dev.ID)
+		// Check if device is currently considered DOWN
+		isDown := (dev.Status == domain.StatusDOWN || notified == domain.StatusDOWN)
 
-		e.stateMu.Lock()
-		delete(e.preIncidentEvents, dev.ID) // clear failed check buffer if it recovers before threshold
-		e.stateMu.Unlock()
+		if isDown {
+			// Device is recovering from DOWN
+			successCount := e.debounce.RecordSuccess(dev.ID)
+			log.Printf("[PollerEngine] %s (%s) recovery check #%d/%d (latency: %dms)", dev.Name, targetIP, successCount, threshold, latencyMs)
 
-		e.debounce.RecordSuccess(dev.ID)
-		if (prevStatus == domain.StatusDOWN || notified == domain.StatusDOWN) && notified != domain.StatusUP {
-			e.setNotifiedState(dev.ID, domain.StatusUP)
-			tNow := nowWIB()
-			_ = e.deviceRepo.UpdateStatus(dev.ID, domain.StatusUP)
-			_ = e.statusRepo.Append(&domain.DeviceStatusLog{
-				ID:        fmt.Sprintf("log-%d", time.Now().UnixNano()),
-				DeviceID:  dev.ID,
-				Status:    domain.StatusUP,
-				Timestamp: tNow,
-			})
-
-			// Retrieve active incident ID before resolving it
 			var activeIncID string
 			if e.incidentRepo != nil {
-				if activeIncs, err := e.incidentRepo.GetActive(); err == nil {
-					for _, inc := range activeIncs {
-						if inc.DeviceID == dev.ID {
-							activeIncID = inc.ID
-							break
-						}
+				if activeInc, err := e.incidentRepo.GetOpenByDeviceID(dev.ID); err == nil && activeInc != nil {
+					activeIncID = activeInc.ID
+				} else if allIncs, err := e.incidentRepo.GetByDeviceID(dev.ID); err == nil && len(allIncs) > 0 {
+					activeIncID = allIncs[0].ID
+				}
+			}
+
+			if successCount < threshold {
+				// Record recovery progression check in incident timeline
+				if activeIncID != "" && e.incidentRepo != nil {
+					_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
+						IncidentID: activeIncID,
+						EventType:  "recovery_progress",
+						Detail:     fmt.Sprintf("Recovery check %d/%d: device responded (latency: %dms)", successCount, threshold, latencyMs),
+						OccurredAt: time.Now(),
+					})
+				}
+			} else {
+				// Confirmation threshold reached — officially transition to UP
+				log.Printf("[PollerEngine] Device %s (%s) reached recovery threshold (%d/%d) — transitioning to UP", dev.Name, targetIP, successCount, threshold)
+				e.setNotifiedState(dev.ID, domain.StatusUP)
+				tNow := nowWIB()
+				_ = e.deviceRepo.UpdateStatus(dev.ID, domain.StatusUP)
+				_ = e.statusRepo.Append(&domain.DeviceStatusLog{
+					ID:        fmt.Sprintf("log-%d", time.Now().UnixNano()),
+					DeviceID:  dev.ID,
+					Status:    domain.StatusUP,
+					Timestamp: tNow,
+				})
+
+				if activeIncID == "" && e.incidentRepo != nil {
+					if activeInc, err := e.incidentRepo.GetOpenByDeviceID(dev.ID); err == nil && activeInc != nil {
+						activeIncID = activeInc.ID
+					} else if allIncs, err := e.incidentRepo.GetByDeviceID(dev.ID); err == nil && len(allIncs) > 0 {
+						activeIncID = allIncs[0].ID
 					}
 				}
-				_ = e.incidentRepo.ResolveActiveByDeviceID(dev.ID, tNow)
-			}
 
-			// Persist resolved event
-			if activeIncID != "" && e.incidentRepo != nil {
-				downtimeDetail := "Device recovered, ping status restored to normal"
-				if activeInc, err := e.incidentRepo.GetByID(activeIncID); err == nil && activeInc != nil {
-					dur := tNow.Sub(activeInc.StartedAt)
-					downtimeDetail = fmt.Sprintf("Device recovered, downtime: %dm %ds", int(dur.Minutes()), int(dur.Seconds())%60)
+				if activeIncID != "" && e.incidentRepo != nil {
+					_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
+						IncidentID: activeIncID,
+						EventType:  "recovery_progress",
+						Detail:     fmt.Sprintf("Recovery check %d/%d: device responded — threshold reached, marking UP", successCount, threshold),
+						OccurredAt: tNow,
+					})
+
+					downtimeDetail := "Device recovered, ping status restored to normal"
+					if activeInc, err := e.incidentRepo.GetByID(activeIncID); err == nil && activeInc != nil {
+						dur := tNow.Sub(activeInc.StartedAt)
+						downtimeDetail = fmt.Sprintf("Device recovered, downtime: %dm %ds", int(dur.Minutes()), int(dur.Seconds())%60)
+					}
+					_ = e.incidentRepo.ResolveActiveByDeviceID(dev.ID, tNow)
+					_ = e.incidentRepo.Resolve(activeIncID, tNow.Format(time.RFC3339))
+					_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
+						IncidentID: activeIncID,
+						EventType:  "resolved",
+						Detail:     downtimeDetail,
+						OccurredAt: tNow,
+					})
+				} else if e.incidentRepo != nil {
+					_ = e.incidentRepo.ResolveActiveByDeviceID(dev.ID, tNow)
 				}
-				_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
-					IncidentID: activeIncID,
-					EventType:  "resolved",
-					Detail:     downtimeDetail,
-					OccurredAt: tNow,
-				})
-			}
 
-			if e.hub != nil {
-				e.hub.BroadcastMessage(domain.WSMessage{
-					Type:        "STATUS_CHANGE",
-					DeviceID:    dev.ID,
-					DeviceName:  dev.Name,
-					Status:      domain.StatusUP,
-					IP:          targetIP,
-					Title:       fmt.Sprintf("🟢 %s recovered", dev.Name),
-					Description: fmt.Sprintf("%s (%s) is back online", dev.Name, targetIP),
-					Severity:    "info",
-					Timestamp:   tNow,
-					LatencyMs:   latencyMs,
-				})
-			}
+				e.debounce.ResetRecovery(dev.ID)
 
-			log.Printf("[Notifier] Device %s (%s) recovered to UP, queueing notification", dev.Name, targetIP)
-			if e.notifyQueue != nil {
-				e.notifyQueue.Enqueue(notifier.AggregatorEvent{
-					IncidentID: activeIncID,
-					DeviceID:   dev.ID,
-					DeviceName: dev.Name,
-					DeviceType: string(dev.Type),
-					IP:         targetIP,
-					Location:   dev.Location,
-					EventType:  notifier.EventRecovered,
-					Timestamp:  tNow,
-				})
-			} else if e.pipeline != nil {
-				msg := fmt.Sprintf("🟢 <b>RECOVERED — Device UP</b>\nDevice: <b>%s</b> (%s)\nIP: <code>%s</code>\nTime: %s", dev.Name, dev.Type, targetIP, tNow.Format("15:04:05 WIB"))
-				var ids []string
-				if activeIncID != "" {
-					ids = append(ids, activeIncID)
+				if e.hub != nil {
+					e.hub.BroadcastMessage(domain.WSMessage{
+						Type:        "STATUS_CHANGE",
+						DeviceID:    dev.ID,
+						DeviceName:  dev.Name,
+						Status:      domain.StatusUP,
+						IP:          targetIP,
+						Title:       fmt.Sprintf("🟢 %s recovered", dev.Name),
+						Description: fmt.Sprintf("%s (%s) is back online", dev.Name, targetIP),
+						Severity:    "info",
+						Timestamp:   tNow,
+						LatencyMs:   latencyMs,
+					})
 				}
-				go e.pipeline.Send(context.Background(), msg, ids)
+
+				log.Printf("[Notifier] Device %s (%s) recovered to UP, queueing notification", dev.Name, targetIP)
+				if e.notifyQueue != nil {
+					e.notifyQueue.Enqueue(notifier.AggregatorEvent{
+						IncidentID: activeIncID,
+						DeviceID:   dev.ID,
+						DeviceName: dev.Name,
+						DeviceType: string(dev.Type),
+						IP:         targetIP,
+						Location:   dev.Location,
+						EventType:  notifier.EventRecovered,
+						Timestamp:  tNow,
+					})
+				} else if e.pipeline != nil {
+					msg := fmt.Sprintf("🟢 <b>RECOVERED — Device UP</b>\nDevice: <b>%s</b> (%s)\nIP: <code>%s</code>\nTime: %s", dev.Name, dev.Type, targetIP, tNow.Format("15:04:05 WIB"))
+					var ids []string
+					if activeIncID != "" {
+						ids = append(ids, activeIncID)
+					}
+					go e.pipeline.Send(context.Background(), msg, ids)
+				}
 			}
+		} else {
+			// Device is already UP, keep failure counters cleared
+			e.debounce.RecordSuccess(dev.ID)
+			e.stateMu.Lock()
+			delete(e.preIncidentEvents, dev.ID)
+			e.stateMu.Unlock()
 		}
+		devMu.Unlock()
 	} else {
 		log.Printf("[PollerEngine] Device %q (%s) -> Status: DOWN | ICMP: fail (timeout) | SNMP: %s", dev.Name, targetIP, snmpStatus)
 
-		// Failure — apply custom or default threshold and debounce
-		threshold := 0
-		if dev.UseCustomThreshold && dev.CustomFailureThreshold != nil && *dev.CustomFailureThreshold > 0 {
-			threshold = *dev.CustomFailureThreshold
-		} else if t, ok := thresholds[dev.Type]; ok && t > 0 {
-			threshold = t
-		} else if dev.FailureThreshold > 0 {
-			threshold = dev.FailureThreshold
-		}
-		if threshold <= 0 {
-			threshold = 3
-		}
+		failCount, prevRecovery := e.debounce.RecordFail(dev.ID)
+		log.Printf("[PollerEngine] %s (%s) fail #%d/%d (prev recovery: %d)", dev.Name, targetIP, failCount, threshold, prevRecovery)
 
-		failCount := e.debounce.RecordFail(dev.ID)
-		log.Printf("[PollerEngine] %s (%s) fail #%d/%d", dev.Name, targetIP, failCount, threshold)
+		// If device was in the middle of recovery and just failed, log the reset into incident timeline
+		if prevRecovery > 0 && e.incidentRepo != nil {
+			if activeInc, err := e.incidentRepo.GetOpenByDeviceID(dev.ID); err == nil && activeInc != nil {
+				_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
+					IncidentID: activeInc.ID,
+					EventType:  "recovery_reset",
+					Detail:     fmt.Sprintf("Recovery check failed: device stopped responding (check %d/%d aborted, recovery counter reset)", prevRecovery, threshold),
+					OccurredAt: time.Now(),
+				})
+				log.Printf("[PollerEngine] Device %s (%s) recovery reset at check %d/%d", dev.Name, targetIP, prevRecovery, threshold)
+			}
+		}
 
 		// Record failed checks to memory buffer if not yet transitioned to DOWN
 		if failCount <= threshold {
@@ -662,131 +790,145 @@ func (e *Engine) pollDevice(dev domain.Device) {
 			e.stateMu.Unlock()
 		}
 
-		// Declare DOWN if threshold reached and not yet notified DOWN in memory
-		if failCount >= threshold && (dev.Status == domain.StatusUP || e.getNotifiedState(dev.ID) != domain.StatusDOWN) {
-			e.setNotifiedState(dev.ID, domain.StatusDOWN)
+		// Declare DOWN if threshold reached
+		if failCount >= threshold {
+			devMu := e.getDeviceMutex(dev.ID)
+			devMu.Lock()
 
-			// Threshold reached — declare DOWN
-			tNow := nowWIB()
-			_ = e.deviceRepo.UpdateStatus(dev.ID, domain.StatusDOWN)
-			_ = e.statusRepo.Append(&domain.DeviceStatusLog{
-				ID:        fmt.Sprintf("log-%d", time.Now().UnixNano()),
-				DeviceID:  dev.ID,
-				Status:    domain.StatusDOWN,
-				Timestamp: tNow,
-			})
+			notified := e.getNotifiedState(dev.ID)
+			// Only execute DOWN transition if the device was not already notified DOWN or was UP in DB
+			if notified != domain.StatusDOWN || dev.Status == domain.StatusUP {
+				e.setNotifiedState(dev.ID, domain.StatusDOWN)
 
-			var incID string
-			isFlap := false // true = reusing an existing open incident or recently resolved incident (flap)
+				// Threshold reached — declare DOWN
+				tNow := nowWIB()
+				_ = e.deviceRepo.UpdateStatus(dev.ID, domain.StatusDOWN)
+				_ = e.statusRepo.Append(&domain.DeviceStatusLog{
+					ID:        fmt.Sprintf("log-%d", time.Now().UnixNano()),
+					DeviceID:  dev.ID,
+					Status:    domain.StatusDOWN,
+					Timestamp: tNow,
+				})
 
-			if e.incidentRepo != nil {
-				// Anti-flap / Bounded Reuse: check latest incident for this device
-				if allIncs, err := e.incidentRepo.GetByDeviceID(dev.ID); err == nil && len(allIncs) > 0 {
-					latest := allIncs[0]
-					if latest.Status == "ACTIVE" {
-						incID = latest.ID
+				var incID string
+				isFlap := false // true = reusing an existing open incident or recently resolved incident (flap)
+
+				if e.incidentRepo != nil {
+					// 1. Direct check: Is there an existing ACTIVE incident for this device?
+					if activeInc, err := e.incidentRepo.GetOpenByDeviceID(dev.ID); err == nil && activeInc != nil {
+						incID = activeInc.ID
 						isFlap = true
-						log.Printf("[Incident] Device %s (%s) is flapping — reusing open incident %s, logging flap_detected event", dev.Name, targetIP, incID)
+						log.Printf("[Incident] Device %s (%s) already has ACTIVE incident %s — reusing, logging flap_detected event", dev.Name, targetIP, incID)
 						_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
 							IncidentID: incID,
 							EventType:  "flap_detected",
 							Detail:     fmt.Sprintf("Device re-entered DOWN state while incident still open (fail count: %d)", failCount),
 							OccurredAt: tNow,
 						})
-					} else if latest.Status == "RESOLVED" && latest.ResolvedAtRaw != nil {
-						reuseWindow := time.Duration(e.flapReuseWindowMin) * time.Minute
-						if time.Since(*latest.ResolvedAtRaw) <= reuseWindow {
+					} else if allIncs, err := e.incidentRepo.GetByDeviceID(dev.ID); err == nil && len(allIncs) > 0 {
+						// 2. Anti-flap / Bounded Reuse: check if latest resolved incident is within flap window
+						latest := allIncs[0]
+						reuseWindow := time.Duration(e.getFlapReuseWindowMin()) * time.Minute
+						var timeRef time.Time
+						if latest.ResolvedAtRaw != nil {
+							timeRef = *latest.ResolvedAtRaw
+						} else {
+							timeRef = latest.StartedAt
+						}
+
+						if time.Since(timeRef) <= reuseWindow {
 							incID = latest.ID
 							isFlap = true
 							log.Printf("[Incident] Device %s (%s) flapped within %d min window — reopening incident %s, logging flap_reopened event",
-								dev.Name, targetIP, e.flapReuseWindowMin, incID)
-							
+								dev.Name, targetIP, e.getFlapReuseWindowMin(), incID)
+
 							// Reopen the incident in database
 							_ = e.incidentRepo.Reopen(incID)
-							
+
 							_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
 								IncidentID: incID,
 								EventType:  "flap_reopened",
-								Detail:     fmt.Sprintf("Device flapped within %d min window (fail count: %d), incident reopened", e.flapReuseWindowMin, failCount),
+								Detail:     fmt.Sprintf("Device flapped within %d min window (fail count: %d), incident reopened", e.getFlapReuseWindowMin(), failCount),
 								OccurredAt: tNow,
 							})
 						}
 					}
-				}
 
-				if incID == "" {
-					// No open or recently resolved incident — create a new one (genuine new outage)
-					inc, err := e.incidentRepo.Create(&domain.Incident{
-						ID:         fmt.Sprintf("INC-%d", time.Now().UnixNano()/1e6),
-						DeviceID:   dev.ID,
-						PacketLoss: 100,
-						LatencyMs:  0,
-					})
-					if err == nil && inc != nil {
-						incID = inc.ID
+					if incID == "" {
+						// No open or recently resolved incident — create a new one (genuine new outage)
+						inc, err := e.incidentRepo.Create(&domain.Incident{
+							ID:         fmt.Sprintf("INC-%d", time.Now().UnixNano()/1e6),
+							DeviceID:   dev.ID,
+							PacketLoss: 100,
+							LatencyMs:  0,
+						})
+						if err == nil && inc != nil {
+							incID = inc.ID
+						}
 					}
 				}
-			}
 
-			// Persist buffered checks to database under the incident ID (for both new AND flapped/reopened incidents)
-			if incID != "" && e.incidentRepo != nil {
-				e.stateMu.Lock()
-				bufferedEvts := e.preIncidentEvents[dev.ID]
-				delete(e.preIncidentEvents, dev.ID)
-				e.stateMu.Unlock()
+				// Persist buffered checks to database under the incident ID (for both new AND flapped/reopened incidents)
+				if incID != "" && e.incidentRepo != nil {
+					e.stateMu.Lock()
+					bufferedEvts := e.preIncidentEvents[dev.ID]
+					delete(e.preIncidentEvents, dev.ID)
+					e.stateMu.Unlock()
 
-				for _, evt := range bufferedEvts {
-					evt.IncidentID = incID
-					_ = e.incidentRepo.CreateEvent(&evt)
+					for _, evt := range bufferedEvts {
+						evt.IncidentID = incID
+						_ = e.incidentRepo.CreateEvent(&evt)
+					}
+
+					if !isFlap {
+						// Also write threshold_reached event
+						_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
+							IncidentID: incID,
+							EventType:  "threshold_reached",
+							Detail:     "Failure threshold reached, incident created",
+							OccurredAt: tNow,
+						})
+					}
 				}
 
+				e.hub.BroadcastMessage(domain.WSMessage{
+					Type:        "STATUS_CHANGE",
+					DeviceID:    dev.ID,
+					DeviceName:  dev.Name,
+					Status:      domain.StatusDOWN,
+					IP:          targetIP,
+					Title:       fmt.Sprintf("🔴 %s is DOWN", dev.Name),
+					Description: fmt.Sprintf("%s (%s) failed %d consecutive polls — marking DOWN", dev.Name, targetIP, failCount),
+					Severity:    "critical",
+					Timestamp:   tNow,
+					LatencyMs:   0,
+				})
+
+				// Only send notification for genuinely new incidents, not for flaps on an already-open incident
 				if !isFlap {
-					// Also write threshold_reached event
-					_ = e.incidentRepo.CreateEvent(&domain.IncidentEvent{
-						IncidentID: incID,
-						EventType:  "threshold_reached",
-						Detail:     "Failure threshold reached, incident created",
-						OccurredAt: tNow,
-					})
-				}
-			}
-
-			e.hub.BroadcastMessage(domain.WSMessage{
-				Type:        "STATUS_CHANGE",
-				DeviceID:    dev.ID,
-				DeviceName:  dev.Name,
-				Status:      domain.StatusDOWN,
-				IP:          targetIP,
-				Title:       fmt.Sprintf("🔴 %s is DOWN", dev.Name),
-				Description: fmt.Sprintf("%s (%s) failed %d consecutive polls — marking DOWN", dev.Name, targetIP, failCount),
-				Severity:    "critical",
-				Timestamp:   tNow,
-				LatencyMs:   0,
-			})
-
-			// Only send notification for genuinely new incidents, not for flaps on an already-open incident
-			if !isFlap {
-				log.Printf("[Incident] Device %s (%s) transitioned to DOWN, queueing notification", dev.Name, targetIP)
-				if e.notifyQueue != nil {
-					e.notifyQueue.Enqueue(notifier.AggregatorEvent{
-						IncidentID: incID,
-						DeviceID:   dev.ID,
-						DeviceName: dev.Name,
-						DeviceType: string(dev.Type),
-						IP:         targetIP,
-						Location:   dev.Location,
-						EventType:  notifier.EventDown,
-						Timestamp:  tNow,
-					})
-				} else if e.pipeline != nil {
-					msg := fmt.Sprintf("🔴 <b>INCIDENT — Device DOWN</b>\nDevice: <b>%s</b> (%s)\nIP: <code>%s</code>\nFailed Checks: %d\nTime: %s", dev.Name, dev.Type, targetIP, failCount, tNow.Format("15:04:05 WIB"))
-					var ids []string
-					if incID != "" {
-						ids = append(ids, incID)
+					log.Printf("[Incident] Device %s (%s) transitioned to DOWN, queueing notification", dev.Name, targetIP)
+					if e.notifyQueue != nil {
+						e.notifyQueue.Enqueue(notifier.AggregatorEvent{
+							IncidentID: incID,
+							DeviceID:   dev.ID,
+							DeviceName: dev.Name,
+							DeviceType: string(dev.Type),
+							IP:         targetIP,
+							Location:   dev.Location,
+							EventType:  notifier.EventDown,
+							Timestamp:  tNow,
+						})
+					} else if e.pipeline != nil {
+						msg := fmt.Sprintf("🔴 <b>INCIDENT — Device DOWN</b>\nDevice: <b>%s</b> (%s)\nIP: <code>%s</code>\nFailed Checks: %d\nTime: %s", dev.Name, dev.Type, targetIP, failCount, tNow.Format("15:04:05 WIB"))
+						var ids []string
+						if incID != "" {
+							ids = append(ids, incID)
+						}
+						go e.pipeline.Send(context.Background(), msg, ids)
 					}
-					go e.pipeline.Send(context.Background(), msg, ids)
 				}
 			}
+			devMu.Unlock()
 		}
 	}
 }
@@ -800,6 +942,8 @@ type SNMPCheckResult struct {
 	SysContact  string
 	SysLocation string
 	Error       string
+	CPUVal      *float64
+	MemPct      *float64
 }
 
 func formatTimeTicks(val interface{}) string {
@@ -918,50 +1062,122 @@ func (e *Engine) snmpCheck(dev domain.Device, ip string) SNMPCheckResult {
 	log.Printf("[SNMP Raw OID] sysName response for %s (%s): sysName=%q, sysDescr=%q, sysUpTime=%s, sysContact=%q, sysLocation=%q",
 		dev.Name, ip, result.SysName, result.SysDescr, result.SysUpTime, result.SysContact, result.SysLocation)
 
-	// Fetch CPU & Memory metrics (HOST-RESOURCES-MIB) if metricRepo is available
-	if e.metricRepo != nil {
-		metricOids := []string{
-			".1.3.6.1.2.1.25.3.3.1.2.1", // hrProcessorLoad.1
-			".1.3.6.1.2.1.25.2.3.1.5.1", // hrStorageSize.1 (RAM)
-			".1.3.6.1.2.1.25.2.3.1.6.1", // hrStorageUsed.1 (RAM)
+	// Multi-vendor CPU & Memory SNMP metrics harvesting
+	result.CPUVal, result.MemPct = e.harvestSNMPMetrics(gosp, dev.ID)
+
+	return result
+}
+
+// harvestSNMPMetrics queries multi-vendor enterprise OIDs (UCD/Linux/Ubiquiti, Aruba/HP, Cisco, MikroTik, Host-Resources)
+func (e *Engine) harvestSNMPMetrics(gosp *gosnmp.GoSNMP, devID string) (cpuOut *float64, memOut *float64) {
+	var (
+		cpuVal = -1.0
+		memPct = -1.0
+	)
+
+	// Helper to safely get int64 value from a single OID
+	getInt := func(oid string) (int64, bool) {
+		r, err := gosp.Get([]string{oid})
+		if err == nil && len(r.Variables) > 0 && r.Variables[0].Value != nil {
+			v := gosnmp.ToBigInt(r.Variables[0].Value).Int64()
+			return v, true
 		}
-		if metricResp, mErr := gosp.Get(metricOids); mErr == nil && metricResp != nil {
-			var cpuVal float64 = -1
-			var memUsed float64 = -1
-			var memTotal float64 = -1
+		return 0, false
+	}
 
-			for _, pdu := range metricResp.Variables {
-				switch pdu.Name {
-				case ".1.3.6.1.2.1.25.3.3.1.2.1":
-					cpuVal = float64(gosnmp.ToBigInt(pdu.Value).Int64())
-				case ".1.3.6.1.2.1.25.2.3.1.5.1":
-					memTotal = float64(gosnmp.ToBigInt(pdu.Value).Int64())
-				case ".1.3.6.1.2.1.25.2.3.1.6.1":
-					memUsed = float64(gosnmp.ToBigInt(pdu.Value).Int64())
-				}
-			}
+	// 1. Try UCD-SNMP (Ubiquiti UniFi, Linux, Net-SNMP)
+	if idle, ok := getInt(".1.3.6.1.4.1.2021.11.11.0"); ok && idle >= 0 && idle <= 100 {
+		cpuVal = float64(100 - idle)
+	}
+	if total, ok := getInt(".1.3.6.1.4.1.2021.4.5.0"); ok && total > 0 {
+		if avail, ok2 := getInt(".1.3.6.1.4.1.2021.4.6.0"); ok2 && avail >= 0 {
+			memPct = float64(total-avail) / float64(total) * 100.0
+		} else if free, ok3 := getInt(".1.3.6.1.4.1.2021.4.11.0"); ok3 && free >= 0 {
+			memPct = float64(total-free) / float64(total) * 100.0
+		}
+	}
 
-			if cpuVal >= 0 {
-				_ = e.metricRepo.SaveMetric(&domain.DeviceMetric{
-					DeviceID:   dev.ID,
-					MetricType: "cpu",
-					Value:      cpuVal,
-					RecordedAt: time.Now(),
-				})
-			}
-			if memUsed >= 0 && memTotal > 0 {
-				memPct := (memUsed / memTotal) * 100.0
-				_ = e.metricRepo.SaveMetric(&domain.DeviceMetric{
-					DeviceID:   dev.ID,
-					MetricType: "memory",
-					Value:      memPct,
-					RecordedAt: time.Now(),
-				})
+	// 2. Try Aruba / HP Enterprise Switch
+	if cpuVal < 0 {
+		if arubaCpu, ok := getInt(".1.3.6.1.4.1.11.2.14.11.5.1.9.6.1.0"); ok && arubaCpu >= 0 && arubaCpu <= 100 {
+			cpuVal = float64(arubaCpu)
+		}
+	}
+
+	// 3. Try Cisco Systems
+	if cpuVal < 0 {
+		if ciscoCpu, ok := getInt(".1.3.6.1.4.1.9.9.109.1.1.1.1.5.1"); ok && ciscoCpu >= 0 && ciscoCpu <= 100 {
+			cpuVal = float64(ciscoCpu)
+		}
+	}
+	if memPct < 0 {
+		if cUsed, ok := getInt(".1.3.6.1.4.1.9.9.48.1.1.1.5.1"); ok && cUsed > 0 {
+			if cFree, ok2 := getInt(".1.3.6.1.4.1.9.9.48.1.1.1.6.1"); ok2 && cFree >= 0 {
+				memPct = float64(cUsed) / float64(cUsed+cFree) * 100.0
 			}
 		}
 	}
 
-	return result
+	// 4. Try Host-Resources MIB (Standard Linux/Windows Server)
+	if cpuVal < 0 {
+		if hrCpu, ok := getInt(".1.3.6.1.2.1.25.3.3.1.2.1"); ok && hrCpu >= 0 && hrCpu <= 100 {
+			cpuVal = float64(hrCpu)
+		} else if hrCpu2, ok2 := getInt(".1.3.6.1.2.1.25.3.3.1.2.196608"); ok2 && hrCpu2 >= 0 && hrCpu2 <= 100 {
+			cpuVal = float64(hrCpu2)
+		}
+	}
+	if memPct < 0 {
+		if hrTot, ok := getInt(".1.3.6.1.2.1.25.2.3.1.5.1"); ok && hrTot > 0 {
+			if hrUsed, ok2 := getInt(".1.3.6.1.2.1.25.2.3.1.6.1"); ok2 && hrUsed >= 0 {
+				memPct = float64(hrUsed) / float64(hrTot) * 100.0
+			}
+		}
+	}
+
+	// 5. Try MikroTik RouterOS
+	if cpuVal < 0 {
+		if mtCpu, ok := getInt(".1.3.6.1.4.1.14988.1.1.1.2.1.3.0"); ok && mtCpu >= 0 && mtCpu <= 100 {
+			cpuVal = float64(mtCpu)
+		}
+	}
+	if memPct < 0 {
+		if mtMem, ok := getInt(".1.3.6.1.4.1.14988.1.1.1.2.1.1.0"); ok && mtMem >= 0 && mtMem <= 100 {
+			memPct = float64(mtMem)
+		}
+	}
+
+	now := time.Now()
+	if cpuVal >= 0 {
+		if cpuVal > 100 {
+			cpuVal = 100
+		}
+		cpuOut = &cpuVal
+		if e.metricRepo != nil {
+			_ = e.metricRepo.SaveMetric(&domain.DeviceMetric{
+				DeviceID:   devID,
+				MetricType: "cpu",
+				Value:      cpuVal,
+				RecordedAt: now,
+			})
+		}
+	}
+
+	if memPct >= 0 {
+		if memPct > 100 {
+			memPct = 100
+		}
+		memOut = &memPct
+		if e.metricRepo != nil {
+			_ = e.metricRepo.SaveMetric(&domain.DeviceMetric{
+				DeviceID:   devID,
+				MetricType: "memory",
+				Value:      memPct,
+				RecordedAt: now,
+			})
+		}
+	}
+
+	return cpuOut, memOut
 }
 
 
@@ -1145,23 +1361,11 @@ func (e *Engine) initInMemoryState() {
 	e.debounce.mu.Lock()
 	defer e.debounce.mu.Unlock()
 
-	thresholds := e.getThresholds()
 	for _, dev := range devices {
 		e.notifiedState[dev.ID] = dev.Status
 		if dev.Status == domain.StatusDOWN {
 			// Initialize debounce to threshold so it's treated as already failed
-			threshold := 0
-			if dev.UseCustomThreshold && dev.CustomFailureThreshold != nil && *dev.CustomFailureThreshold > 0 {
-				threshold = *dev.CustomFailureThreshold
-			} else if t, ok := thresholds[dev.Type]; ok && t > 0 {
-				threshold = t
-			} else if dev.FailureThreshold > 0 {
-				threshold = dev.FailureThreshold
-			}
-			if threshold <= 0 {
-				threshold = 3
-			}
-			e.debounce.consecutive[dev.ID] = threshold
+			e.debounce.consecutiveFail[dev.ID] = e.getDeviceThreshold(dev)
 		}
 	}
 	log.Printf("[PollerEngine] Loaded %d devices into memory transition-state on startup", len(devices))

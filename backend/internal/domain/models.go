@@ -265,6 +265,13 @@ type DeviceMetric struct {
 	RecordedAt time.Time `json:"recordedAt"`
 }
 
+type CoreSwitchConfig struct {
+	IP        string `json:"ip"`
+	Community string `json:"community"`
+	Port      int    `json:"port"`
+	Version   string `json:"version"` // "v2c" | "v1"
+}
+
 type SystemSettings struct {
 	Channels []struct {
 		ID             string `json:"id"`
@@ -274,17 +281,54 @@ type SystemSettings struct {
 		HandleOrNumber string `json:"handleOrNumber"`
 		LastSync       string `json:"lastSync"`
 	} `json:"channels"`
-	RateLimitMaxMsgPerMin int `json:"rateLimitMaxMsgPerMin"`
+	RateLimitMaxMsgPerMin  int `json:"rateLimitMaxMsgPerMin"`
+	FlapReuseWindowMinutes int `json:"flapReuseWindowMinutes"`
 	Thresholds            []struct {
 		Type                DeviceType `json:"type"`
 		ConsecutiveFailures int        `json:"consecutiveFailures"`
 	} `json:"thresholds"`
 	Polling struct {
-		IntervalSeconds      int `json:"intervalSeconds"`
-		ConcurrencyBatchSize int `json:"concurrencyBatchSize"`
-		DebounceSeconds      int `json:"debounceSeconds"`
+		IntervalSeconds        int `json:"intervalSeconds"`
+		ConcurrencyBatchSize   int `json:"concurrencyBatchSize"`
+		DebounceSeconds        int `json:"debounceSeconds"`
+		FlapReuseWindowMinutes int `json:"flapReuseWindowMinutes"`
 	} `json:"polling"`
+	CoreSwitch    CoreSwitchConfig `json:"coreSwitch"`
+	RetentionDays int              `json:"retentionDays"`
 }
+
+
+type BulkDeviceUpdates struct {
+	LocationID  string     `json:"locationId,omitempty"`
+	Location    string     `json:"location,omitempty"`
+	SNMPEnabled *bool      `json:"snmpEnabled,omitempty"`
+	Type        DeviceType `json:"type,omitempty"`
+}
+
+type BulkDeviceRequest struct {
+	DeviceIDs []string          `json:"deviceIds"`
+	Action    string            `json:"action"` // "update" | "delete"
+	Updates   BulkDeviceUpdates `json:"updates,omitempty"`
+}
+
+type BulkDeviceItemResult struct {
+	DeviceID string `json:"deviceId"`
+	Status   string `json:"status"` // "success" | "failed"
+	Reason   string `json:"reason,omitempty"`
+}
+
+type BulkDeviceResponse struct {
+	Success      bool                   `json:"success"`
+	UpdatedCount int                    `json:"updatedCount"`
+	FailedCount  int                    `json:"failedCount"`
+	Details      []BulkDeviceItemResult `json:"details"`
+}
+
+type LocationRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 
@@ -312,6 +356,32 @@ type UpdateProfileRequest struct {
 	NewPassword     string `json:"newPassword,omitempty"`
 }
 
+type EmailVerification struct {
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	Code      string    `json:"code"`
+	Purpose   string    `json:"purpose"` // "register" or "reset_password"
+	ExpiresAt time.Time `json:"expiresAt"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type SendEmailOTPRequest struct {
+	Email   string `json:"email"`
+	Purpose string `json:"purpose,omitempty"`
+}
+
+type VerifyEmailOTPRequest struct {
+	Email   string `json:"email"`
+	Code    string `json:"code"`
+	Purpose string `json:"purpose,omitempty"`
+}
+
+type ResetPasswordByOTPRequest struct {
+	Email       string `json:"email"`
+	Code        string `json:"code"`
+	NewPassword string `json:"newPassword"`
+}
+
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 
 type WSMessage struct {
@@ -325,6 +395,8 @@ type WSMessage struct {
 	Severity    string       `json:"severity,omitempty"`
 	Timestamp   time.Time    `json:"timestamp"`
 	LatencyMs   int64        `json:"latencyMs,omitempty"`
+	CPU         *float64     `json:"cpu,omitempty"`
+	Memory      *float64     `json:"memory,omitempty"`
 }
 
 type IncidentEvent struct {

@@ -2,7 +2,7 @@
   <header class="h-16 bg-[#0D0D0F]/80 backdrop-blur border-b border-[#26262A] flex items-center justify-between px-6 sticky top-0 z-20">
     <!-- Click Outside Backdrop for Dropdowns -->
     <div
-      v-if="isNotifOpen || isHelpOpen"
+      v-if="isNotifOpen"
       @click="closeDropdowns"
       class="fixed inset-0 z-30 bg-black/10 backdrop-blur-[1px]"
     ></div>
@@ -13,7 +13,7 @@
       <input
         v-model="deviceStore.searchQuery"
         type="text"
-        placeholder="Search devices, IPs, or incidents..."
+        placeholder="Search devices, IP, or incidents..."
         class="w-full bg-[#151517] border border-[#26262A] rounded-lg pl-9 pr-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#7B96F5] transition-colors"
       />
       <span v-if="deviceStore.searchQuery" @click="deviceStore.searchQuery = ''" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 cursor-pointer hover:text-gray-300">✕</span>
@@ -41,18 +41,18 @@
         <button
           @click="handleManualRefresh"
           :disabled="isRefreshing"
-          class="px-2.5 py-1 rounded-full bg-[#151517] border border-[#26262A] hover:border-[#7B96F5] text-[#7B96F5] hover:text-[#95ABF7] text-[11px] font-mono font-semibold transition-all flex items-center gap-1 disabled:opacity-50"
-          title="Force immediate ICMP poll cycle across all devices"
+          class="px-2.5 py-1 rounded-full bg-[#151517] border border-[#26262A] hover:border-[#7B96F5] text-[#7B96F5] hover:text-[#95ABF7] text-[11px] font-mono font-semibold transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+          title="Poll Now"
         >
           <RefreshCw class="w-3 h-3" :class="isRefreshing ? 'animate-spin' : ''" />
-          <span>{{ isRefreshing ? 'Polling...' : 'Refresh Now' }}</span>
+          <span>{{ isRefreshing ? 'Polling...' : 'Poll Now' }}</span>
         </button>
       </div>
 
       <!-- Active Role Badge & Profile Quick Link -->
       <router-link
         to="/profile"
-        title="View & Edit User Profile"
+        title="View & Edit Profile"
         class="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-[#151517] text-xs font-mono font-semibold hover:ring-1 hover:ring-[#7B96F5] transition-all cursor-pointer"
         :class="roleBadgeClass"
       >
@@ -66,8 +66,8 @@
       <div class="relative">
         <button
           @click.stop="toggleNotif"
-          class="relative p-2 rounded-lg bg-[#151517] border border-[#26262A] text-gray-400 hover:text-gray-200 hover:bg-[#18181B] transition-colors"
-          title="Notifikasi Incident & Gateways"
+          class="relative p-2 rounded-lg bg-[#151517] border border-[#26262A] text-gray-400 hover:text-gray-200 hover:bg-[#18181B] transition-colors cursor-pointer"
+          title="System Notifications"
         >
           <Bell class="w-4 h-4" />
           <span v-if="notifStore.unreadCount > 0" class="absolute top-1.5 right-1.5 w-2 h-2 bg-[#F16565] rounded-full ring-2 ring-[#0D0D0F]"></span>
@@ -81,7 +81,7 @@
           <div class="p-3 border-b border-[#26262A] flex items-center justify-between bg-[#18181B]">
             <div class="flex items-center gap-2">
               <Bell class="w-4 h-4 text-[#7B96F5]" />
-              <h3 class="text-xs font-bold text-white font-mono">Notifikasi Systems</h3>
+              <h3 class="text-xs font-bold text-white font-mono">System Notifications</h3>
               <span v-if="notifStore.unreadCount > 0" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#F16565]/20 text-[#F16565] border border-[#F16565]/30">
                 {{ notifStore.unreadCount }} new
               </span>
@@ -89,7 +89,7 @@
             <button
               v-if="notifStore.unreadCount > 0"
               @click="notifStore.markAllAsRead"
-              class="text-[11px] font-mono text-[#7B96F5] hover:underline"
+              class="text-[11px] font-mono text-[#7B96F5] hover:underline cursor-pointer"
             >
               Mark all as read
             </button>
@@ -119,52 +119,8 @@
                 <p class="text-[10px] font-mono text-gray-500 pt-1">{{ formatRelativeTime(item.timestamp) }}</p>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-
-
-      <!-- Help Button & Modal (Bantuan) -->
-      <div class="relative">
-        <button
-          @click.stop="toggleHelp"
-          class="p-2 rounded-lg bg-[#151517] border border-[#26262A] text-gray-400 hover:text-gray-200 hover:bg-[#18181B] transition-colors"
-          title="Bantuan & Documentation"
-        >
-          <HelpCircle class="w-4 h-4" />
-        </button>
-
-        <!-- Help Dropdown Modal -->
-        <div
-          v-if="isHelpOpen"
-          class="absolute right-0 mt-2 w-72 bg-[#151517] border border-[#26262A] rounded-xl shadow-2xl p-4 z-50 space-y-3"
-        >
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-2">
-            <h3 class="text-xs font-bold text-white flex items-center gap-2 font-mono">
-              <HelpCircle class="w-4 h-4 text-[#7B96F5]" />
-              Bantuan &amp; Dukungan SANOC
-            </h3>
-            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#7B96F5]/10 text-[#7B96F5] border border-[#7B96F5]/30">
-              v2.6.0-stable
-            </span>
-          </div>
-
-          <div class="space-y-2 text-xs text-gray-300">
-            <a
-              href="https://diskominfo.jabarprov.go.id"
-              target="_blank"
-              class="flex items-center justify-between p-2.5 rounded-lg bg-[#18181B] border border-[#26262A] hover:border-[#7B96F5] text-gray-200 transition-colors"
-            >
-              <span>Dokumentasi Sistem SANOC</span>
-              <ExternalLink class="w-3.5 h-3.5 text-gray-400" />
-            </a>
-
-            <div class="p-3 rounded-lg bg-[#18181B] border border-[#26262A] space-y-1">
-              <p class="font-mono text-[10px] uppercase text-gray-400 font-bold">Layanan Helpdesk SANOC</p>
-              <p class="text-xs font-mono text-[#7B96F5]">noc.alerts@jabarprov.go.id</p>
-              <p class="text-[11px] text-gray-400">Ext: 4401 / 4402 (Hotline Biro Umum)</p>
-              <p class="text-[10px] text-gray-500 pt-1 border-t border-[#26262A] mt-2">Jam Operasional: 24/7 Monitoring</p>
+            <div v-if="notifStore.notifications.length === 0" class="p-8 text-center text-xs text-gray-500 font-mono">
+              No new notifications
             </div>
           </div>
         </div>
@@ -179,7 +135,6 @@ import { useRouter } from 'vue-router';
 import {
   Search,
   Bell,
-  HelpCircle,
   ShieldCheck,
   Eye,
   Cpu,
@@ -187,7 +142,6 @@ import {
   Activity,
   CheckCircle2,
   MessageSquare,
-  ExternalLink,
   RefreshCw
 } from 'lucide-vue-next';
 import { useDeviceStore } from '../../stores/deviceStore';
@@ -203,7 +157,6 @@ const authStore = useAuthStore();
 const notifStore = useNotificationStore();
 
 const isNotifOpen = ref(false);
-const isHelpOpen = ref(false);
 const isRefreshing = ref(false);
 
 async function handleManualRefresh() {
@@ -223,21 +176,12 @@ async function handleManualRefresh() {
 
 function closeDropdowns() {
   isNotifOpen.value = false;
-  isHelpOpen.value = false;
 }
 
 function toggleNotif() {
   isNotifOpen.value = !isNotifOpen.value;
   if (isNotifOpen.value) {
-    isHelpOpen.value = false;
     notifStore.fetchNotifications();
-  }
-}
-
-function toggleHelp() {
-  isHelpOpen.value = !isHelpOpen.value;
-  if (isHelpOpen.value) {
-    isNotifOpen.value = false;
   }
 }
 
@@ -261,8 +205,8 @@ function formatRelativeTime(isoString: string) {
 const roleBadgeLabel = computed(() => {
   const map: Record<string, string> = {
     admin: 'ADMIN',
-    pimpinan: 'PIMPINAN',
-    anggota: 'ANGGOTA SANOC'
+    pimpinan: 'LEADERSHIP',
+    anggota: 'OPERATOR'
   };
   return map[authStore.user.role] ?? authStore.user.role;
 });

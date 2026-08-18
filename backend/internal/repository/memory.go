@@ -175,13 +175,61 @@ func (r *MemoryDeviceRepository) UpdateSNMPMetadata(deviceID, sysName, sysDescr,
 func (r *MemoryDeviceRepository) Delete(id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for i := range r.devices {
-		if r.devices[i].ID == id {
+	for i, dev := range r.devices {
+		if dev.ID == id {
 			r.devices = append(r.devices[:i], r.devices[i+1:]...)
 			return nil
 		}
 	}
-	return fmt.Errorf("device %s not found", id)
+	return nil
+}
+
+func (r *MemoryDeviceRepository) BulkUpdate(ids []string, updates domain.BulkDeviceUpdates) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	idMap := make(map[string]bool)
+	for _, id := range ids {
+		idMap[id] = true
+	}
+	count := 0
+	for i := range r.devices {
+		if idMap[r.devices[i].ID] {
+			if updates.LocationID != "" {
+				r.devices[i].LocationID = updates.LocationID
+			}
+			if updates.Location != "" {
+				r.devices[i].Location = updates.Location
+			}
+			if updates.SNMPEnabled != nil {
+				r.devices[i].SNMPEnabled = *updates.SNMPEnabled
+			}
+			if updates.Type != "" {
+				r.devices[i].Type = updates.Type
+			}
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r *MemoryDeviceRepository) BulkDelete(ids []string) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	idMap := make(map[string]bool)
+	for _, id := range ids {
+		idMap[id] = true
+	}
+	var remaining []domain.Device
+	count := 0
+	for _, dev := range r.devices {
+		if idMap[dev.ID] {
+			count++
+		} else {
+			remaining = append(remaining, dev)
+		}
+	}
+	r.devices = remaining
+	return count, nil
 }
 
 func (r *MemoryDeviceRepository) ExistsByMAC(mac string) (bool, error) {
@@ -333,4 +381,162 @@ func (r *MemoryNotificationLogRepository) GetByIncidentID(incidentID string) ([]
 	defer r.mu.RUnlock()
 	// In a real DB this would join via incident_id column
 	return r.logs, nil
+}
+
+// ─── In-Memory Incident Repository ───────────────────────────────────────────
+
+type MemoryIncidentRepository struct {
+	mu        sync.RWMutex
+	incidents []*domain.Incident
+	events    []domain.IncidentEvent
+	nextID    int
+}
+
+func NewMemoryIncidentRepository() *MemoryIncidentRepository {
+	return &MemoryIncidentRepository{
+		nextID: 1,
+	}
+}
+
+func (r *MemoryIncidentRepository) GetAll() ([]domain.Incident, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.Incident
+	for _, inc := range r.incidents {
+		out = append(out, *inc)
+	}
+	return out, nil
+}
+
+func (r *MemoryIncidentRepository) GetByID(id string) (*domain.Incident, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, inc := range r.incidents {
+		if inc.ID == id {
+			cp := *inc
+			return &cp, nil
+		}
+	}
+	return nil, fmt.Errorf("incident %s not found", id)
+}
+
+func (r *MemoryIncidentRepository) GetActive() ([]domain.Incident, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.Incident
+	for _, inc := range r.incidents {
+		if inc.Status == "ACTIVE" {
+			out = append(out, *inc)
+		}
+	}
+	return out, nil
+}
+
+func (r *MemoryIncidentRepository) GetByDeviceID(deviceID string) ([]domain.Incident, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.Incident
+	for _, inc := range r.incidents {
+		if inc.DeviceID == deviceID {
+			out = append(out, *inc)
+		}
+	}
+	return out, nil
+}
+
+func (r *MemoryIncidentRepository) GetOpenByDeviceID(deviceID string) (*domain.Incident, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, inc := range r.incidents {
+		if inc.DeviceID == deviceID && inc.Status == "ACTIVE" {
+			cp := *inc
+			return &cp, nil
+		}
+	}
+	return nil, nil
+}
+
+func (r *MemoryIncidentRepository) Create(inc *domain.Incident) (*domain.Incident, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if inc.ID == "" {
+		inc.ID = fmt.Sprintf("INC-%d", r.nextID)
+		r.nextID++
+	}
+	if inc.Status == "" {
+		inc.Status = "ACTIVE"
+	}
+	if inc.StartedAt.IsZero() {
+		inc.StartedAt = time.Now()
+	}
+	r.incidents = append([]*domain.Incident{inc}, r.incidents...)
+	return inc, nil
+}
+
+func (r *MemoryIncidentRepository) Resolve(id, resolvedAt string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	t, _ := time.Parse(time.RFC3339, resolvedAt)
+	if t.IsZero() {
+		t = time.Now()
+	}
+	for _, inc := range r.incidents {
+		if inc.ID == id {
+			inc.Status = "RESOLVED"
+			inc.ResolvedAt = resolvedAt
+			inc.ResolvedAtRaw = &t
+			return nil
+		}
+	}
+	return fmt.Errorf("incident %s not found", id)
+}
+
+func (r *MemoryIncidentRepository) ResolveActiveByDeviceID(deviceID string, resolvedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	formatted := resolvedAt.Format(time.RFC3339)
+	for _, inc := range r.incidents {
+		if inc.DeviceID == deviceID && inc.Status == "ACTIVE" {
+			inc.Status = "RESOLVED"
+			inc.ResolvedAt = formatted
+			inc.ResolvedAtRaw = &resolvedAt
+		}
+	}
+	return nil
+}
+
+func (r *MemoryIncidentRepository) Reopen(id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, inc := range r.incidents {
+		if inc.ID == id {
+			inc.Status = "ACTIVE"
+			inc.ResolvedAt = ""
+			inc.ResolvedAtRaw = nil
+			return nil
+		}
+	}
+	return fmt.Errorf("incident %s not found", id)
+}
+
+func (r *MemoryIncidentRepository) CreateEvent(evt *domain.IncidentEvent) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if evt.OccurredAt.IsZero() {
+		evt.OccurredAt = time.Now()
+	}
+	r.events = append(r.events, *evt)
+	return nil
+}
+
+func (r *MemoryIncidentRepository) GetEventsByIncidentID(incidentID string) ([]domain.IncidentEvent, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []domain.IncidentEvent
+	for _, evt := range r.events {
+		if evt.IncidentID == incidentID {
+			out = append(out, evt)
+		}
+	}
+	return out, nil
 }

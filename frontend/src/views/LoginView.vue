@@ -75,6 +75,11 @@
           </label>
         </div>
 
+        <!-- Google reCAPTCHA v2 Checkbox Container -->
+        <div v-show="recaptchaSiteKey" class="flex justify-center my-3 min-h-[78px]">
+          <div ref="recaptchaContainer"></div>
+        </div>
+
         <!-- Sign In Button -->
         <button
           type="submit"
@@ -100,20 +105,20 @@
           </div>
         </div>
 
-        <form @submit.prevent="handleVerifyMFA" class="space-y-4">
-          <div class="space-y-1.5">
-            <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-400 font-semibold">6-Digit Passcode</label>
-            <input
+        <form @submit.prevent="handleVerifyMFA" class="space-y-5">
+          <div class="space-y-2">
+            <label class="block text-center text-[10px] font-mono uppercase tracking-wider text-gray-400 font-semibold">
+              6-Digit Authenticator Passcode
+            </label>
+            <OtpInput
               v-model="mfaCode"
-              type="text"
-              maxlength="6"
-              required
-              placeholder="123456"
-              class="w-full bg-[#18181B] border border-[#26262A] focus:border-[#7B96F5] rounded-lg px-4 py-3 text-center text-lg tracking-[0.5em] font-mono text-white placeholder-gray-600 focus:outline-none transition-colors"
+              :error="!!mfaError"
+              :disabled="isVerifyingMFA"
+              @complete="handleVerifyMFA"
             />
           </div>
 
-          <div v-if="mfaError" class="flex items-center gap-1.5 text-xs text-red-400 font-mono">
+          <div v-if="mfaError" class="flex items-center justify-center gap-1.5 text-xs text-red-400 font-mono">
             <AlertCircle class="w-3.5 h-3.5 shrink-0" />
             <span>{{ mfaError }}</span>
           </div>
@@ -141,19 +146,18 @@
 
     <!-- Footer Tag -->
     <div class="mt-8 text-center text-[10px] font-mono text-gray-500 tracking-wider space-y-1">
-      <div>v2.6.0-stable // SANOC SECURE LOGIN</div>
-      <div class="text-gray-400">© SANOC Team — UTB 2026.</div>
+      <div class="text-gray-400">SANOC Infrastructure Monitoring</div>
+      <div class="text-gray-500">© SANOC Team — UTB 2026.</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../stores/authStore';
+import OtpInput from '../components/common/OtpInput.vue';
 import { User, Lock, Eye, EyeOff, AlertCircle, ShieldCheck } from 'lucide-vue-next';
 
-const router = useRouter();
 const authStore = useAuthStore();
 
 const username = ref('');
@@ -169,22 +173,90 @@ const mfaCode = ref('');
 const mfaError = ref('');
 const isVerifyingMFA = ref(false);
 
+const recaptchaSiteKey = ((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || '';
+const recaptchaContainer = ref<HTMLElement | null>(null);
+const recaptchaToken = ref('');
+let recaptchaWidgetId: number | null = null;
+
+onMounted(() => {
+  if (!recaptchaSiteKey) return;
+
+  const renderWidget = () => {
+    if (!recaptchaContainer.value || recaptchaWidgetId !== null) return;
+    const grecaptcha = (window as any).grecaptcha;
+    if (grecaptcha && typeof grecaptcha.render === 'function') {
+      try {
+        recaptchaWidgetId = grecaptcha.render(recaptchaContainer.value, {
+          sitekey: recaptchaSiteKey,
+          theme: 'dark',
+          callback: (token: string) => {
+            recaptchaToken.value = token;
+            errorMessage.value = '';
+          },
+          'expired-callback': () => {
+            recaptchaToken.value = '';
+          },
+          'error-callback': () => {
+            recaptchaToken.value = '';
+          }
+        });
+      } catch (err) {
+        console.warn('[reCAPTCHA v2] Render notice:', err);
+      }
+    }
+  };
+
+  if ((window as any).grecaptcha && (window as any).grecaptcha.render) {
+    renderWidget();
+  } else {
+    (window as any).onloadRecaptchaCallback = () => {
+      renderWidget();
+    };
+    if (!document.getElementById('recaptcha-script')) {
+      const script = document.createElement('script');
+      script.id = 'recaptcha-script';
+      script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadRecaptchaCallback&render=explicit';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  }
+});
+
+function resetRecaptcha() {
+  const grecaptcha = (window as any).grecaptcha;
+  if (grecaptcha && recaptchaWidgetId !== null) {
+    try {
+      grecaptcha.reset(recaptchaWidgetId);
+    } catch (e) {}
+  }
+  recaptchaToken.value = '';
+}
+
 async function handleLogin() {
   errorMessage.value = '';
+
+  if (recaptchaSiteKey && !recaptchaToken.value) {
+    errorMessage.value = 'Harap centang verifikasi reCAPTCHA ("Saya bukan robot") terlebih dahulu.';
+    return;
+  }
+
   isSubmitting.value = true;
 
   try {
-    const res = await authStore.login(username.value, password.value, rememberMe.value);
+    const res = await authStore.login(username.value, password.value, rememberMe.value, recaptchaToken.value);
     if (res.requireMFA) {
       mfaToken.value = res.mfaToken;
       showMFAModal.value = true;
     } else if (res.success) {
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } else {
       errorMessage.value = res.message || 'Invalid username or password';
+      resetRecaptcha();
     }
   } catch (e: any) {
     errorMessage.value = e.response?.data?.message || 'Invalid username or password';
+    resetRecaptcha();
   } finally {
     isSubmitting.value = false;
   }
@@ -205,7 +277,7 @@ async function handleVerifyMFA() {
     if (res.success) {
       showMFAModal.value = false;
       mfaCode.value = '';
-      await router.push('/dashboard');
+      window.location.href = '/dashboard';
     } else {
       mfaError.value = res.message || 'Kode MFA tidak valid atau telah kadaluwarsa';
     }

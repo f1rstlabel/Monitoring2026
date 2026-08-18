@@ -1,12 +1,16 @@
 # ==============================================================================
-# SANOC — Smart Agent & Network Operations Center Root .gitignore
+# SANOC — Sanditel Network Operations Center Root .gitignore
 # ==============================================================================
 
-# ─── IDE, Editors & Workspace Settings ───────────────────────────────────────
+# ─── IDE, Agents & Workspace Settings ──────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
 !.vscode/launch.json
 .idea/
+.claude/
+.agents/
+.odo/
+skills-lock.json
 *.suo
 *.ntvs*
 *.njsproj
@@ -30,6 +34,12 @@ desktop.ini
 .env
 .env.*
 !.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 *.pem
 *.key
 *.crt
@@ -53,6 +63,8 @@ debug.log
 # ─── Local Binaries, Builds & Dependencies ──────────────────────────────────
 bin/
 dist/
+tmp/
+backend/tmp/
 node_modules/
 .vite/
 frontend/.vite/
@@ -61,6 +73,7 @@ backend/uploads/*
 uploads/*
 !uploads/.gitkeep
 backend/wa-sidecar/auth_sessions/
+backend/wa-sidecar/auth_info_baileys/
 auth_sessions/
 
 # ─── Compiled Go & Node Artifacts ─────────────────────────────────────────────
@@ -74,6 +87,7 @@ auth_sessions/
 *.cover
 *.apk
 *.aab
+test_*.go
 
 # ─── Database Dumps & Local Storage ──────────────────────────────────────────
 *.db
@@ -82,11 +96,8 @@ auth_sessions/
 *.dump
 *.sql.bak
 
-# ─── Temporary Scripts & Scratch Files ───────────────────────────────────────
+# ─── Temporary Scripts & Scratch Files ────────────────────────────────────────
 dev-run.sh
-PROJECT_STRUCTURE.md
 scratch/
-.agents/
-docs/
-*.env.example
-.env.example
+
+

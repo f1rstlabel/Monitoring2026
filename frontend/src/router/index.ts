@@ -8,6 +8,7 @@ import IncidentsView from '../views/IncidentsView.vue';
 import SettingsView from '../views/SettingsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import UserProfileView from '../views/UserProfileView.vue';
+import DocumentationView from '../views/DocumentationView.vue';
 import { useAuthStore } from '../stores/authStore';
 
 const routes = [
@@ -70,6 +71,12 @@ const routes = [
     name: 'profile',
     component: UserProfileView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/pusat-bantuan',
+    name: 'pusat-bantuan',
+    component: DocumentationView,
+    meta: { requiresAuth: true }
   }
 ];
 
@@ -90,6 +97,20 @@ router.beforeEach(async (to, _from, next) => {
   }
   if (authStore.isAuthenticated && to.meta.featureKey) {
     if (!authStore.hasPermission(to.meta.featureKey as string)) {
+      next('/dashboard');
+      return;
+    }
+  }
+  if (authStore.isAuthenticated && to.path.startsWith('/settings')) {
+    const hasAnySettingsAccess =
+      authStore.user?.role === 'admin' ||
+      authStore.canManageSettings ||
+      authStore.hasPermission('settings.notifications') ||
+      authStore.hasPermission('settings.polling') ||
+      authStore.hasPermission('settings.thresholds') ||
+      authStore.hasPermission('settings.users');
+
+    if (!hasAnySettingsAccess) {
       next('/dashboard');
       return;
     }

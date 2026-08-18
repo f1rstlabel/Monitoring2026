@@ -11,6 +11,7 @@ import (
 	"sanoc/backend/internal/domain"
 	"sanoc/backend/internal/handler"
 	"sanoc/backend/internal/middleware"
+	"sanoc/backend/internal/mailer"
 	"sanoc/backend/internal/notifier"
 	"sanoc/backend/internal/poller"
 	"sanoc/backend/internal/repository"
@@ -204,6 +205,27 @@ func main() {
 	}()
 	defer asynqServer.Shutdown()
 
+	// Run one-time incident deduplication & stale incident cleanup on startup
+	if db != nil {
+		_ = repository.CleanupDuplicateAndStaleIncidents(db)
+	}
+
+	// Scheduled incident retention job (archives old resolved incidents)
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if db != nil {
+				var sysSettings domain.SystemSettings
+				retentionDays := 90
+				if settingsRepo != nil && settingsRepo.GetJSON("system_settings", &sysSettings) == nil && sysSettings.RetentionDays > 0 {
+					retentionDays = sysSettings.RetentionDays
+				}
+				_, _ = repository.ArchiveOldResolvedIncidents(db, retentionDays)
+			}
+		}
+	}()
+
 	// ─── Polling Engine ─────────────────────────────────────────────────────────
 	pollCfg := poller.DefaultConfig()
 	pollerEngine := poller.NewEngine(hub, deviceRepo, statusRepo, pollCfg)
@@ -214,6 +236,7 @@ func main() {
 	pollerEngine.SetIncidentRepo(incidentRepo)
 	pollerEngine.Start()
 	defer pollerEngine.Stop()
+
 
 	log.Printf("[Settings] Loaded startup configuration:")
 	log.Printf("[Settings]   • Polling Interval: %ds", pollCfg.IntervalSeconds)
@@ -233,6 +256,7 @@ func main() {
 	h.SetLocationRepo(locationRepo)
 	h.SetPermissionRepo(permRepo)
 	h.SetWhatsAppTargetRepo(whatsappTargetRepo)
+	h.SetMailer(mailer.NewMailer(cfg))
 	importH := handler.NewImportHandler(deviceRepo, locationRepo)
 
 	// Integrations handler — uses real sidecar proxy (URL + internal token from .env)
@@ -264,6 +288,8 @@ func main() {
 	// Auth routes
 	v1.GET("/auth/me", h.GetMe)
 	v1.PUT("/auth/profile", h.UpdateProfile)
+	v1.POST("/auth/profile/send-reset-otp", h.SendProfileResetOTP)
+	v1.POST("/auth/profile/reset-password-otp", h.ResetProfilePasswordByOTP)
 	v1.POST("/auth/avatar", h.UploadAvatar)
 	v1.POST("/auth/mfa/setup", h.SetupMFA)
 	v1.POST("/auth/mfa/verify", h.VerifyMFA)
@@ -274,6 +300,8 @@ func main() {
 	router.POST("/api/v1/auth/logout", h.Logout)
 	router.POST("/api/v1/auth/forgot-password", h.ForgotPassword)
 	router.POST("/api/v1/auth/reset-password", h.ResetPassword)
+	router.POST("/api/v1/auth/send-verification-otp", h.SendAccountVerificationOTP)
+	router.POST("/api/v1/auth/verify-account-otp", h.VerifyAccountOTP)
 
 	// User logs (accessible for activity log viewing)
 	v1.GET("/user-logs", h.GetUserLogs)
@@ -291,7 +319,9 @@ func main() {
 
 	// Locations
 	v1.GET("/locations", h.GetLocations)
-	v1.POST("/locations", middleware.RequirePermission(permRepo, "devices.create", "admin", "anggota"), h.CreateLocation)
+	v1.POST("/locations", middleware.RequirePermission(permRepo, "settings.locations", "admin"), h.CreateLocation)
+	v1.PUT("/locations/:id", middleware.RequirePermission(permRepo, "settings.locations", "admin"), h.UpdateLocation)
+	v1.DELETE("/locations/:id", middleware.RequirePermission(permRepo, "settings.locations", "admin"), h.DeleteLocation)
 
 	// Permissions Matrix
 	v1.GET("/permissions", h.GetPermissions)
@@ -308,9 +338,11 @@ func main() {
 		devices.POST("", middleware.RequirePermission(permRepo, "devices.create", "admin", "anggota"), h.CreateDevice)
 		devices.PUT("/:id", middleware.RequirePermission(permRepo, "devices.edit", "admin", "anggota"), h.UpdateDevice)
 		devices.DELETE("/:id", middleware.RequirePermission(permRepo, "devices.delete", "admin"), h.DeleteDevice)
+		devices.PATCH("/bulk", middleware.RequirePermission(permRepo, "devices.edit", "admin", "anggota"), h.BulkDeviceAction)
 		devices.POST("/import", middleware.RequirePermission(permRepo, "devices.import", "admin"), importH.ImportDevices)
 		devices.GET("/auto-detect", middleware.RequirePermission(permRepo, "devices.view", "admin", "anggota"), h.AutoDetect)
 	}
+
 
 	// Incidents
 	incidents := v1.Group("/incidents")
@@ -331,10 +363,12 @@ func main() {
 	settings := v1.Group("/settings")
 	{
 		settings.GET("", h.GetSettings)
-		settings.PUT("/thresholds", middleware.RequirePermission(permRepo, "settings.thresholds", "admin"), h.UpdateThresholds)
+		settings.PUT("", h.UpdateSettings)
+		settings.PUT("/thresholds", middleware.RequirePermission(permRepo, "settings.polling", "settings.thresholds", "admin"), h.UpdateThresholds)
 		settings.PUT("/polling", middleware.RequirePermission(permRepo, "settings.polling", "admin"), h.UpdatePolling)
 		settings.PUT("/rate-limit", middleware.RequirePermission(permRepo, "settings.notifications", "admin"), h.UpdateRateLimit)
 	}
+
 
 	// Users
 	users := v1.Group("/users")

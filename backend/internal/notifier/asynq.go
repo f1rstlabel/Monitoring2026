@@ -103,11 +103,12 @@ func HandleWhatsAppDispatchTask(p *Pipeline) asynq.HandlerFunc {
 
 		// 2. Relevance Re-validation (Requirement 2.2)
 		isDownAlert := true
-		if pld.TaskType == "RECOVERED" {
+		switch pld.TaskType {
+		case "RECOVERED":
 			isDownAlert = false
-		} else if pld.TaskType == "DOWN" {
+		case "DOWN":
 			isDownAlert = true
-		} else {
+		default:
 			// Fallback: parse message text
 			msgLower := strings.ToLower(pld.Message)
 			if strings.Contains(msgLower, "recovered") || strings.Contains(msgLower, "up") || strings.Contains(msgLower, "online") ||

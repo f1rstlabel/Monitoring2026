@@ -55,6 +55,10 @@
             <Zap class="w-3.5 h-3.5 text-[#3ECF8E]" />
             ICMP Ping: {{ device.latencyMs }} ms
           </span>
+          <span v-if="device.snmpEnabled" class="flex items-center gap-1.5 bg-[#3ECF8E]/10 text-[#3ECF8E] px-2.5 py-1 rounded border border-[#3ECF8E]/20 font-bold">
+            <Radio class="w-3.5 h-3.5 text-[#3ECF8E] animate-pulse" />
+            SNMP v2c Active
+          </span>
           <span class="flex items-center gap-1.5 text-gray-500">
             <MapPin class="w-3.5 h-3.5" />
             {{ device.location }} ({{ device.rack }})
@@ -104,41 +108,13 @@
             <span class="text-gray-400 font-mono">Added By</span>
             <span class="font-mono text-gray-200 font-semibold">{{ device.createdByUserName || device.createdByUserId }}</span>
           </div>
-          <!-- New SNMP Info Section -->
-          <template v-if="device.snmpEnabled">
-            <div class="flex justify-between py-2 items-center">
-              <span class="text-gray-400 font-mono">OS / System Name</span>
-              <span class="font-mono text-amber-400 font-bold truncate max-w-[160px]" :title="device.snmpSysName || 'Not Available'">{{ device.snmpSysName || 'Not Available' }}</span>
-            </div>
-            <div v-if="device.snmpSysDescr" class="flex justify-between py-2 items-start gap-2">
-              <span class="text-gray-400 font-mono flex-shrink-0">OS / Firmware</span>
-              <span class="font-mono text-gray-300 text-[11px] text-right truncate max-w-[170px]" :title="device.snmpSysDescr">{{ device.snmpSysDescr }}</span>
-            </div>
-            <div v-if="device.snmpSysUpTime" class="flex justify-between py-2 items-center">
-              <span class="text-gray-400 font-mono" title="Device's self-reported uptime since last reboot">System Uptime (Reboot)</span>
-              <span class="font-mono text-sky-400 font-semibold text-[11px]">{{ device.snmpSysUpTime }}</span>
-            </div>
-            <div v-if="device.snmpSysContact" class="flex justify-between py-2 items-center">
-              <span class="text-gray-400 font-mono">SNMP Contact</span>
-              <span class="font-mono text-gray-300 text-[11px] truncate max-w-[160px]" :title="device.snmpSysContact">{{ device.snmpSysContact }}</span>
-            </div>
-            <div v-if="device.snmpSysLocation" class="flex justify-between py-2 items-center">
-              <span class="text-gray-400 font-mono">SNMP Location</span>
-              <span class="font-mono text-gray-300 text-[11px] truncate max-w-[160px]" :title="device.snmpSysLocation">{{ device.snmpSysLocation }}</span>
-            </div>
-            <div class="flex justify-between py-2">
-              <span class="text-gray-400 font-mono">SNMP Polling</span>
-              <span class="font-mono text-[#3ECF8E] font-semibold">Enabled</span>
-            </div>
-            <div class="flex justify-between py-2">
-              <span class="text-gray-400 font-mono">SNMP Port</span>
-              <span class="font-mono text-white">{{ device.snmpPort || 161 }}</span>
-            </div>
-            <div v-if="device.snmpIfIndex" class="flex justify-between py-2">
-              <span class="text-gray-400 font-mono">SNMP IfIndex</span>
-              <span class="font-mono text-white">{{ device.snmpIfIndex }}</span>
-            </div>
-          </template>
+          <div v-if="device.snmpEnabled" class="flex justify-between py-2 items-center">
+            <span class="text-gray-400 font-mono">SNMP Telemetry</span>
+            <span class="font-mono text-[#3ECF8E] font-semibold flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#3ECF8E] animate-ping"></span>
+              Active (Port {{ device.snmpPort || 161 }})
+            </span>
+          </div>
         </div>
       </div>
 
@@ -187,6 +163,100 @@
       </div>
     </div>
 
+    <!-- Dedicated SNMP Live Telemetry & Hardware Diagnostics Section -->
+    <div v-if="device.snmpEnabled" class="bg-[#151517] border border-[#26262A] rounded-xl p-6 space-y-5 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#26262A] pb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-[#3ECF8E]/10 border border-[#3ECF8E]/30 flex items-center justify-center text-[#3ECF8E]">
+            <Radio class="w-4 h-4 animate-pulse" />
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+              SNMP Live Telemetry &amp; Hardware Diagnostics
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#3ECF8E]/10 border border-[#3ECF8E]/30 text-[#3ECF8E] font-semibold uppercase">
+                Active v2c
+              </span>
+            </h3>
+            <p class="text-xs text-gray-400 font-mono mt-0.5">Real-time MIB-2 telemetry and hardware operational parameters</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs font-mono">
+          <span class="px-2.5 py-1 rounded-md bg-[#18181B] border border-[#26262A] text-gray-300">
+            Port: <strong class="text-white">{{ device.snmpPort || 161 }}</strong>
+          </span>
+          <span class="px-2.5 py-1 rounded-md bg-[#18181B] border border-[#26262A] text-gray-300">
+            Community: <strong class="text-white">{{ device.snmpCommunity || 'public' }}</strong>
+          </span>
+          <span v-if="device.snmpIfIndex" class="px-2.5 py-1 rounded-md bg-[#18181B] border border-[#26262A] text-gray-300">
+            IfIndex: <strong class="text-sky-400">{{ device.snmpIfIndex }}</strong>
+          </span>
+        </div>
+      </div>
+
+      <!-- 4 Telemetry Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Hostname / System Name -->
+        <div class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between text-gray-400 text-xs font-mono">
+            <span class="uppercase tracking-wider">System Hostname</span>
+            <Server class="w-4 h-4 text-amber-400" />
+          </div>
+          <p class="text-sm font-bold font-mono text-amber-400 truncate" :title="device.snmpSysName || 'Not Reported'">
+            {{ device.snmpSysName || 'Not Reported' }}
+          </p>
+          <p class="text-[10px] font-mono text-gray-500">OID .1.3.6.1.2.1.1.5.0 (sysName)</p>
+        </div>
+
+        <!-- System Uptime (Since Last Reboot) -->
+        <div class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between text-gray-400 text-xs font-mono">
+            <span class="uppercase tracking-wider">Uptime (Since Reboot)</span>
+            <Clock class="w-4 h-4 text-sky-400" />
+          </div>
+          <p class="text-sm font-bold font-mono text-sky-400 truncate">
+            {{ device.snmpSysUpTime || 'N/A' }}
+          </p>
+          <p class="text-[10px] font-mono text-gray-500">OID .1.3.6.1.2.1.1.3.0 (sysUpTime)</p>
+        </div>
+
+        <!-- SNMP Physical Location -->
+        <div class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between text-gray-400 text-xs font-mono">
+            <span class="uppercase tracking-wider">Reported Location</span>
+            <MapPin class="w-4 h-4 text-[#7B96F5]" />
+          </div>
+          <p class="text-sm font-bold font-mono text-gray-200 truncate" :title="device.snmpSysLocation || 'Not Configured'">
+            {{ device.snmpSysLocation || 'Not Configured' }}
+          </p>
+          <p class="text-[10px] font-mono text-gray-500">OID .1.3.6.1.2.1.1.6.0 (sysLocation)</p>
+        </div>
+
+        <!-- SNMP Contact Admin -->
+        <div class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between text-gray-400 text-xs font-mono">
+            <span class="uppercase tracking-wider">Sys Contact / Admin</span>
+            <UserCheck class="w-4 h-4 text-emerald-400" />
+          </div>
+          <p class="text-sm font-bold font-mono text-gray-200 truncate" :title="device.snmpSysContact || 'Not Configured'">
+            {{ device.snmpSysContact || 'Not Configured' }}
+          </p>
+          <p class="text-[10px] font-mono text-gray-500">OID .1.3.6.1.2.1.1.4.0 (sysContact)</p>
+        </div>
+      </div>
+
+      <!-- Full OS / Firmware Description (sysDescr) without truncation -->
+      <div v-if="device.snmpSysDescr" class="space-y-2">
+        <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold tracking-wider flex items-center gap-1.5">
+          <Layers class="w-3.5 h-3.5 text-[#7B96F5]" />
+          Full System &amp; Firmware Description (sysDescr)
+        </label>
+        <div class="bg-[#18181B] border border-[#26262A] rounded-xl p-3.5 font-mono text-xs text-gray-300 leading-relaxed break-words select-all shadow-inner">
+          {{ device.snmpSysDescr }}
+        </div>
+      </div>
+    </div>
+
     <!-- Bottom Section: Recent Incidents -->
     <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
       <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
@@ -199,29 +269,48 @@
         </router-link>
       </div>
 
-      <table class="w-full text-left text-xs text-gray-300">
-        <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-500">
-          <tr>
-            <th class="py-2 px-3">Date</th>
-            <th class="py-2 px-3">Duration</th>
-            <th class="py-2 px-3">Resolution</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-[#26262A]/60">
-          <tr v-for="inc in paginatedIncidents" :key="inc.id" class="hover:bg-[#18181B]">
-            <td class="py-2.5 px-3 font-mono text-gray-400">{{ inc.date }}</td>
-            <td class="py-2.5 px-3 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
-            <td class="py-2.5 px-3">
-              <span class="px-2 py-0.5 rounded text-[10px] bg-[#3ECF8E]/10 text-[#3ECF8E] font-mono font-medium">
-                {{ inc.resolution }}
-              </span>
-            </td>
-          </tr>
-          <tr v-if="recentIncidents.length === 0">
-            <td colspan="3" class="py-4 text-center text-gray-500 font-mono text-xs">No recent incidents recorded for this device</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-gray-300">
+          <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-500">
+            <tr>
+              <th class="py-2.5 px-3">Date &amp; Time</th>
+              <th class="py-2.5 px-3">Downtime Duration</th>
+              <th class="py-2.5 px-3">Resolution Status</th>
+              <th class="py-2.5 px-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#26262A]/60">
+            <tr
+              v-for="inc in paginatedIncidents"
+              :key="inc.id"
+              @click="$router.push(`/incidents/${inc.id}`)"
+              class="hover:bg-[#18181B] cursor-pointer group transition-colors"
+            >
+              <td class="py-3 px-3 font-mono text-gray-300 group-hover:text-white font-medium flex items-center gap-2">
+                <AlertTriangle class="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>{{ inc.date }}</span>
+              </td>
+              <td class="py-3 px-3 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
+              <td class="py-3 px-3">
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-medium"
+                  :class="inc.status === 'RESOLVED' ? 'bg-[#3ECF8E]/10 text-[#3ECF8E] border border-[#3ECF8E]/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'"
+                >
+                  {{ inc.resolution }}
+                </span>
+              </td>
+              <td class="py-3 px-3 text-right">
+                <span class="text-xs font-mono text-[#7B96F5] group-hover:text-[#95ABF7] inline-flex items-center gap-1 font-semibold">
+                  View Incident &rarr;
+                </span>
+              </td>
+            </tr>
+            <tr v-if="recentIncidents.length === 0">
+              <td colspan="4" class="py-6 text-center text-gray-500 font-mono text-xs">No recent incidents recorded for this device</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <PaginationControl
         v-if="recentIncidents.length > incPageSize"
@@ -251,7 +340,7 @@
     :mode="formModalMode"
     :device="device"
     @close="isFormModalOpen = false"
-    @saved="deviceStore.fetchDevices(); fetchIncidentsForDevice(); isFormModalOpen = false"
+    @saved="deviceStore.fetchDevices()"
   />
 </template>
 
@@ -276,7 +365,12 @@ import {
   MapPin,
   Edit3,
   AlertTriangle,
-  Zap
+  Zap,
+  Radio,
+  Server,
+  Clock,
+  UserCheck,
+  Layers
 } from 'lucide-vue-next';
 
 const route = useRoute();
@@ -307,13 +401,44 @@ const paginatedSiblings = computed(() => {
   return siblingDevices.value.slice(start, start + sibPageSize.value);
 });
 
-const recentIncidents = ref<{ id: string; date: string; duration: string; resolution: string }[]>([]);
+interface IncidentItem {
+  id: string;
+  date: string;
+  duration: string;
+  status: string;
+  resolution: string;
+}
+
+const recentIncidents = ref<IncidentItem[]>([]);
 const incPage = ref(1);
 const incPageSize = ref(5);
 const paginatedIncidents = computed(() => {
   const start = (incPage.value - 1) * incPageSize.value;
   return recentIncidents.value.slice(start, start + incPageSize.value);
 });
+
+function formatIncidentDateTime(dateStr: string | undefined): string {
+  if (!dateStr) return 'Recent';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+      return dateStr;
+    }
+    return (
+      d.toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }) + ' WIB'
+    );
+  } catch (e) {
+    return dateStr;
+  }
+}
 
 async function fetchIncidentsForDevice() {
   if (!deviceId.value) return;
@@ -323,9 +448,13 @@ async function fetchIncidentsForDevice() {
     if (Array.isArray(items)) {
       recentIncidents.value = items.map((inc: any) => ({
         id: inc.id,
-        date: `${inc.startTime || 'Recent'}`,
+        date: formatIncidentDateTime(inc.startedAt || inc.startTime || inc.createdAt),
         duration: inc.duration || 'N/A',
-        resolution: inc.status === 'RESOLVED' ? `Resolved (${inc.resolvedAt || 'Recovered'})` : 'Active Outage (Ongoing)'
+        status: inc.status || 'RESOLVED',
+        resolution:
+          inc.status === 'RESOLVED'
+            ? `Resolved (${formatIncidentDateTime(inc.resolvedAtRaw || inc.resolvedAt)})`
+            : 'Active Outage (Ongoing)'
       }));
     }
   } catch (e) {

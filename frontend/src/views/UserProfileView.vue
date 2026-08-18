@@ -5,10 +5,10 @@
       <div>
         <h1 class="text-2xl font-bold text-gray-100 flex items-center gap-2.5">
           <User class="w-6 h-6 text-[#7B96F5]" />
-          User Profile &amp; Account Settings
+          User Profile
         </h1>
         <p class="text-xs text-gray-400 mt-1">
-          Manage your personal profile details, profile picture, email address, and security password.
+          Account details, security settings, and profile management for SANOC Monitoring
         </p>
       </div>
 
@@ -141,34 +141,61 @@
         </div>
       </div>
 
-      <!-- Section 3: Password Update (Minimum 12 Characters) -->
+      <!-- Section 3: Security & Change Password (Dual Method: Old Password or Email OTP) -->
       <div class="space-y-4 border-b border-[#26262A] pb-6">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-bold text-gray-200 uppercase tracking-wider font-mono flex items-center gap-2">
-            <Lock class="w-4 h-4 text-amber-400" />
-            Security &amp; Change Password
-          </h2>
-          <span class="text-[10px] font-mono text-gray-500">Leave blank to keep current password</span>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-bold text-gray-200 uppercase tracking-wider font-mono flex items-center gap-2">
+              <Lock class="w-4 h-4 text-amber-400" />
+              Security &amp; Password Management
+            </h2>
+            <p class="text-[11px] text-gray-400 font-mono mt-0.5">
+              Select your preferred password update method:
+            </p>
+          </div>
+
+          <!-- Method Selector Switcher -->
+          <div class="inline-flex bg-[#18181B] border border-[#26262A] rounded-xl p-1 shadow-sm">
+            <button
+              type="button"
+              @click="pwdChangeMethod = 'current_password'"
+              class="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+              :class="pwdChangeMethod === 'current_password' ? 'bg-[#7B96F5] text-white shadow-xs' : 'text-gray-400 hover:text-gray-200'"
+            >
+              <KeyRound class="w-3.5 h-3.5" />
+              <span>Current Password</span>
+            </button>
+            <button
+              type="button"
+              @click="pwdChangeMethod = 'email_otp'"
+              class="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+              :class="pwdChangeMethod === 'email_otp' ? 'bg-[#7B96F5] text-white shadow-xs' : 'text-gray-400 hover:text-gray-200'"
+            >
+              <Mail class="w-3.5 h-3.5" />
+              <span>Email Verification (OTP)</span>
+            </button>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- METODE A: Menggunakan Kata Sandi Saat Ini -->
+        <div v-if="pwdChangeMethod === 'current_password'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fadeIn">
           <div>
             <label class="block text-xs font-medium text-gray-400 mb-1 font-mono">Current Password</label>
             <input
               v-model="form.currentPassword"
               type="password"
               placeholder="Enter current password"
-              class="w-full bg-[#1A1A1E] border border-[#26262A] focus:border-amber-400 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none font-mono"
+              class="w-full bg-[#1A1A1E] border border-[#26262A] focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none font-mono"
             />
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-400 mb-1 font-mono">New Password (Min 12 Chars)</label>
+            <label class="block text-xs font-medium text-gray-400 mb-1 font-mono">New Password (Min 12 Characters)</label>
             <input
               v-model="form.newPassword"
               type="password"
-              placeholder="Minimum 12 characters"
-              class="w-full bg-[#1A1A1E] border border-[#26262A] focus:border-amber-400 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none font-mono"
+              placeholder="At least 12 characters"
+              class="w-full bg-[#1A1A1E] border border-[#26262A] focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none font-mono"
             />
             <div v-if="form.newPassword" class="mt-2 space-y-1">
               <div class="flex items-center justify-between text-[10px] font-mono">
@@ -186,6 +213,77 @@
                 ></div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- METODE B: Menggunakan Verifikasi Email (OTP) -->
+        <div v-else class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-4 animate-fadeIn">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-[#151517] rounded-xl border border-[#26262A]">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-lg bg-[#7B96F5]/10 text-[#7B96F5]">
+                <Mail class="w-4 h-4" />
+              </div>
+              <div>
+                <span class="text-[10px] font-mono uppercase text-gray-400 block font-semibold">Registered Account Email</span>
+                <strong class="text-xs font-mono text-white">{{ form.email }}</strong>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              @click="handleSendProfileResetOTP"
+              :disabled="profileOTPCountdown > 0 || isSendingProfileOTP"
+              class="px-3.5 py-1.5 bg-[#7B96F5] hover:bg-[#6884E6] text-white text-xs font-mono font-bold rounded-xl shadow-md shadow-[#7B96F5]/20 disabled:opacity-50 flex items-center gap-1.5 self-start sm:self-auto cursor-pointer transition-colors"
+            >
+              <Send class="w-3.5 h-3.5" :class="isSendingProfileOTP ? 'animate-spin' : ''" />
+              <span v-if="profileOTPCountdown > 0">Resend in ({{ profileOTPCountdown }}s)</span>
+              <span v-else>{{ isSendingProfileOTP ? 'Sending...' : 'Send Verification Code to Email' }}</span>
+            </button>
+          </div>
+
+          <div class="p-3 bg-[#151517] rounded-xl border border-[#26262A] space-y-2 text-center">
+            <label class="block text-xs font-semibold text-gray-300 font-mono">
+              Enter 6-Digit Email Verification Code (1 Digit Per Box) *
+            </label>
+            <OtpInput
+              v-model="otpResetCode"
+              :length="6"
+              :auto-focus="false"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1 font-mono">New Password * (Min 8 Characters)</label>
+              <input
+                v-model="otpResetNewPassword"
+                type="password"
+                placeholder="At least 8 characters"
+                class="w-full bg-[#1A1A1E] border border-[#26262A] focus:border-[#7B96F5] rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none font-mono"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1 font-mono">Confirm New Password *</label>
+              <input
+                v-model="otpResetConfirmPassword"
+                type="password"
+                placeholder="Repeat new password"
+                class="w-full bg-[#1A1A1E] border border-[#26262A] focus:border-[#7B96F5] rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none font-mono"
+              />
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-1">
+            <button
+              type="button"
+              @click="handleResetPasswordByOTP"
+              :disabled="isResettingPwdOTP || !otpResetCode || otpResetCode.length !== 6 || !otpResetNewPassword"
+              class="px-5 py-2.5 bg-[#3ECF8E] hover:bg-[#34B77B] text-black font-bold text-xs font-mono rounded-xl shadow-md shadow-[#3ECF8E]/20 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Check class="w-4 h-4" :class="isResettingPwdOTP ? 'animate-spin' : ''" />
+              <span>{{ isResettingPwdOTP ? 'Saving...' : 'Update Password via Email' }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -267,29 +365,38 @@
         </div>
 
         <div class="space-y-4">
-          <p class="text-xs text-gray-300 font-mono">
-            Scan the QR code below or enter the Secret Key manually into Google Authenticator or Authy.
+          <p class="text-xs text-gray-300 font-mono text-center">
+            Scan this QR code using <strong>Google Authenticator</strong>, <strong>Authy</strong>, or your password manager:
           </p>
 
-          <!-- Secret Key Box -->
-          <div class="bg-[#18181B] border border-[#26262A] p-3 rounded-lg text-center space-y-1">
-            <span class="text-[10px] font-mono uppercase text-gray-400">Secret Key</span>
-            <div class="text-sm font-mono font-bold text-[#7B96F5] tracking-wider select-all">{{ mfaSecret }}</div>
+          <!-- QR Code Display Box -->
+          <div class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-[#26262A] shadow-inner mx-auto max-w-[210px]">
+            <img v-if="qrCodeDataUrl" :src="qrCodeDataUrl" alt="2FA QR Code" class="w-40 h-40 object-contain rounded" />
+            <div v-else class="w-40 h-40 flex items-center justify-center text-xs text-gray-500 font-mono">
+              Generating QR...
+            </div>
+          </div>
+
+          <!-- Secret Key Fallback Box -->
+          <div class="bg-[#18181B] border border-[#26262A] p-3 rounded-xl text-center space-y-1">
+            <span class="text-[10px] font-mono uppercase text-gray-400">Or enter manual key</span>
+            <div class="text-xs font-mono font-bold text-[#7B96F5] tracking-wider select-all">{{ mfaSecret }}</div>
           </div>
 
           <!-- 6-digit confirmation code input -->
-          <div class="space-y-1.5 pt-2">
-            <label class="block text-[10px] font-mono uppercase tracking-wider text-gray-400 font-semibold">Enter 6-Digit Passcode from App</label>
-            <input
+          <div class="space-y-2 pt-1">
+            <label class="block text-center text-[10px] font-mono uppercase tracking-wider text-gray-400 font-semibold">
+              Enter 6-Digit Passcode from App
+            </label>
+            <OtpInput
               v-model="mfaSetupCode"
-              type="text"
-              maxlength="6"
-              placeholder="123456"
-              class="w-full bg-[#18181B] border border-[#26262A] focus:border-[#7B96F5] rounded-lg px-4 py-2.5 text-center text-base tracking-[0.4em] font-mono text-white placeholder-gray-600 focus:outline-none transition-colors"
+              :error="!!mfaSetupError"
+              :disabled="isSubmittingMFA"
+              @complete="handleConfirmMFASetup"
             />
           </div>
 
-          <div v-if="mfaSetupError" class="text-xs text-red-400 font-mono flex items-center gap-1.5">
+          <div v-if="mfaSetupError" class="text-xs text-red-400 font-mono flex items-center justify-center gap-1.5">
             <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
             <span>{{ mfaSetupError }}</span>
           </div>
@@ -298,7 +405,7 @@
             <button
               type="button"
               @click="showMFASetupModal = false"
-              class="flex-1 py-2.5 bg-[#26262A] hover:bg-[#333338] text-gray-300 rounded-lg text-xs font-mono font-bold transition-colors"
+              class="flex-1 py-2.5 bg-[#26262A] hover:bg-[#333338] text-gray-300 rounded-xl text-xs font-mono font-bold transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -306,7 +413,7 @@
               type="button"
               @click="handleConfirmMFASetup"
               :disabled="mfaSetupCode.length !== 6 || isSubmittingMFA"
-              class="flex-1 py-2.5 bg-[#7B96F5] hover:bg-[#95ABF7] disabled:opacity-50 text-white rounded-lg text-xs font-mono font-bold transition-colors flex items-center justify-center gap-2"
+              class="flex-1 py-2.5 bg-[#7B96F5] hover:bg-[#95ABF7] disabled:opacity-50 text-white rounded-xl text-xs font-mono font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>{{ isSubmittingMFA ? 'Verifying...' : 'Activate 2FA' }}</span>
             </button>
@@ -320,20 +427,26 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useAuthStore } from '../stores/authStore';
+import OtpInput from '../components/common/OtpInput.vue';
+import QRCode from 'qrcode';
 import { useSettingStore } from '../stores/settingStore';
 import {
   User,
   Camera,
   Mail,
   Lock,
+  KeyRound,
+  Check,
   CheckCircle,
   AlertTriangle,
   X,
   Save,
   RefreshCw,
+  Send,
   ShieldCheck,
   ShieldOff
 } from 'lucide-vue-next';
+import { authApi } from '../api';
 
 const authStore = useAuthStore();
 const settingStore = useSettingStore();
@@ -343,12 +456,97 @@ const isSubmitting = ref(false);
 const toastMessage = ref('');
 const toastType = ref<'success' | 'error'>('success');
 
+// Password change method selection
+const pwdChangeMethod = ref<'current_password' | 'email_otp'>('current_password');
+
+// OTP Reset Password states
+const otpResetCode = ref('');
+const otpResetNewPassword = ref('');
+const otpResetConfirmPassword = ref('');
+const isSendingProfileOTP = ref(false);
+const isResettingPwdOTP = ref(false);
+const profileOTPCountdown = ref(0);
+let profileOTPTimer: any = null;
+
+function startProfileOTPCountdown() {
+  profileOTPCountdown.value = 60;
+  if (profileOTPTimer) clearInterval(profileOTPTimer);
+  profileOTPTimer = setInterval(() => {
+    if (profileOTPCountdown.value > 0) {
+      profileOTPCountdown.value--;
+    } else {
+      clearInterval(profileOTPTimer);
+      profileOTPTimer = null;
+    }
+  }, 1000);
+}
+
+async function handleSendProfileResetOTP() {
+  if (!form.email) {
+    toastType.value = 'error';
+    toastMessage.value = 'Email akun tidak ditemukan.';
+    return;
+  }
+  isSendingProfileOTP.value = true;
+  try {
+    const res = await authApi.sendProfileResetOTP(form.email);
+    startProfileOTPCountdown();
+    toastType.value = 'success';
+    toastMessage.value = res.message || `Kode OTP verifikasi telah dikirimkan ke ${form.email}`;
+  } catch (e: any) {
+    toastType.value = 'error';
+    toastMessage.value = e.response?.data?.error || 'Gagal mengirimkan kode OTP ke email.';
+  } finally {
+    isSendingProfileOTP.value = false;
+  }
+}
+
+async function handleResetPasswordByOTP() {
+  if (!otpResetCode.value || otpResetCode.value.trim().length !== 6) {
+    toastType.value = 'error';
+    toastMessage.value = 'Masukkan 6-digit kode verifikasi OTP email.';
+    return;
+  }
+  if (!otpResetNewPassword.value || otpResetNewPassword.value.length < 8) {
+    toastType.value = 'error';
+    toastMessage.value = 'Kata sandi baru minimal 8 karakter.';
+    return;
+  }
+  if (otpResetNewPassword.value !== otpResetConfirmPassword.value) {
+    toastType.value = 'error';
+    toastMessage.value = 'Konfirmasi kata sandi tidak cocok dengan kata sandi baru.';
+    return;
+  }
+
+  isResettingPwdOTP.value = true;
+  try {
+    const res = await authApi.resetProfilePasswordOTP({
+      email: form.email,
+      code: otpResetCode.value.trim(),
+      newPassword: otpResetNewPassword.value
+    });
+    toastType.value = 'success';
+    toastMessage.value = res.message || 'Kata sandi akun Anda berhasil diperbarui via verifikasi email!';
+    otpResetCode.value = '';
+    otpResetNewPassword.value = '';
+    otpResetConfirmPassword.value = '';
+    if (profileOTPTimer) clearInterval(profileOTPTimer);
+    profileOTPCountdown.value = 0;
+  } catch (e: any) {
+    toastType.value = 'error';
+    toastMessage.value = e.response?.data?.error || 'Gagal mereset kata sandi via email OTP.';
+  } finally {
+    isResettingPwdOTP.value = false;
+  }
+}
+
 const mfaEnabled = ref(false);
 const showMFASetupModal = ref(false);
 const mfaSecret = ref('');
 const mfaOtpUri = ref('');
 const mfaSetupCode = ref('');
 const mfaSetupError = ref('');
+const qrCodeDataUrl = ref('');
 const isSubmittingMFA = ref(false);
 
 const presetAvatars = [
@@ -428,11 +626,21 @@ function triggerFilePicker() {
 async function handleInitiateMFASetup() {
   mfaSetupError.value = '';
   mfaSetupCode.value = '';
+  qrCodeDataUrl.value = '';
   try {
     const res = await authStore.setupMFA();
     if (res.success && res.secret) {
       mfaSecret.value = res.secret;
       mfaOtpUri.value = res.otpAuthUri;
+      const uri = res.otpAuthUri || `otpauth://totp/SANOC%20Monitoring:${encodeURIComponent(authStore.user?.email || 'user')}?secret=${res.secret}&issuer=SANOC%20Monitoring`;
+      qrCodeDataUrl.value = await QRCode.toDataURL(uri, {
+        width: 200,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
       showMFASetupModal.value = true;
     } else {
       toastType.value = 'error';

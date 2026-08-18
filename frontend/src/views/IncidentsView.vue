@@ -3,20 +3,20 @@
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
       <div>
-        <h1 class="text-xl font-extrabold text-white tracking-tight">Active Incident Queue</h1>
-        <p class="text-xs text-gray-400 mt-1">Real-time infrastructure outage alerts requiring SANOC intervention</p>
+        <h1 class="text-xl font-extrabold text-white tracking-tight">Outage List & Incident Tickets</h1>
+        <p class="text-xs text-gray-400 mt-1">Downtime history, notification escalation logs, and recovery metrics</p>
       </div>
 
       <div class="flex items-center gap-3">
         <span class="px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-mono font-bold">
-          {{ incidentStore.incidents.filter((i: Incident) => i.status === 'ACTIVE').length }} Active
+          {{ incidentStore.incidents.filter((i: Incident) => i.status === 'ACTIVE').length }} Active Outages
         </span>
 
         <!-- Export Excel / CSV Dropdown -->
         <div v-if="authStore.hasPermission('reports.export')" class="relative">
           <button
             @click="showExportDropdown = !showExportDropdown"
-            class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
+            class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
             title="Export Incidents to Excel / CSV"
           >
             <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-400" />
@@ -31,26 +31,26 @@
             class="absolute right-0 mt-1.5 w-52 bg-[#1A1A1E] border border-[#26262A] rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
           >
             <div class="px-3 py-1.5 border-b border-[#26262A]/60 font-mono text-[10px] uppercase font-bold text-gray-400">
-              Pilih Format Export
+              Select Export Format
             </div>
             <button
               @click="exportIncidentsData('xls')"
-              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
               <FileSpreadsheet class="w-4 h-4 text-emerald-400 shrink-0" />
               <div>
                 <div class="font-bold">Excel Spreadsheet (.xls)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Format tabel Excel terstruktur</div>
+                <div class="text-[10px] text-gray-400 font-sans">Structured Excel workbook</div>
               </div>
             </button>
             <button
               @click="exportIncidentsData('csv')"
-              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
               <FileText class="w-4 h-4 text-sky-400 shrink-0" />
               <div>
                 <div class="font-bold">CSV File (.csv)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Dokumen CSV standar UTF-8</div>
+                <div class="text-[10px] text-gray-400 font-sans">Standard UTF-8 CSV document</div>
               </div>
             </button>
           </div>
@@ -58,7 +58,7 @@
 
         <button
           @click="exportIncidentsPDF"
-          class="px-3 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-sky-400 font-semibold text-xs transition-all flex items-center gap-1.5"
+          class="px-3 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-sky-400 font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
           title="Print / Save Incidents as PDF"
         >
           <Printer class="w-3.5 h-3.5 text-sky-400" />
@@ -75,7 +75,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Filter by Ticket ID, Device Name or IP..."
+            placeholder="Search by device name or IP address..."
             class="w-full bg-[#18181B] border border-[#26262A] rounded-lg pl-9 pr-4 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5]"
           />
         </div>
@@ -84,8 +84,8 @@
           class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
         >
           <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">ACTIVE Outages</option>
-          <option value="RESOLVED">RESOLVED Only</option>
+          <option value="ACTIVE">Active Outages (Open)</option>
+          <option value="RESOLVED">Resolved Incidents</option>
         </select>
         <select
           v-model="groupingMode"
@@ -319,7 +319,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import { useAuthStore } from '../stores/authStore';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
@@ -334,6 +334,7 @@ const currentPage = ref(1);
 const pageSize = ref(10);
 
 const router = useRouter();
+const route = useRoute();
 const incidentStore = useIncidentStore();
 const authStore = useAuthStore();
 
@@ -471,12 +472,24 @@ function loadIncidents() {
 }
 
 onMounted(() => {
+  if (route.query.status) {
+    statusFilter.value = route.query.status as string;
+  }
   loadIncidents();
 });
 
 watch([currentPage, pageSize], () => {
   loadIncidents();
 });
+
+watch(
+  () => route.query,
+  (newQ) => {
+    if (newQ.status) {
+      statusFilter.value = newQ.status as string;
+    }
+  }
+);
 
 watch(
   () => [

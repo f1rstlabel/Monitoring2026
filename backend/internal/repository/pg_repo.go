@@ -284,6 +284,92 @@ func (r *PostgresDeviceRepository) Delete(id string) error {
 	return err
 }
 
+func (r *PostgresDeviceRepository) BulkUpdate(ids []string, updates domain.BulkDeviceUpdates) (int, error) {
+	if r == nil || r.db == nil || len(ids) == 0 {
+		return 0, nil
+	}
+	var setClauses []string
+	var args []interface{}
+	argIdx := 1
+
+	if updates.LocationID != "" {
+		setClauses = append(setClauses, fmt.Sprintf("location_id = $%d", argIdx))
+		args = append(args, updates.LocationID)
+		argIdx++
+	}
+	if updates.Location != "" {
+		setClauses = append(setClauses, fmt.Sprintf("location = $%d", argIdx))
+		args = append(args, updates.Location)
+		argIdx++
+	}
+	if updates.SNMPEnabled != nil {
+		setClauses = append(setClauses, fmt.Sprintf("snmp_enabled = $%d", argIdx))
+		args = append(args, *updates.SNMPEnabled)
+		argIdx++
+	}
+	if updates.Type != "" {
+		setClauses = append(setClauses, fmt.Sprintf("type = $%d", argIdx))
+		args = append(args, string(updates.Type))
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return 0, nil
+	}
+
+	query := fmt.Sprintf("UPDATE devices SET %s WHERE id IN (", strings.Join(setClauses, ", "))
+	for i, id := range ids {
+		if i > 0 {
+			query += ", "
+		}
+		query += fmt.Sprintf("$%d", argIdx)
+		args = append(args, id)
+		argIdx++
+	}
+	query += ")"
+
+	res, err := r.db.Exec(query, args...)
+	if r.redis != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		_ = r.redis.Client.Del(ctx, "devices:all").Err()
+		cancel()
+	}
+	if err != nil {
+		return 0, err
+	}
+	count, _ := res.RowsAffected()
+	return int(count), nil
+}
+
+func (r *PostgresDeviceRepository) BulkDelete(ids []string) (int, error) {
+	if r == nil || r.db == nil || len(ids) == 0 {
+		return 0, nil
+	}
+	query := "DELETE FROM devices WHERE id IN ("
+	var args []interface{}
+	for i, id := range ids {
+		if i > 0 {
+			query += ", "
+		}
+		query += fmt.Sprintf("$%d", i+1)
+		args = append(args, id)
+	}
+	query += ")"
+
+	res, err := r.db.Exec(query, args...)
+	if r.redis != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		_ = r.redis.Client.Del(ctx, "devices:all").Err()
+		cancel()
+	}
+	if err != nil {
+		return 0, err
+	}
+	count, _ := res.RowsAffected()
+	return int(count), nil
+}
+
+
 func (r *PostgresDeviceRepository) ExistsByMAC(mac string) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM devices WHERE LOWER(mac_address) = LOWER($1))`
@@ -436,6 +522,63 @@ func (r *PostgresUserRepository) DeactivateUser(id string) error {
 	_, err := r.db.Exec(`UPDATE users SET status='Inactive', is_active=false, updated_at=CURRENT_TIMESTAMP WHERE id=$1`, id)
 	return err
 }
+
+func (r *PostgresUserRepository) DeleteUser(id string) error {
+	_, err := r.db.Exec(`DELETE FROM users WHERE id=$1`, id)
+	return err
+}
+
+func (r *PostgresUserRepository) SaveEmailOTP(email, code, purpose string, expiresAt time.Time) error {
+	cleanEmail := strings.ToLower(strings.TrimSpace(email))
+	id := fmt.Sprintf("ev-%d", time.Now().UnixNano())
+	if r.db != nil {
+		_, _ = r.db.Exec(`CREATE TABLE IF NOT EXISTS email_verifications (
+			id VARCHAR(64) PRIMARY KEY,
+			email VARCHAR(255) NOT NULL,
+			code VARCHAR(16) NOT NULL,
+			purpose VARCHAR(32) NOT NULL DEFAULT 'register',
+			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		)`)
+		// Delete any previous pending codes for this email and purpose
+		_, _ = r.db.Exec(`DELETE FROM email_verifications WHERE LOWER(email)=$1 AND purpose=$2`, cleanEmail, purpose)
+		_, err := r.db.Exec(`INSERT INTO email_verifications (id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)`,
+			id, cleanEmail, code, purpose, expiresAt)
+		return err
+	}
+	return nil
+}
+
+func (r *PostgresUserRepository) VerifyEmailOTP(email, code, purpose string) (bool, error) {
+	cleanEmail := strings.ToLower(strings.TrimSpace(email))
+	cleanCode := strings.TrimSpace(code)
+	if r.db != nil {
+		var count int
+		err := r.db.QueryRow(`SELECT COUNT(*) FROM email_verifications 
+			WHERE LOWER(email)=$1 AND code=$2 AND purpose=$3 AND expires_at > CURRENT_TIMESTAMP`,
+			cleanEmail, cleanCode, purpose).Scan(&count)
+		if err != nil {
+			return false, err
+		}
+		if count > 0 {
+			// Consume OTP upon successful verification
+			_, _ = r.db.Exec(`DELETE FROM email_verifications WHERE LOWER(email)=$1 AND purpose=$2`, cleanEmail, purpose)
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (r *PostgresUserRepository) UpdateUserPasswordByEmail(email string, newPasswordHash string) error {
+	cleanEmail := strings.ToLower(strings.TrimSpace(email))
+	if r.db != nil {
+		_, err := r.db.Exec(`UPDATE users SET password=$1, updated_at=CURRENT_TIMESTAMP WHERE LOWER(email)=$2`,
+			newPasswordHash, cleanEmail)
+		return err
+	}
+	return nil
+}
+
 
 // ─── Device Metric Repository ──────────────────────────────────────────────────
 
@@ -710,7 +853,33 @@ type PostgresIncidentRepository struct {
 	db *sql.DB
 }
 
+func EnsureIncidentTablesAndIndexes(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	_, _ = db.Exec(`
+		CREATE TABLE IF NOT EXISTS incidents_archive (
+			id VARCHAR(64) PRIMARY KEY,
+			device_id VARCHAR(64) NOT NULL,
+			status VARCHAR(32) NOT NULL,
+			packet_loss INT DEFAULT 100,
+			latency_ms INT DEFAULT 0,
+			affected_devices_count INT DEFAULT 1,
+			dependencies_count INT DEFAULT 0,
+			started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+			resolved_at TIMESTAMP WITH TIME ZONE,
+			archived_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE INDEX IF NOT EXISTS idx_incidents_device ON incidents(device_id);
+		CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status);
+	`)
+	// Attempt unique index creation
+	_, _ = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_active_device ON incidents(device_id) WHERE status = 'ACTIVE';`)
+}
+
 func NewPostgresIncidentRepository(db *sql.DB) *PostgresIncidentRepository {
+	_ = CleanupDuplicateAndStaleIncidents(db)
+	EnsureIncidentTablesAndIndexes(db)
 	return &PostgresIncidentRepository{db: db}
 }
 
@@ -718,19 +887,118 @@ func (r *PostgresIncidentRepository) Create(inc *domain.Incident) (*domain.Incid
 	if r == nil || r.db == nil {
 		return inc, nil
 	}
+	// 1. Direct query: Check if an ACTIVE incident already exists for this device
+	if existing, _ := r.GetOpenByDeviceID(inc.DeviceID); existing != nil {
+		return existing, nil
+	}
 	if inc.ID == "" {
 		inc.ID = fmt.Sprintf("INC-%d", time.Now().UnixNano()/1e6)
 	}
 	startedAt := time.Now()
+	
+	// 2. Atomic insert with ON CONFLICT guard (supported by unique index idx_incidents_active_device)
 	_, err := r.db.Exec(`INSERT INTO incidents (id, device_id, status, packet_loss, latency_ms, affected_devices_count, dependencies_count, started_at)
-		VALUES ($1, $2, 'ACTIVE', $3, $4, $5, $6, $7)`,
+		VALUES ($1, $2, 'ACTIVE', $3, $4, $5, $6, $7)
+		ON CONFLICT (device_id) WHERE status = 'ACTIVE' DO NOTHING`,
 		inc.ID, inc.DeviceID, inc.PacketLoss, inc.LatencyMs, max(inc.AffectedDevicesCount, 1), inc.DependenciesCount, startedAt)
 	if err != nil {
+		// Fallback: If ON CONFLICT error occurs or conflict happened, return open incident
+		if open, _ := r.GetOpenByDeviceID(inc.DeviceID); open != nil {
+			return open, nil
+		}
 		return nil, err
 	}
+
+	// 3. Return newly created or existing active incident
+	if open, _ := r.GetOpenByDeviceID(inc.DeviceID); open != nil {
+		return open, nil
+	}
+
 	inc.Status = "ACTIVE"
-	inc.StartTime = startedAt.Format("15:04:05 WIB")
+	inc.StartTime = startedAt.Format("02 Jan 2006, 15:04:05 WIB")
+	inc.StartedAt = startedAt
 	return inc, nil
+}
+
+func CleanupDuplicateAndStaleIncidents(db *sql.DB) error {
+	if db == nil {
+		return nil
+	}
+
+	// 1. Clean stale test mock devices if any
+	_, _ = db.Exec(`DELETE FROM incidents WHERE device_id LIKE 'mock-%' OR device_id NOT IN (SELECT id FROM devices)`)
+
+	// 2. Find all devices with more than 1 ACTIVE incident
+	rows, err := db.Query(`
+		SELECT device_id FROM incidents WHERE status = 'ACTIVE' GROUP BY device_id HAVING COUNT(*) > 1
+	`)
+	if err == nil {
+		defer rows.Close()
+		var devIDs []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err == nil {
+				devIDs = append(devIDs, id)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			log.Printf("[Incidents] Error scanning duplicate device rows: %v", err)
+		}
+
+		for _, devID := range devIDs {
+			var canonicalID string
+			// Oldest incident is the canonical record
+			_ = db.QueryRow(`SELECT id FROM incidents WHERE device_id = $1 AND status = 'ACTIVE' ORDER BY started_at ASC LIMIT 1`, devID).Scan(&canonicalID)
+			if canonicalID != "" {
+				// Re-point event timeline items to canonical incident
+				_, _ = db.Exec(`UPDATE incident_events SET incident_id = $1 WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = $2 AND status = 'ACTIVE' AND id != $1)`, canonicalID, devID)
+				// Re-point notification logs to canonical incident
+				_, _ = db.Exec(`UPDATE notification_log SET incident_id = $1 WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = $2 AND status = 'ACTIVE' AND id != $1)`, canonicalID, devID)
+				// Delete duplicate rows
+				_, _ = db.Exec(`DELETE FROM incidents WHERE device_id = $1 AND status = 'ACTIVE' AND id != $2`, devID, canonicalID)
+			}
+		}
+	}
+
+	// 3. Ensure unique index on (device_id) WHERE status = 'ACTIVE' exists
+	_, err = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_active_device ON incidents(device_id) WHERE status = 'ACTIVE';`)
+	if err != nil {
+		log.Printf("[Incidents] Notice creating unique index: %v", err)
+	} else {
+		log.Println("[Incidents] Unique constraint idx_incidents_active_device verified active in PostgreSQL.")
+	}
+
+	log.Println("[Incidents] Duplicate active incidents deduplication completed.")
+	return nil
+}
+
+func ArchiveOldResolvedIncidents(db *sql.DB, retentionDays int) (int, error) {
+	if db == nil || retentionDays <= 0 {
+		return 0, nil
+	}
+	EnsureIncidentTablesAndIndexes(db)
+
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
+	_, err := db.Exec(`
+		INSERT INTO incidents_archive (id, device_id, status, packet_loss, latency_ms, affected_devices_count, dependencies_count, started_at, resolved_at, archived_at)
+		SELECT id, device_id, status, packet_loss, latency_ms, affected_devices_count, dependencies_count, started_at, resolved_at, CURRENT_TIMESTAMP
+		FROM incidents
+		WHERE status = 'RESOLVED' AND resolved_at < $1
+		ON CONFLICT (id) DO NOTHING
+	`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := db.Exec(`DELETE FROM incidents WHERE status = 'RESOLVED' AND resolved_at < $1`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected > 0 {
+		log.Printf("[IncidentRetention] Archived %d resolved incidents older than %d days", rowsAffected, retentionDays)
+	}
+	return int(rowsAffected), nil
 }
 
 func (r *PostgresIncidentRepository) ResolveActiveByDeviceID(deviceID string, resolvedAt time.Time) error {
@@ -762,6 +1030,45 @@ func (r *PostgresIncidentRepository) Reopen(id string) error {
 	return err
 }
 
+func (r *PostgresIncidentRepository) scanIncidentRows(rows *sql.Rows) ([]domain.Incident, error) {
+	var list []domain.Incident
+	for rows.Next() {
+		var inc domain.Incident
+		var startedAt time.Time
+		var resolvedAt sql.NullTime
+		var devType string
+
+		if err := rows.Scan(&inc.ID, &inc.DeviceID, &inc.DeviceName, &devType, &inc.DeviceIP,
+			&inc.Status, &inc.PacketLoss, &inc.LatencyMs, &inc.AffectedDevicesCount, &inc.DependenciesCount,
+			&startedAt, &resolvedAt); err != nil {
+			return nil, err
+		}
+		inc.DeviceType = domain.DeviceType(devType)
+		inc.StartTime = startedAt.Format("02 Jan 2006, 15:04:05 WIB")
+		inc.StartedAt = startedAt
+
+		if resolvedAt.Valid {
+			inc.ResolvedAt = resolvedAt.Time.Format("02 Jan 2006, 15:04:05 WIB")
+			tVal := resolvedAt.Time
+			inc.ResolvedAtRaw = &tVal
+			dur := resolvedAt.Time.Sub(startedAt)
+			inc.Duration = fmt.Sprintf("%dm %ds", int(dur.Minutes()), int(dur.Seconds())%60)
+		} else {
+			dur := time.Since(startedAt)
+			inc.Duration = fmt.Sprintf("%dm %ds (ongoing)", int(dur.Minutes()), int(dur.Seconds())%60)
+		}
+		inc.Timeline = []domain.EventTimelineItem{}
+		inc.NotificationLog = []domain.NotificationLogRow{}
+		list = append(list, inc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if list == nil {
+		list = []domain.Incident{}
+	}
+	return list, nil
+}
 
 func (r *PostgresIncidentRepository) GetAll() ([]domain.Incident, error) {
 	if r == nil || r.db == nil {
@@ -777,103 +1084,89 @@ func (r *PostgresIncidentRepository) GetAll() ([]domain.Incident, error) {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var list []domain.Incident
-	for rows.Next() {
-		var inc domain.Incident
-		var startedAt time.Time
-		var resolvedAt sql.NullTime
-		var devType string
-
-		if err := rows.Scan(&inc.ID, &inc.DeviceID, &inc.DeviceName, &devType, &inc.DeviceIP,
-			&inc.Status, &inc.PacketLoss, &inc.LatencyMs, &inc.AffectedDevicesCount, &inc.DependenciesCount,
-			&startedAt, &resolvedAt); err != nil {
-			return nil, err
-		}
-		inc.DeviceType = domain.DeviceType(devType)
-		inc.StartTime = startedAt.Format("15:04:05 WIB")
-		inc.StartedAt = startedAt
-
-		if resolvedAt.Valid {
-			inc.ResolvedAt = resolvedAt.Time.Format("15:04:05 WIB")
-			tVal := resolvedAt.Time
-			inc.ResolvedAtRaw = &tVal
-			dur := resolvedAt.Time.Sub(startedAt)
-			inc.Duration = fmt.Sprintf("%dm %ds", int(dur.Minutes()), int(dur.Seconds())%60)
-		} else {
-			dur := time.Since(startedAt)
-			inc.Duration = fmt.Sprintf("%dm %ds (ongoing)", int(dur.Minutes()), int(dur.Seconds())%60)
-		}
-		if inc.Timeline == nil {
-			inc.Timeline = []domain.EventTimelineItem{}
-		}
-		if inc.NotificationLog == nil {
-			inc.NotificationLog = []domain.NotificationLogRow{}
-		}
-		list = append(list, inc)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return list, nil
+	return r.scanIncidentRows(rows)
 }
 
 func (r *PostgresIncidentRepository) GetActive() ([]domain.Incident, error) {
-	all, err := r.GetAll()
+	if r == nil || r.db == nil {
+		return nil, nil
+	}
+	query := `SELECT i.id, i.device_id, COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
+		FROM incidents i
+		LEFT JOIN devices d ON i.device_id = d.id
+		WHERE i.status = 'ACTIVE'
+		ORDER BY i.started_at DESC`
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
-	var active []domain.Incident
-	for _, inc := range all {
-		if inc.Status == "ACTIVE" {
-			active = append(active, inc)
-		}
-	}
-	return active, nil
+	defer rows.Close()
+	return r.scanIncidentRows(rows)
 }
 
 func (r *PostgresIncidentRepository) GetByID(id string) (*domain.Incident, error) {
-	all, err := r.GetAll()
+	if r == nil || r.db == nil || id == "" {
+		return nil, nil
+	}
+	query := `SELECT i.id, i.device_id, COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
+		FROM incidents i
+		LEFT JOIN devices d ON i.device_id = d.id
+		WHERE i.id = $1
+		LIMIT 1`
+	rows, err := r.db.Query(query, id)
 	if err != nil {
 		return nil, err
 	}
-	for i := range all {
-		if all[i].ID == id {
-			return &all[i], nil
-		}
+	defer rows.Close()
+	list, err := r.scanIncidentRows(rows)
+	if err != nil || len(list) == 0 {
+		return nil, err
 	}
-	return nil, nil
+	return &list[0], nil
 }
 
 func (r *PostgresIncidentRepository) GetByDeviceID(deviceID string) ([]domain.Incident, error) {
-	all, err := r.GetAll()
+	if r == nil || r.db == nil || deviceID == "" {
+		return nil, nil
+	}
+	query := `SELECT i.id, i.device_id, COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
+		FROM incidents i
+		LEFT JOIN devices d ON i.device_id = d.id
+		WHERE i.device_id = $1
+		ORDER BY i.started_at DESC`
+	rows, err := r.db.Query(query, deviceID)
 	if err != nil {
 		return nil, err
 	}
-	var res []domain.Incident
-	for _, inc := range all {
-		if inc.DeviceID == deviceID {
-			res = append(res, inc)
-		}
-	}
-	return res, nil
+	defer rows.Close()
+	return r.scanIncidentRows(rows)
 }
 
 // GetOpenByDeviceID returns the single ACTIVE incident for a device, or nil if none exists.
 func (r *PostgresIncidentRepository) GetOpenByDeviceID(deviceID string) (*domain.Incident, error) {
-	if r == nil || r.db == nil {
+	if r == nil || r.db == nil || deviceID == "" {
 		return nil, nil
 	}
-	var id string
-	err := r.db.QueryRow(
-		`SELECT id FROM incidents WHERE device_id = $1 AND status = 'ACTIVE' LIMIT 1`,
-		deviceID,
-	).Scan(&id)
+	query := `SELECT i.id, i.device_id, COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
+		FROM incidents i
+		LEFT JOIN devices d ON i.device_id = d.id
+		WHERE i.device_id = $1 AND i.status = 'ACTIVE'
+		ORDER BY i.started_at ASC
+		LIMIT 1`
+	rows, err := r.db.Query(query, deviceID)
 	if err != nil {
-		// sql.ErrNoRows means no open incident — not an error for our purposes
-		return nil, nil
+		return nil, err
 	}
-	return r.GetByID(id)
+	defer rows.Close()
+	list, err := r.scanIncidentRows(rows)
+	if err != nil || len(list) == 0 {
+		return nil, err
+	}
+	return &list[0], nil
 }
 
 func (r *PostgresIncidentRepository) CreateEvent(evt *domain.IncidentEvent) error {
@@ -954,6 +1247,8 @@ func (r *PostgresNotificationLogRepository) Append(row *domain.NotificationLogRo
 		status = "Sent"
 	case "pending":
 		status = "Pending"
+	case "skipped":
+		status = "Skipped"
 	default:
 		if status == "" {
 			status = "Sent"
@@ -1096,13 +1391,6 @@ func SyncLocationsFromDevices(db *sql.DB) error {
 		WHERE LOWER(TRIM(d.location)) = LOWER(TRIM(l.name)) AND (d.location_id IS NULL OR d.location_id = '')
 	`)
 
-	// 3. Purge dummy locations not in devices table
-	_, _ = db.Exec(`
-		DELETE FROM locations
-		WHERE id NOT IN (SELECT DISTINCT location_id FROM devices WHERE location_id IS NOT NULL AND location_id != '')
-		  AND name NOT IN (SELECT DISTINCT location FROM devices WHERE location IS NOT NULL AND location != '')
-	`)
-
 	log.Println("[PostgreSQL] Synced real device locations & linked foreign key relations.")
 	return nil
 }
@@ -1218,6 +1506,61 @@ func (r *PostgresLocationRepository) Create(loc *domain.Location) (*domain.Locat
 	}
 	return loc, nil
 }
+
+func (r *PostgresLocationRepository) GetDeviceCount(locationIDOrName string) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, nil
+	}
+	var count int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*) FROM devices 
+		WHERE location_id = $1 OR LOWER(TRIM(location)) = LOWER(TRIM($1))
+	`, locationIDOrName).Scan(&count)
+	return count, err
+}
+
+func (r *PostgresLocationRepository) Update(id string, name string, description string) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	var oldName string
+	_ = r.db.QueryRow(`SELECT name FROM locations WHERE id=$1`, id).Scan(&oldName)
+
+	_, err := r.db.Exec(`UPDATE locations SET name=$1, description=$2 WHERE id=$3`, name, description, id)
+	if err != nil {
+		return err
+	}
+
+	if oldName != "" {
+		_, _ = r.db.Exec(`UPDATE devices SET location=$1 WHERE location_id=$2 OR LOWER(TRIM(location))=LOWER(TRIM($3))`,
+			name, id, oldName)
+	} else {
+		_, _ = r.db.Exec(`UPDATE devices SET location=$1 WHERE location_id=$2`, name, id)
+	}
+	return nil
+}
+
+func (r *PostgresLocationRepository) Delete(id string) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	var locName string
+	_ = r.db.QueryRow(`SELECT name FROM locations WHERE id=$1`, id).Scan(&locName)
+
+	var count int
+	_ = r.db.QueryRow(`
+		SELECT COUNT(*) FROM devices 
+		WHERE location_id = $1 OR (TRIM($2) != '' AND LOWER(TRIM(location)) = LOWER(TRIM($2)))
+	`, id, locName).Scan(&count)
+
+	if count > 0 {
+		return fmt.Errorf("%d devices are still assigned to location %q — reassign them first", count, locName)
+	}
+
+	_, err := r.db.Exec(`DELETE FROM locations WHERE id=$1`, id)
+	return err
+}
+
 
 // ─── Permission Repository PostgreSQL ───────────────────────────────────────
 

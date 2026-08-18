@@ -125,7 +125,9 @@
               <td class="border border-slate-300 p-2 font-mono text-[11px] text-slate-600">{{ log.recipient }}</td>
               <td class="border border-slate-300 p-2">
                 <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold"
-                  :class="log.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'"
+                  :class="log.status.toLowerCase() === 'delivered' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                          log.status.toLowerCase() === 'failed' ? 'bg-red-100 text-red-800 border border-red-300' :
+                          'bg-amber-100 text-amber-800 border border-amber-300'"
                 >
                   {{ log.status }}
                 </span>

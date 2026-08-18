@@ -80,6 +80,16 @@
           <Settings class="w-4 h-4 shrink-0" />
           <span>Settings</span>
         </router-link>
+
+        <!-- Help Center & Guides -->
+        <router-link
+          to="/pusat-bantuan"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150"
+          :class="navLinkClass('/pusat-bantuan')"
+        >
+          <HelpCircle class="w-4 h-4 shrink-0" />
+          <span>Help Center</span>
+        </router-link>
       </nav>
 
       <!-- Role indicator badge -->
@@ -111,14 +121,14 @@
         </router-link>
         <button
           @click="handleLogout"
-          title="Sign Out"
-          class="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+          title="Logout"
+          class="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
         >
           <LogOut class="w-4 h-4" />
         </button>
       </div>
       <p class="mt-2 text-center text-[9px] font-mono text-gray-500 tracking-tight">
-        © SANOC Team — UTB 2026.
+        © Tim SANOC — UTB 2026.
       </p>
     </div>
   </aside>
@@ -135,6 +145,7 @@ import {
   AlertTriangle,
   BarChart3,
   Settings,
+  HelpCircle,
   LogOut,
   ShieldCheck,
   Eye,
@@ -155,12 +166,10 @@ function navLinkClass(path: string) {
 
 // Role display metadata
 const roleLabel = computed(() => {
-  const map: Record<string, string> = {
-    admin: 'Admin',
-    pimpinan: 'Pimpinan',
-    anggota: 'Anggota SANOC'
-  };
-  return map[authStore.user.role] ?? authStore.user.role;
+  const r = authStore.user.role;
+  if (r === 'admin') return 'ADMIN';
+  if (r === 'pimpinan') return 'LEADERSHIP';
+  return 'OPERATOR';
 });
 
 const roleColor = computed(() => {

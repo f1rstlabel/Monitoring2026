@@ -5,11 +5,15 @@ import type {
   Incident,
   StatusHistoryPoint,
   SystemSettings,
-  User
+  User,
+  LocationItem,
+  BulkDeviceRequest,
+  BulkDeviceResponse
 } from '../types';
 
+
 export const authApi = {
-  login: async (credentials: { usernameOrEmail: string; password: string; rememberMe?: boolean }) => {
+  login: async (credentials: { usernameOrEmail: string; password: string; rememberMe?: boolean; recaptchaToken?: string }) => {
     const res = await api.post('/auth/login', credentials);
     return res.data;
   },
@@ -49,6 +53,22 @@ export const authApi = {
     const res = await api.put('/auth/profile', data);
     return res.data;
   },
+  sendVerificationOTP: async (email: string) => {
+    const res = await api.post('/auth/send-verification-otp', { email });
+    return res.data;
+  },
+  verifyAccountOTP: async (email: string, code: string) => {
+    const res = await api.post('/auth/verify-account-otp', { email, code });
+    return res.data;
+  },
+  sendProfileResetOTP: async (email?: string) => {
+    const res = await api.post('/auth/profile/send-reset-otp', { email });
+    return res.data;
+  },
+  resetProfilePasswordOTP: async (data: { email: string; code: string; newPassword: string }) => {
+    const res = await api.post('/auth/profile/reset-password-otp', data);
+    return res.data;
+  },
   uploadAvatar: async (file: File) => {
     const formData = new FormData();
     formData.append('avatar', file);
@@ -71,12 +91,20 @@ export const dashboardApi = {
 };
 
 export const locationsApi = {
-  getLocations: async (search?: string): Promise<{ id: string; name: string; description?: string }[]> => {
+  getLocations: async (search?: string): Promise<LocationItem[]> => {
     const res = await api.get('/locations', { params: { search } });
     return res.data;
   },
-  createLocation: async (name: string, description?: string): Promise<{ id: string; name: string; description?: string }> => {
+  createLocation: async (name: string, description?: string): Promise<LocationItem> => {
     const res = await api.post('/locations', { name, description });
+    return res.data;
+  },
+  updateLocation: async (id: string, name: string, description?: string): Promise<any> => {
+    const res = await api.put(`/locations/${id}`, { name, description });
+    return res.data;
+  },
+  deleteLocation: async (id: string): Promise<any> => {
+    const res = await api.delete(`/locations/${id}`);
     return res.data;
   }
 };
@@ -109,6 +137,11 @@ export const devicesApi = {
     const res = await api.put(`/devices/${id}`, device);
     return res.data;
   },
+  bulkAction: async (req: BulkDeviceRequest): Promise<BulkDeviceResponse> => {
+    const res = await api.patch('/devices/bulk', req);
+    return res.data;
+  },
+
   deleteDevice: async (id: string): Promise<{ success: boolean }> => {
     const res = await api.delete(`/devices/${id}`);
     return res.data;
@@ -135,6 +168,10 @@ export const settingsApi = {
     const res = await api.get('/settings');
     return res.data;
   },
+  updateAllSettings: async (settings: SystemSettings): Promise<any> => {
+    const res = await api.put('/settings', settings);
+    return res.data;
+  },
   updateThresholds: async (thresholds: any): Promise<any> => {
     const res = await api.put('/settings/thresholds', { thresholds });
     return res.data;
@@ -149,13 +186,22 @@ export const settingsApi = {
   }
 };
 
+
 export const usersApi = {
   getUsers: async (): Promise<User[]> => {
     const res = await api.get('/users');
     return res.data;
   },
+  createUser: async (user: { username?: string; name: string; email: string; role: string; password?: string; verificationCode?: string }): Promise<User> => {
+    const res = await api.post('/users', user);
+    return res.data;
+  },
   inviteUser: async (user: { name: string; email: string; role: string }): Promise<User> => {
     const res = await api.post('/users/invite', user);
+    return res.data;
+  },
+  deleteUser: async (id: string): Promise<any> => {
+    const res = await api.delete(`/users/${id}`);
     return res.data;
   }
 };

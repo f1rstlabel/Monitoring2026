@@ -545,10 +545,11 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 			if err == nil {
 				whatsAppSent = true
 				p.logChan <- NotificationLog{
-					Channel:   "WhatsApp",
-					Recipient: target.PhoneNumber, // Log with actual phone number
-					Status:    "delivered",
-					Timestamp: time.Now(),
+					IncidentIDs: incidentIDs,
+					Channel:     "WhatsApp",
+					Recipient:   target.PhoneNumber, // Log with actual phone number
+					Status:      "delivered",
+					Timestamp:   time.Now(),
 				}
 				log.Printf("[Notifier] WhatsApp message delivered to %s", target.PhoneNumber)
 				for _, incID := range incidentIDs {
@@ -562,15 +563,31 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 				log.Printf("[Notifier] WhatsApp failed for %s: %v", target.PhoneNumber, err)
 				lastWAErr = err
 				p.logChan <- NotificationLog{
-					Channel:   "WhatsApp",
-					Recipient: target.PhoneNumber,
-					Status:    "failed",
-					Error:     err.Error(),
-					Timestamp: time.Now(),
+					IncidentIDs: incidentIDs,
+					Channel:     "WhatsApp",
+					Recipient:   target.PhoneNumber,
+					Status:      "failed",
+					Error:       err.Error(),
+					Timestamp:   time.Now(),
 				}
 				for _, incID := range incidentIDs {
 					p.writeEvent(incID, "channel_failed", "whatsapp", fmt.Sprintf("WhatsApp failed: %s", err.Error()))
 				}
+			}
+		}
+
+		if whatsAppSent {
+			tgRecipient := "@SanocBot"
+			if p.telegram != nil && p.telegram.chatID != "" {
+				tgRecipient = p.telegram.chatID
+			}
+			p.logChan <- NotificationLog{
+				IncidentIDs: incidentIDs,
+				Channel:     "Telegram",
+				Recipient:   tgRecipient,
+				Status:      "Skipped",
+				Error:       "Skipped — WhatsApp delivered successfully (no fallback needed)",
+				Timestamp:   time.Now(),
 			}
 		}
 	} else {
@@ -597,11 +614,12 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 			status = "failed"
 			errStr = err.Error()
 			p.logChan <- NotificationLog{
-				Channel:   "Telegram",
-				Recipient: p.telegram.chatID, // Use the configured Telegram chat ID for logging
-				Status:    status,
-				Error:     errStr,
-				Timestamp: time.Now(),
+				IncidentIDs: incidentIDs,
+				Channel:     "Telegram",
+				Recipient:   p.telegram.chatID, // Use the configured Telegram chat ID for logging
+				Status:      status,
+				Error:       errStr,
+				Timestamp:   time.Now(),
 			}
 			for _, incID := range incidentIDs {
 				p.writeEvent(incID, "channel_failed", "telegram", fmt.Sprintf("Telegram failed: %s", err.Error()))
@@ -609,10 +627,11 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 			return fmt.Errorf("whatsapp failed (%v) and telegram fallback failed (%v)", lastWAErr, err)
 		}
 		p.logChan <- NotificationLog{
-			Channel:   "Telegram",
-			Recipient: p.telegram.chatID,
-			Status:    status,
-			Timestamp: time.Now(),
+			IncidentIDs: incidentIDs,
+			Channel:     "Telegram",
+			Recipient:   p.telegram.chatID,
+			Status:      status,
+			Timestamp:   time.Now(),
 		}
 		for _, incID := range incidentIDs {
 			p.writeEvent(incID, "channel_delivered", "telegram", fmt.Sprintf("Telegram delivered successfully to channel %s", p.telegram.chatID))

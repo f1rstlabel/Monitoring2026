@@ -43,6 +43,12 @@ type DeviceRepository interface {
 	// Delete removes a device by ID.
 	Delete(id string) error
 
+	// BulkUpdate updates specified fields across multiple devices.
+	BulkUpdate(ids []string, updates domain.BulkDeviceUpdates) (int, error)
+
+	// BulkDelete removes multiple devices by ID.
+	BulkDelete(ids []string) (int, error)
+
 	// ExistsByMAC returns true if a device with this MAC already exists.
 	ExistsByMAC(mac string) (bool, error)
 }
@@ -64,6 +70,7 @@ type IncidentRepository interface {
 	CreateEvent(evt *domain.IncidentEvent) error
 	GetEventsByIncidentID(incidentID string) ([]domain.IncidentEvent, error)
 }
+
 
 
 // ─── User Log Repository ──────────────────────────────────────────────────────
@@ -115,7 +122,12 @@ type UserRepository interface {
 	UpdateUserProfile(id string, username string, name string, email string, avatarUrl string, newPasswordHash string) error
 	UpdateMFA(id string, enabled bool, secret string) error
 	DeactivateUser(id string) error
+	DeleteUser(id string) error
+	SaveEmailOTP(email, code, purpose string, expiresAt time.Time) error
+	VerifyEmailOTP(email, code, purpose string) (bool, error)
+	UpdateUserPasswordByEmail(email string, newPasswordHash string) error
 }
+
 
 // ─── Device Metric Repository ──────────────────────────────────────────────────
 
@@ -141,7 +153,11 @@ type LocationRepository interface {
 	GetByID(id string) (*domain.Location, error)
 	GetByName(name string) (*domain.Location, error)
 	Create(loc *domain.Location) (*domain.Location, error)
+	Update(id string, name string, description string) error
+	Delete(id string) error
+	GetDeviceCount(locationIDOrName string) (int, error)
 }
+
 
 // ─── Permission Repository ───────────────────────────────────────────────────
 

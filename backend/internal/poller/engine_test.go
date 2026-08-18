@@ -408,3 +408,118 @@ func TestConcurrentOutageSpam(t *testing.T) {
 	}
 }
 
+// ─── Test 11: Recovery Progression Timeline & Reset Test ───────────────────────
+func TestRecoveryConfirmationProgressionAndReset(t *testing.T) {
+	devID := "dev-rec-test-1"
+	dev := domain.Device{
+		ID:               devID,
+		Name:             "Core Switch Lt 2",
+		Type:             domain.AccessPoint,
+		IP:               "192.168.100.55",
+		Status:           domain.StatusDOWN,
+		FailureThreshold: 3,
+	}
+
+	deviceRepo := repository.NewMemoryDeviceRepository([]domain.Device{dev})
+	statusRepo := repository.NewMemoryStatusLogRepository()
+	incidentRepo := repository.NewMemoryIncidentRepository()
+	hub := ws.NewHub()
+	go hub.Run()
+
+	cfg := poller.DefaultConfig()
+	cfg.Thresholds[domain.AccessPoint] = 3
+
+	engine := poller.NewEngine(hub, deviceRepo, statusRepo, cfg)
+	engine.SetIncidentRepo(incidentRepo)
+
+	// Create an active incident for this down device
+	activeInc, err := incidentRepo.Create(&domain.Incident{
+		ID:         "INC-REC-101",
+		DeviceID:   devID,
+		Status:     "ACTIVE",
+		StartedAt:  time.Now().Add(-10 * time.Minute),
+		PacketLoss: 100,
+	})
+	if err != nil || activeInc == nil {
+		t.Fatalf("Failed to create test active incident: %v", err)
+	}
+
+	// 1. First recovery ping check (1/3)
+	engine.ProcessPollResultForTest(dev, dev.IP, true, 12)
+
+	// Verify device is STILL DOWN
+	d, _ := deviceRepo.GetByID(devID)
+	if d.Status != domain.StatusDOWN {
+		t.Fatalf("Expected device to remain DOWN after 1st recovery check, got %s", d.Status)
+	}
+
+	// Verify timeline event logged for check 1/3
+	evts, _ := incidentRepo.GetEventsByIncidentID(activeInc.ID)
+	if len(evts) != 1 || evts[0].EventType != "recovery_progress" {
+		t.Fatalf("Expected 1 recovery_progress event, got %v", evts)
+	}
+
+	// 2. Second recovery ping check (2/3)
+	engine.ProcessPollResultForTest(dev, dev.IP, true, 15)
+
+	// Verify device is STILL DOWN
+	d, _ = deviceRepo.GetByID(devID)
+	if d.Status != domain.StatusDOWN {
+		t.Fatalf("Expected device to remain DOWN after 2nd recovery check, got %s", d.Status)
+	}
+	evts, _ = incidentRepo.GetEventsByIncidentID(activeInc.ID)
+	if len(evts) != 2 {
+		t.Fatalf("Expected 2 recovery_progress events, got %d", len(evts))
+	}
+
+	// 3. Ping FAILS (intermittent flap mid-recovery!)
+	engine.ProcessPollResultForTest(dev, dev.IP, false, 0)
+
+	// Verify device is STILL DOWN, and recovery_reset event was recorded
+	d, _ = deviceRepo.GetByID(devID)
+	if d.Status != domain.StatusDOWN {
+		t.Fatalf("Expected device to remain DOWN after failed check, got %s", d.Status)
+	}
+	evts, _ = incidentRepo.GetEventsByIncidentID(activeInc.ID)
+	var hasResetEvt bool
+	for _, e := range evts {
+		if e.EventType == "recovery_reset" {
+			hasResetEvt = true
+			break
+		}
+	}
+	if !hasResetEvt {
+		t.Fatalf("Expected recovery_reset event in timeline after mid-recovery check failure")
+	}
+
+	// 4. Now do 3 consecutive successful checks (1/3, 2/3, 3/3)
+	engine.ProcessPollResultForTest(dev, dev.IP, true, 10)
+	engine.ProcessPollResultForTest(dev, dev.IP, true, 11)
+	engine.ProcessPollResultForTest(dev, dev.IP, true, 9)
+
+	// 5. Verify device has officially transitioned to UP!
+	d, _ = deviceRepo.GetByID(devID)
+	if d.Status != domain.StatusUP {
+		t.Fatalf("Expected device to transition to UP after 3 successful checks, got %s", d.Status)
+	}
+
+	// Verify active incident is now RESOLVED
+	resolvedInc, err := incidentRepo.GetByID(activeInc.ID)
+	if err != nil || resolvedInc.Status != "RESOLVED" {
+		t.Fatalf("Expected incident to be RESOLVED, got status %v", resolvedInc.Status)
+	}
+
+	// Verify timeline contains the final 'resolved' event
+	evts, _ = incidentRepo.GetEventsByIncidentID(activeInc.ID)
+	var hasResolvedEvt bool
+	for _, e := range evts {
+		if e.EventType == "resolved" {
+			hasResolvedEvt = true
+			break
+		}
+	}
+	if !hasResolvedEvt {
+		t.Fatalf("Expected resolved event in timeline after recovery threshold reached")
+	}
+}
+

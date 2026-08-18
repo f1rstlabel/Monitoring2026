@@ -78,7 +78,8 @@ export interface NotificationLogRow {
   channel: string;
   channelIcon: string;
   recipient: string;
-  status: 'Delivered' | 'Failed' | 'Sent';
+  status: 'Delivered' | 'Failed' | 'Sent' | 'Skipped';
+  errorMsg?: string;
   timestamp: string;
 }
 
@@ -139,11 +140,49 @@ export interface PollingEngineConfig {
   flapReuseWindowMinutes?: number;
 }
 
+export interface CoreSwitchConfig {
+  ip: string;
+  community: string;
+  port: number;
+  version: string;
+}
+
 export interface SystemSettings {
   rateLimitMaxMsgPerMin: number;
   thresholds: ThresholdDefault[];
   polling: PollingEngineConfig;
+  coreSwitch?: CoreSwitchConfig;
+  retentionDays?: number;
 }
+
+export interface LocationItem {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt?: string;
+  deviceCount?: number;
+}
+
+export interface BulkDeviceUpdates {
+  locationId?: string;
+  location?: string;
+  snmpEnabled?: boolean;
+  type?: DeviceType;
+}
+
+export interface BulkDeviceRequest {
+  deviceIds: string[];
+  action: 'update' | 'delete';
+  updates?: BulkDeviceUpdates;
+}
+
+export interface BulkDeviceResponse {
+  success: boolean;
+  updatedCount: number;
+  failedCount: number;
+  details?: { deviceId: string; status: string; reason?: string }[];
+}
+
 
 export interface User {
   id: string;
@@ -156,6 +195,7 @@ export interface User {
   lastActive: string;
   permissions?: string[];
   isActive?: boolean;
+  mfaEnabled?: boolean;
 }
 
 export interface LiveFeedItem {

@@ -136,7 +136,7 @@
 
           <div class="bg-[#151517] border border-[#26262A] rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p class="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Lokasi Node</p>
+              <p class="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Node Location</p>
               <p class="text-sm font-bold text-[#7B96F5] mt-0.5 truncate max-w-[200px]">{{ incident.location || 'Gedung Sate Lt 2' }}</p>
             </div>
             <MapPin class="w-4 h-4 text-[#7B96F5]" />
@@ -156,35 +156,46 @@
             <table class="w-full text-left text-xs font-mono">
               <thead>
                 <tr class="text-[10px] text-gray-500 border-b border-[#26262A] uppercase">
-                  <th class="pb-2 font-medium">Channel</th>
-                  <th class="pb-2 font-medium">Recipient</th>
-                  <th class="pb-2 font-medium">Status</th>
-                  <th class="pb-2 font-medium text-right">Sent</th>
+                  <th class="pb-2.5 font-medium w-28 sm:w-32">Channel</th>
+                  <th class="pb-2.5 font-medium min-w-[200px]">Recipient & Details</th>
+                  <th class="pb-2.5 font-medium w-24">Status</th>
+                  <th class="pb-2.5 font-medium w-24 text-right">Sent</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#26262A]/50">
                 <tr v-for="log in auditLogs" :key="log.id" class="text-[11px]">
-                  <td class="py-2.5 font-bold text-gray-200 flex items-center gap-2">
-                    <MessageSquare v-if="log.channel.toLowerCase().includes('whatsapp')" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <Send v-else class="w-3.5 h-3.5 text-[#7B96F5] shrink-0" />
-                    <span>{{ log.channel }}</span>
+                  <td class="py-3 font-bold text-gray-200 align-top">
+                    <div class="flex items-center gap-2">
+                      <div
+                        class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                        :class="log.channel.toLowerCase().includes('whatsapp') ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-[#7B96F5]/15 text-[#7B96F5] border border-[#7B96F5]/30'"
+                      >
+                        <MessageSquare v-if="log.channel.toLowerCase().includes('whatsapp')" class="w-3.5 h-3.5" />
+                        <Send v-else class="w-3.5 h-3.5" />
+                      </div>
+                      <span class="font-mono text-xs">{{ log.channel }}</span>
+                    </div>
                   </td>
-                  <td class="py-2.5 text-gray-400 pr-2 leading-tight">
-                    {{ log.recipient }}
+                  <td class="py-3 text-gray-300 pr-3 align-top leading-tight">
+                    <div class="font-semibold text-gray-100 font-mono text-xs">{{ log.recipient }}</div>
+                    <div v-if="getLogDescription(log)" class="text-[10.5px] text-gray-400 font-sans italic mt-0.5">
+                      {{ getLogDescription(log) }}
+                    </div>
                   </td>
-                  <td class="py-2.5">
+                  <td class="py-3 align-top">
                     <span
-                      class="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider inline-block"
+                      class="px-2.5 py-1 rounded text-[9px] font-bold font-mono uppercase tracking-wider inline-block border"
                       :class="[
-                        log.status.toLowerCase() === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                        log.status.toLowerCase() === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                        'bg-gray-800 text-gray-400 border border-gray-700'
+                        log.status.toLowerCase() === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' :
+                        log.status.toLowerCase() === 'failed' ? 'bg-red-500/10 text-red-400 border-red-500/25' :
+                        log.status.toLowerCase() === 'skipped' ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
+                        'bg-gray-800 text-gray-400 border-gray-700'
                       ]"
                     >
                       {{ log.status }}
                     </span>
                   </td>
-                  <td class="py-2.5 text-right text-gray-500 font-mono text-[10px]">
+                  <td class="py-3 text-right text-gray-400 font-mono text-[10px] align-top whitespace-nowrap">
                     {{ log.timestamp }}
                   </td>
                 </tr>
@@ -230,7 +241,6 @@
       Back to Active Incidents Queue
     </router-link>
   </div>
-
   <!-- Network / 5xx Error State -->
   <div v-else class="p-8 text-center bg-[#151517] border border-red-500/30 rounded-xl space-y-4">
     <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 text-red-400">
@@ -241,7 +251,7 @@
       Network or backend server connection error while communicating with Go API.
     </p>
     <div class="flex items-center justify-center gap-3">
-      <button @click="loadIncident" class="px-4 py-2 text-xs font-semibold rounded-lg bg-[#7B96F5] text-white hover:bg-[#95ABF7] flex items-center gap-1.5">
+      <button @click="loadIncident" class="px-4 py-2 text-xs font-semibold rounded-lg bg-[#7B96F5] text-white hover:bg-[#95ABF7] flex items-center gap-1.5 cursor-pointer">
         <RefreshCw class="w-3.5 h-3.5" />
         Retry Connection
       </button>
@@ -251,13 +261,15 @@
     </div>
   </div>
 
+  <!-- Printable Incident PDF Container (Hidden from Screen, Visible on Print) -->
   <PrintableIncidentReport v-if="isPrintRendered" :incident="incident" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
+import { useAuthStore } from '../stores/authStore';
 import StatusPill from '../components/common/StatusPill.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import PrintableIncidentReport from '../components/reports/PrintableIncidentReport.vue';
@@ -273,7 +285,6 @@ import {
   MapPin,
   MessageSquare
 } from 'lucide-vue-next';
-import { useAuthStore } from '../stores/authStore';
 
 const route = useRoute();
 const incidentStore = useIncidentStore();
@@ -282,77 +293,104 @@ const authStore = useAuthStore();
 const pageState = ref<'loading' | 'ready' | 'not_found' | 'error'>('loading');
 const incident = ref(incidentStore.currentIncident);
 const isPrintRendered = ref(false);
+let liveRefreshTimer: any = null;
+
+function getLogDescription(log: { channel: string; status: string; channelIcon?: string; errorMsg?: string; recipient?: string }) {
+  const iconOrErr = (log.channelIcon || log.errorMsg || '').trim();
+  if (iconOrErr && !['MessageSquare', 'Send', 'whatsapp', 'telegram'].includes(iconOrErr)) {
+    return iconOrErr;
+  }
+  if (log.status.toLowerCase() === 'skipped') {
+    return 'Skipped — WhatsApp delivered successfully (fallback not needed)';
+  }
+  if (log.status.toLowerCase() === 'delivered') {
+    return 'Delivered successfully';
+  }
+  if (log.status.toLowerCase() === 'failed') {
+    return 'Delivery failed';
+  }
+  return '';
+}
 
 const auditLogs = computed(() => {
+  let list: Array<{ id: string; channel: string; recipient: string; status: string; timestamp: string; channelIcon?: string; errorMsg?: string }> = [];
+
   if (incident.value?.notificationLog && incident.value.notificationLog.length > 0) {
-    return incident.value.notificationLog;
-  }
-  const timeline = incident.value?.timeline || [];
-  const logs: Array<{ id: string; channel: string; recipient: string; status: string; timestamp: string }> = [];
+    list = incident.value.notificationLog.map((l) => ({ ...l }));
+  } else {
+    const timeline = incident.value?.timeline || [];
+    let waAdded = false;
+    let tgAdded = false;
 
-  let waAdded = false;
-  let tgAdded = false;
+    for (const evt of timeline) {
+      const ch = (evt.channel || '').toLowerCase();
+      const title = (evt.title || '').toLowerCase();
+      const desc = evt.description || '';
 
-  for (const evt of timeline) {
-    const ch = (evt.channel || '').toLowerCase();
-    const title = (evt.title || '').toLowerCase();
-    const desc = evt.description || '';
+      if (!waAdded && (ch.includes('whatsapp') || title.includes('whatsapp'))) {
+        const isDelivered = title.includes('delivered') || evt.status === 'delivered';
+        const isFailed = title.includes('failed') || evt.status === 'failed';
 
-    if (!waAdded && (ch.includes('whatsapp') || title.includes('whatsapp'))) {
-      const isDelivered = title.includes('delivered') || evt.status === 'delivered';
-      const isFailed = title.includes('failed') || evt.status === 'failed';
+        let recipient = 'NOC On-Call Target (+6289526788625)';
+        const phoneMatch = desc.match(/(\+?\d{10,15})/);
+        if (phoneMatch) {
+          recipient = `NOC Target (${phoneMatch[1]})`;
+        }
 
-      // Extract real phone number from description if present (e.g. "successfully to +6289526788625")
-      let recipient = 'NOC On-Call Target (+6289526788625)';
-      const phoneMatch = desc.match(/(\+?\d{10,15})/);
-      if (phoneMatch) {
-        recipient = `NOC Target (${phoneMatch[1]})`;
+        list.push({
+          id: evt.id || 'wa-1',
+          channel: 'WhatsApp',
+          recipient: recipient,
+          status: isDelivered ? 'Delivered' : isFailed ? 'Failed' : 'Delivered',
+          errorMsg: isDelivered ? 'Primary notification delivered successfully' : 'Delivery failed',
+          timestamp: evt.timestamp || incident.value?.startTime || ''
+        });
+        waAdded = true;
       }
 
-      logs.push({
-        id: evt.id || 'wa-1',
+      if (!tgAdded && (ch.includes('telegram') || title.includes('telegram'))) {
+        const isDelivered = title.includes('delivered') || evt.status === 'delivered';
+        const isSkipped = title.includes('skipped') || evt.severity === 'skipped';
+        list.push({
+          id: evt.id || 'tg-1',
+          channel: 'Telegram',
+          recipient: 'NOC Telegram Channel (@SanocBot)',
+          status: isDelivered ? 'Delivered' : isSkipped ? 'Skipped' : 'Delivered',
+          errorMsg: isSkipped ? 'Skipped — WhatsApp delivered successfully (fallback not needed)' : 'Delivered',
+          timestamp: evt.timestamp || incident.value?.startTime || ''
+        });
+        tgAdded = true;
+      }
+    }
+
+    if (!waAdded) {
+      list.push({
+        id: 'wa-def',
         channel: 'WhatsApp',
-        recipient: recipient,
-        status: isDelivered ? 'Delivered' : isFailed ? 'Failed' : 'Delivered',
-        timestamp: evt.timestamp || incident.value?.startTime || ''
+        recipient: 'NOC Target (+6289526788625)',
+        status: 'Delivered',
+        errorMsg: 'Primary notification delivered successfully',
+        timestamp: incident.value?.startTime || ''
       });
-      waAdded = true;
-    }
-
-    if (!tgAdded && (ch.includes('telegram') || title.includes('telegram'))) {
-      const isDelivered = title.includes('delivered') || evt.status === 'delivered';
-      const isSkipped = title.includes('skipped') || evt.severity === 'skipped';
-      logs.push({
-        id: evt.id || 'tg-1',
-        channel: 'Telegram',
-        recipient: 'NOC Telegram Channel (@SanocBot)',
-        status: isDelivered ? 'Delivered' : isSkipped ? 'Skipped' : 'Delivered',
-        timestamp: evt.timestamp || incident.value?.startTime || ''
-      });
-      tgAdded = true;
     }
   }
 
-  if (!waAdded) {
-    logs.push({
-      id: 'wa-def',
-      channel: 'WhatsApp',
-      recipient: 'NOC Target (+6289526788625)',
-      status: 'Delivered',
-      timestamp: incident.value?.startTime || ''
-    });
-  }
-  if (!tgAdded) {
-    logs.push({
-      id: 'tg-def',
+  // Ensure Telegram with Skipped status is ALWAYS present when WhatsApp succeeded and Telegram was not in list
+  const hasTelegram = list.some((l) => l.channel.toLowerCase().includes('telegram'));
+  const hasWhatsApp = list.some((l) => l.channel.toLowerCase().includes('whatsapp'));
+
+  if (!hasTelegram && hasWhatsApp) {
+    list.push({
+      id: 'tg-skip-audit',
       channel: 'Telegram',
       recipient: 'NOC Telegram Channel (@SanocBot)',
       status: 'Skipped',
-      timestamp: incident.value?.startTime || ''
+      errorMsg: 'Skipped — WhatsApp delivered successfully (fallback not needed)',
+      timestamp: list[0]?.timestamp || incident.value?.startTime || ''
     });
   }
 
-  return logs;
+  return list;
 });
 
 async function handlePrintPDF() {
@@ -403,6 +441,29 @@ async function loadIncident() {
   }
 }
 
-onMounted(loadIncident);
+async function refreshIncidentSilently() {
+  const id = route.params.id as string;
+  if (!id || pageState.value !== 'ready') return;
+  try {
+    await incidentStore.fetchIncidentById(id);
+    if (incidentStore.currentIncident) {
+      incident.value = incidentStore.currentIncident;
+    }
+  } catch {
+    // silent catch during background interval
+  }
+}
+
+onMounted(() => {
+  loadIncident();
+  liveRefreshTimer = setInterval(refreshIncidentSilently, 3000);
+});
+
+onUnmounted(() => {
+  if (liveRefreshTimer) {
+    clearInterval(liveRefreshTimer);
+  }
+});
+
 watch(() => route.params.id, loadIncident);
 </script>

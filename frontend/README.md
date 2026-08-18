@@ -1,6 +1,6 @@
 # SANOC Frontend SPA (Vue 3 + TypeScript + Tailwind CSS)
 
-Aplikasi antarmuka pengguna (Single Page Application) untuk **SANOC (Smart Alert & Network Operation Center)** yang dibangun menggunakan Vue 3, Vite, TypeScript, Pinia, dan Tailwind CSS.
+Aplikasi antarmuka pengguna (Single Page Application) untuk **SANOC (Sanditel Network Operations Center)** yang dibangun menggunakan Vue 3, Vite, TypeScript, Pinia, dan Tailwind CSS.
 
 ---
 
@@ -13,7 +13,9 @@ Aplikasi antarmuka pengguna (Single Page Application) untuk **SANOC (Smart Alert
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide Vue Next
 - **HTTP Client**: Axios dengan Interceptor (CSRF & JWT token auto-attachment)
-- **Charts & Visualization**: Chart.js / Vue-Chartjs / ECharts
+- **Language**: English as Default System Language, Interactive Help Center with ID / EN dual language switcher.
+- **Charts & Visualization**: Chart.js / ECharts / SVG Gauges
+- **Export Engine**: Full-Width A4 Print Engine, Excel (`.xls`), CSV (`.csv`)
 
 ---
 

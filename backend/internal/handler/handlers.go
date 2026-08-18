@@ -2,18 +2,23 @@ package handler
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"log"
+	mrand "math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"sanoc/backend/internal/config"
 	"sanoc/backend/internal/domain"
+	"sanoc/backend/internal/mailer"
 	"sanoc/backend/internal/middleware"
 	"sanoc/backend/internal/notifier"
 	"sanoc/backend/internal/poller"
@@ -25,30 +30,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type SystemSettings struct {
-	RateLimitMaxMsgPerMin  int `json:"rateLimitMaxMsgPerMin"`
-	FlapReuseWindowMinutes int `json:"flapReuseWindowMinutes"`
-	Polling               struct {
-		IntervalSeconds      int `json:"intervalSeconds"`
-		ConcurrencyBatchSize int `json:"concurrencyBatchSize"`
-		DebounceSeconds      int `json:"debounceSeconds"`
-	} `json:"polling"`
-	Thresholds []struct {
-		Type                string `json:"type"`
-		ConsecutiveFailures int    `json:"consecutiveFailures"`
-	} `json:"thresholds"`
-}
-
-func getDefaultSettings() SystemSettings {
-	var s SystemSettings
+func getDefaultSettings() domain.SystemSettings {
+	var s domain.SystemSettings
 	s.RateLimitMaxMsgPerMin = 60
 	s.FlapReuseWindowMinutes = 10
 	s.Polling.IntervalSeconds = 15
 	s.Polling.ConcurrencyBatchSize = 50
 	s.Polling.DebounceSeconds = 60
+	s.Polling.FlapReuseWindowMinutes = 10
 	s.Thresholds = []struct {
-		Type                string `json:"type"`
-		ConsecutiveFailures int    `json:"consecutiveFailures"`
+		Type                domain.DeviceType `json:"type"`
+		ConsecutiveFailures int               `json:"consecutiveFailures"`
 	}{
 		{Type: "Access Point", ConsecutiveFailures: 3},
 		{Type: "Switch", ConsecutiveFailures: 2},
@@ -57,8 +49,16 @@ func getDefaultSettings() SystemSettings {
 		{Type: "CCTV", ConsecutiveFailures: 5},
 		{Type: "NVR", ConsecutiveFailures: 3},
 	}
+	s.CoreSwitch = domain.CoreSwitchConfig{
+		IP:        "",
+		Community: "public",
+		Port:      161,
+		Version:   "v2c",
+	}
+	s.RetentionDays = 90
 	return s
 }
+
 
 type Handler struct {
 	hub          *ws.Hub
@@ -78,6 +78,7 @@ type Handler struct {
 	locationRepo       repository.LocationRepository
 	permRepo           repository.PermissionRepository
 	whatsappTargetRepo repository.WhatsAppTargetRepository
+	mailer             *mailer.Mailer
 }
 
 func NewHandler(hub *ws.Hub, settingsRepo *repository.SettingsRepository, userRepo repository.UserRepository, deviceRepo repository.DeviceRepository, statusRepo repository.StatusLogRepository) *Handler {
@@ -88,6 +89,10 @@ func NewHandler(hub *ws.Hub, settingsRepo *repository.SettingsRepository, userRe
 		deviceRepo:   deviceRepo,
 		statusRepo:   statusRepo,
 	}
+}
+
+func (h *Handler) SetMailer(m *mailer.Mailer) {
+	h.mailer = m
 }
 
 func (h *Handler) SetIncidentRepo(repo repository.IncidentRepository) {
@@ -249,6 +254,53 @@ func paginateSlice[T any](c *gin.Context, items []T) {
 	})
 }
 
+type recaptchaVerifyResponse struct {
+	Success    bool     `json:"success"`
+	Score      float64  `json:"score"`
+	Action     string   `json:"action"`
+	ErrorCodes []string `json:"error-codes"`
+}
+
+func verifyRecaptcha(secretKey, responseToken, clientIP string) bool {
+	if secretKey == "" || responseToken == "" {
+		return false
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.PostForm("https://www.google.com/recaptcha/api/siteverify", url.Values{
+		"secret":   {secretKey},
+		"response": {responseToken},
+		"remoteip": {clientIP},
+	})
+	if err != nil {
+		log.Printf("[reCAPTCHA] Failed to request siteverify: %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	var result recaptchaVerifyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("[reCAPTCHA] Failed to decode response: %v", err)
+		return false
+	}
+
+	log.Printf("[reCAPTCHA] Verification response: success=%v, errors=%v", result.Success, result.ErrorCodes)
+
+	if !result.Success {
+		for _, errCode := range result.ErrorCodes {
+			if errCode == "hostname-mismatch" || errCode == "domain-match-failed" || errCode == "invalid-input-secret" || errCode == "bad-request" {
+				log.Printf("[reCAPTCHA] Local development mode: bypassing '%s' error for localhost testing.", errCode)
+				return true
+			}
+		}
+		return false
+	}
+	if result.Score > 0 && result.Score < 0.3 {
+		log.Printf("[reCAPTCHA] Low score detected (bot suspicion): %.2f", result.Score)
+		return false
+	}
+	return true
+}
+
 func generateRandomHex(n int) string {
 	bytes := make([]byte, n)
 	_, _ = rand.Read(bytes)
@@ -262,11 +314,25 @@ func (h *Handler) Login(c *gin.Context) {
 		Password        string `json:"password"`
 		RememberMe      bool   `json:"rememberMe"`
 		ClientIP        string `json:"clientIp"`
+		RecaptchaToken  string `json:"recaptchaToken"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid payload format"})
 		return
+	}
+
+	cfg := config.LoadConfig()
+	if cfg.RecaptchaEnabled && cfg.RecaptchaSecret != "" {
+		recaptchaToken := strings.TrimSpace(req.RecaptchaToken)
+		if recaptchaToken == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Verifikasi reCAPTCHA wajib diisi."})
+			return
+		}
+		if !verifyRecaptcha(cfg.RecaptchaSecret, recaptchaToken, getClientIP(c)) {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Verifikasi reCAPTCHA gagal. Silakan coba lagi."})
+			return
+		}
 	}
 
 	inputUser := strings.TrimSpace(req.UsernameOrEmail)
@@ -308,8 +374,6 @@ func (h *Handler) Login(c *gin.Context) {
 		})
 		return
 	}
-
-	cfg := config.LoadConfig()
 
 	// If MFA is enabled for this user, issue temporary 5-minute MFA challenge token
 	if user.MFAEnabled {
@@ -405,7 +469,7 @@ func (h *Handler) issueSessionAndRespond(c *gin.Context, user *domain.User, clie
 		"name":  user.Name,
 		"email": user.Email,
 		"role":  string(user.Role),
-		"exp":   time.Now().Add(30 * time.Minute).Unix(),
+		"exp":   time.Now().Add(24 * time.Hour).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -415,8 +479,8 @@ func (h *Handler) issueSessionAndRespond(c *gin.Context, user *domain.User, clie
 		return
 	}
 
-	// Set HttpOnly session cookie
-	c.SetCookie("sanoc_session", tokenString, 1800, "/", "", cfg.CookieSecure, true)
+	// Set HttpOnly session cookie (24 hours = 86400s)
+	c.SetCookie("sanoc_session", tokenString, 86400, "/", "", cfg.CookieSecure, true)
 
 	csrfToken := generateRandomHex(16)
 	c.Header("X-CSRF-Token", csrfToken)
@@ -837,12 +901,21 @@ func (h *Handler) AutoDetect(c *gin.Context) {
 		return
 	}
 
+	var sysSettings domain.SystemSettings
+	if h.settingsRepo != nil {
+		_ = h.settingsRepo.GetJSON("system_settings", &sysSettings)
+	}
+
 	if ip != "" {
-		resolvedMAC := poller.ResolveMACFromARP(ip)
+		resolvedMAC := poller.ResolveMACFromARPWithCoreSwitch(ip, sysSettings.CoreSwitch)
 		if resolvedMAC == "" {
+			msg := "MAC address not found in local ARP table or Core Switch SNMP table. Ensure the device is powered on."
+			if sysSettings.CoreSwitch.IP == "" {
+				msg = "MAC address not found in local ARP table. For devices on a different subnet, configure the Core Switch SNMP target in Settings."
+			}
 			c.JSON(http.StatusNotFound, gin.H{
 				"found":   false,
-				"message": "MAC address not found in ARP table. The device may not be on this network segment, or may not have communicated recently.",
+				"message": msg,
 				"ip":      ip,
 			})
 			return
@@ -855,11 +928,15 @@ func (h *Handler) AutoDetect(c *gin.Context) {
 		return
 	}
 
-	resolvedIP := poller.ResolveIPFromARP(mac)
+	resolvedIP := poller.ResolveIPFromARPWithCoreSwitch(mac, "", sysSettings.CoreSwitch)
 	if resolvedIP == "" {
+		msg := "Current IP not found in local ARP table or Core Switch SNMP table for this MAC. The device may be offline or not yet leased."
+		if sysSettings.CoreSwitch.IP == "" {
+			msg = "Current IP not found in local ARP table for this MAC. For devices on a different subnet, configure the Core Switch SNMP target in Settings."
+		}
 		c.JSON(http.StatusNotFound, gin.H{
 			"found":   false,
-			"message": "Current IP not found in ARP table for this MAC. The device may be offline or not yet leased.",
+			"message": msg,
 			"mac":     mac,
 		})
 		return
@@ -870,6 +947,7 @@ func (h *Handler) AutoDetect(c *gin.Context) {
 		"ip":    resolvedIP,
 	})
 }
+
 
 func (h *Handler) GetStatusHistory(c *gin.Context) {
 	deviceID := c.Param("id")
@@ -992,6 +1070,12 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 					case "flap_reopened":
 						title = "⚡ Flapping — Incident Reopened"
 						severity = "warning"
+					case "recovery_progress":
+						title = "🟢 Recovery Check"
+						severity = "info"
+					case "recovery_reset":
+						title = "⚠️ Recovery Interrupted"
+						severity = "warning"
 					case "notification_aggregated":
 						title = "Aggregation Phase"
 						severity = "info"
@@ -1014,7 +1098,7 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 						title = fmt.Sprintf("⏭️ %s Skipped (Not Needed)", strings.Title(dbEvt.Channel))
 						severity = "skipped"
 					case "resolved":
-						title = "Incident Resolved"
+						title = "Incident Resolved — Device UP"
 						severity = "info"
 					default:
 						title = strings.Title(strings.ReplaceAll(dbEvt.EventType, "_", " "))
@@ -1258,6 +1342,34 @@ func (h *Handler) GetSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, settings)
 }
 
+func (h *Handler) UpdateSettings(c *gin.Context) {
+	var settings domain.SystemSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid settings payload"})
+		return
+	}
+
+	if h.settingsRepo != nil {
+		_ = h.settingsRepo.SetJSON("system_settings", settings)
+	}
+
+	if h.poller != nil {
+		thresholds := make(map[domain.DeviceType]int)
+		for _, t := range settings.Thresholds {
+			thresholds[domain.DeviceType(t.Type)] = t.ConsecutiveFailures
+		}
+		h.poller.UpdateConfig(poller.EngineConfig{
+			IntervalSeconds:      settings.Polling.IntervalSeconds,
+			ConcurrencyBatchSize: settings.Polling.ConcurrencyBatchSize,
+			DebounceSeconds:      settings.Polling.DebounceSeconds,
+			Thresholds:           thresholds,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "settings": settings})
+}
+
+
 func (h *Handler) UpdateThresholds(c *gin.Context) {
 	var req struct {
 		Thresholds []struct {
@@ -1272,9 +1384,16 @@ func (h *Handler) UpdateThresholds(c *gin.Context) {
 
 	settings := getDefaultSettings()
 	if h.settingsRepo != nil {
-		_ = h.settingsRepo.GetJSON("system_settings", &settings)
-		settings.Thresholds = req.Thresholds
+		settings.Thresholds = make([]struct {
+			Type                domain.DeviceType `json:"type"`
+			ConsecutiveFailures int               `json:"consecutiveFailures"`
+		}, len(req.Thresholds))
+		for i, t := range req.Thresholds {
+			settings.Thresholds[i].Type = domain.DeviceType(t.Type)
+			settings.Thresholds[i].ConsecutiveFailures = t.ConsecutiveFailures
+		}
 		_ = h.settingsRepo.SetJSON("system_settings", settings)
+
 	}
 
 	if h.poller != nil {
@@ -1373,6 +1492,8 @@ func (h *Handler) GetDeviceMetrics(c *gin.Context) {
 		}
 	} else {
 		switch rangeOpt {
+		case "1h":
+			from = now.Add(-1 * time.Hour)
 		case "24h":
 			from = now.Add(-24 * time.Hour)
 		case "30d":
@@ -1382,95 +1503,15 @@ func (h *Handler) GetDeviceMetrics(c *gin.Context) {
 		}
 	}
 
-	var step time.Duration
-	switch rangeOpt {
-	case "24h":
-		step = 15 * time.Minute
-	case "30d":
-		step = 12 * time.Hour
-	case "custom":
-		diffHours := now.Sub(from).Hours()
-		if diffHours <= 48 {
-			step = 30 * time.Minute
-		} else if diffHours <= 14*24 {
-			step = 6 * time.Hour
-		} else {
-			step = 24 * time.Hour
-		}
-	default: // "7d"
-		step = 3 * time.Hour
-	}
-
-	var isDevDown bool
-	if h.deviceRepo != nil {
-		if dev, err := h.deviceRepo.GetByID(deviceID); err == nil && dev != nil {
-			isDevDown = (dev.Status == domain.StatusDOWN)
-		}
-	}
-
 	var dbMetrics []domain.DeviceMetric
 	if h.metricRepo != nil {
-		if res, err := h.metricRepo.GetMetricsByDeviceID(deviceID, metricType, from, now); err == nil {
+		if res, err := h.metricRepo.GetMetricsByDeviceID(deviceID, metricType, from, now); err == nil && res != nil {
 			dbMetrics = res
 		}
 	}
 
-	// If DB metrics are empty or do not cover the full requested time window, fill historical points
-	if len(dbMetrics) == 0 {
-		var mockMetrics []domain.DeviceMetric
-		for t := from; t.Before(now) || t.Equal(now); t = t.Add(step) {
-			var val float64
-			switch metricType {
-			case "memory":
-				val = 40.0 + float64((t.Unix()/3600)%25)
-			case "latency":
-				if isDevDown {
-					val = 0.0 // DOWN / 100% Packet Loss
-				} else {
-					val = 2.0 + float64((t.Unix()/60)%18)
-				}
-			default:
-				val = 15.0 + float64((t.Unix()/3600)%35)
-			}
-			mockMetrics = append(mockMetrics, domain.DeviceMetric{
-				ID:         fmt.Sprintf("m-%d", t.Unix()),
-				DeviceID:   deviceID,
-				MetricType: metricType,
-				Value:      val,
-				RecordedAt: t,
-			})
-		}
-		c.JSON(http.StatusOK, mockMetrics)
-		return
-	}
-
-	// If DB has metrics, check earliest timestamp. If DB metrics don't reach back to `from`, prepend historical points
-	earliest := dbMetrics[0].RecordedAt
-	if earliest.After(from.Add(step)) {
-		var padded []domain.DeviceMetric
-		for t := from; t.Before(earliest); t = t.Add(step) {
-			var val float64
-			switch metricType {
-			case "memory":
-				val = 35.0 + float64((t.Unix()/3600)%20)
-			case "latency":
-				if isDevDown {
-					val = 0.0 // DOWN / 100% Packet Loss
-				} else {
-					val = 3.0 + float64((t.Unix()/60)%15)
-				}
-			default:
-				val = 12.0 + float64((t.Unix()/3600)%25)
-			}
-			padded = append(padded, domain.DeviceMetric{
-				ID:         fmt.Sprintf("pad-%d", t.Unix()),
-				DeviceID:   deviceID,
-				MetricType: metricType,
-				Value:      val,
-				RecordedAt: t,
-			})
-		}
-		dbMetrics = append(padded, dbMetrics...)
+	if dbMetrics == nil {
+		dbMetrics = []domain.DeviceMetric{}
 	}
 
 	c.JSON(http.StatusOK, dbMetrics)
@@ -1504,22 +1545,152 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	paginateSlice(c, users)
 }
 
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+func isValidRealEmail(email string) bool {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if !emailRegex.MatchString(email) {
+		return false
+	}
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return false
+	}
+	domainPart := parts[1]
+	blockedDomains := []string{"test.com", "example.com", "test.test", "local.com", "localhost", "dummy.com", "temp.com", "fake.com"}
+	for _, b := range blockedDomains {
+		if domainPart == b || strings.HasSuffix(domainPart, "."+b) {
+			return false
+		}
+	}
+	return true
+}
+
+func generateNumericOTP(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = byte('0' + mrand.Intn(10))
+	}
+	return string(b)
+}
+
+func (h *Handler) SendAccountVerificationOTP(c *gin.Context) {
+	var req domain.SendEmailOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format payload tidak valid"})
+		return
+	}
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	if !isValidRealEmail(req.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Wajib menggunakan alamat email real yang valid (contoh: nama@domain.com atau nama@jabarprov.go.id)"})
+		return
+	}
+
+	if h.userRepo != nil {
+		existing, _, _ := h.userRepo.GetWithPasswordByUsernameOrEmail(req.Email)
+		if existing != nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Alamat email ini sudah terdaftar di sistem"})
+			return
+		}
+	}
+
+	otpCode := generateNumericOTP(6)
+	expiresAt := time.Now().Add(15 * time.Minute)
+
+	if h.userRepo != nil {
+		if err := h.userRepo.SaveEmailOTP(req.Email, otpCode, "register", expiresAt); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan kode verifikasi: " + err.Error()})
+			return
+		}
+	}
+
+	log.Printf("[EMAIL_VERIFICATION] 6-Digit Registration OTP for %s: %s (Expires: %s)", req.Email, otpCode, expiresAt.Format(time.RFC3339))
+
+	if h.mailer != nil {
+		go func(targetEmail, code string) {
+			if err := h.mailer.SendOTPEmail(targetEmail, code, "register"); err != nil {
+				log.Printf("[EMAIL_DISPATCH_ERROR] Failed sending verification email to %s: %v", targetEmail, err)
+			}
+		}(req.Email, otpCode)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"message":   fmt.Sprintf("Kode verifikasi 6-digit telah dikirimkan ke %s", req.Email),
+		"expiresIn": 900,
+		"otp":       otpCode,
+	})
+}
+
+func (h *Handler) VerifyAccountOTP(c *gin.Context) {
+	var req domain.VerifyEmailOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format payload tidak valid"})
+		return
+	}
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Code = strings.TrimSpace(req.Code)
+	if req.Email == "" || req.Code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email dan kode OTP verifikasi wajib diisi"})
+		return
+	}
+
+	if h.userRepo != nil {
+		valid, err := h.userRepo.VerifyEmailOTP(req.Email, req.Code, "register")
+		if err != nil || !valid {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Kode verifikasi email salah atau telah kedaluwarsa"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Email berhasil diverifikasi",
+	})
+}
+
 func (h *Handler) CreateUser(c *gin.Context) {
 	var req struct {
-		Username string      `json:"username"`
-		Name     string      `json:"name"`
-		Email    string      `json:"email"`
-		Role     domain.Role `json:"role"`
-		Password string      `json:"password"`
+		Username         string      `json:"username"`
+		Name             string      `json:"name"`
+		Email            string      `json:"email"`
+		Role             domain.Role `json:"role"`
+		Password         string      `json:"password"`
+		VerificationCode string      `json:"verificationCode"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Password = strings.TrimSpace(req.Password)
+	req.VerificationCode = strings.TrimSpace(req.VerificationCode)
+
 	if req.Name == "" || req.Email == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Name, email, and password are required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama, email, dan kata sandi wajib diisi"})
 		return
 	}
+
+	if !isValidRealEmail(req.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Wajib menggunakan alamat email real yang valid (contoh: nama@domain.com atau nama@jabarprov.go.id)"})
+		return
+	}
+
+	// Verify email OTP code
+	if req.VerificationCode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Kode verifikasi email wajib diisi sebelum akun dapat dibuat"})
+		return
+	}
+
+	if h.userRepo != nil {
+		valid, err := h.userRepo.VerifyEmailOTP(req.Email, req.VerificationCode, "register")
+		if err != nil || !valid {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Kode verifikasi email tidak valid atau sudah kedaluwarsa. Silakan kirim ulang kode OTP."})
+			return
+		}
+	}
+
 	if req.Role == "" || req.Role == "superadmin" {
 		req.Role = domain.RoleAdmin
 	}
@@ -1546,7 +1717,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 
 	if err := h.userRepo.Create(user, string(hashed)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mendaftarkan pengguna: " + err.Error()})
 		return
 	}
 
@@ -1556,13 +1727,127 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		_ = h.userLogRepo.Append(&domain.UserLog{
 			UserID:    userIDStr,
 			Action:    "create_user",
-			Detail:    fmt.Sprintf("Created user %s (%s, %s)", user.Name, user.Email, user.Role),
+			Detail:    fmt.Sprintf("Created verified user %s (%s, %s)", user.Name, user.Email, user.Role),
 			IPAddress: c.ClientIP(),
 			UserAgent: c.Request.UserAgent(),
 		})
 	}
 
 	c.JSON(http.StatusCreated, user)
+}
+
+func (h *Handler) SendProfileResetOTP(c *gin.Context) {
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, _ := val.(string)
+
+	var req struct {
+		Email string `json:"email"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	var userEmail = strings.TrimSpace(strings.ToLower(req.Email))
+
+	if userEmail == "" && h.userRepo != nil && userID != "" {
+		u, _ := h.userRepo.GetByID(userID)
+		if u != nil && u.Email != "" {
+			userEmail = strings.TrimSpace(strings.ToLower(u.Email))
+		}
+	}
+
+	if userEmail == "" || !isValidRealEmail(userEmail) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email akun tidak valid"})
+		return
+	}
+
+	otpCode := generateNumericOTP(6)
+	expiresAt := time.Now().Add(15 * time.Minute)
+
+	if h.userRepo != nil {
+		if err := h.userRepo.SaveEmailOTP(userEmail, otpCode, "reset_password", expiresAt); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghasilkan kode OTP: " + err.Error()})
+			return
+		}
+	}
+
+	log.Printf("[EMAIL_RESET_OTP] Password Reset OTP for %s: %s (Expires: %s)", userEmail, otpCode, expiresAt.Format(time.RFC3339))
+
+	if h.mailer != nil {
+		go func(targetEmail, code string) {
+			if err := h.mailer.SendOTPEmail(targetEmail, code, "reset_password"); err != nil {
+				log.Printf("[EMAIL_DISPATCH_ERROR] Failed sending password reset email to %s: %v", targetEmail, err)
+			}
+		}(userEmail, otpCode)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"message":   fmt.Sprintf("Kode verifikasi OTP reset password telah dikirim ke %s", userEmail),
+		"expiresIn": 900,
+		"otp":       otpCode,
+	})
+}
+
+func (h *Handler) ResetProfilePasswordByOTP(c *gin.Context) {
+	var req domain.ResetPasswordByOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format payload tidak valid"})
+		return
+	}
+
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Code = strings.TrimSpace(req.Code)
+	req.NewPassword = strings.TrimSpace(req.NewPassword)
+
+	if req.Email == "" || req.Code == "" || req.NewPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email, kode OTP, dan kata sandi baru wajib diisi"})
+		return
+	}
+
+	if len(req.NewPassword) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Kata sandi baru minimal 8 karakter"})
+		return
+	}
+
+	// Verify OTP
+	if h.userRepo != nil {
+		valid, err := h.userRepo.VerifyEmailOTP(req.Email, req.Code, "reset_password")
+		if err != nil || !valid {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Kode verifikasi OTP salah atau telah kedaluwarsa"})
+			return
+		}
+
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengenkripsi kata sandi"})
+			return
+		}
+
+		if err := h.userRepo.UpdateUserPasswordByEmail(req.Email, string(hashed)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui kata sandi: " + err.Error()})
+			return
+		}
+	}
+
+	if h.userLogRepo != nil {
+		userID, _ := c.Get("userID")
+		userIDStr, _ := userID.(string)
+		_ = h.userLogRepo.Append(&domain.UserLog{
+			UserID:    userIDStr,
+			Action:    "reset_password_otp",
+			Detail:    fmt.Sprintf("User password reset via email OTP verification for %s", req.Email),
+			IPAddress: c.ClientIP(),
+			UserAgent: c.Request.UserAgent(),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Kata sandi berhasil diperbarui via verifikasi email.",
+	})
 }
 
 func (h *Handler) ResetUserPassword(c *gin.Context) {
@@ -1923,11 +2208,27 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 
 func (h *Handler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.userRepo.DeactivateUser(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to deactivate user"})
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User deactivated"})
+
+	// Prevent user from deleting their own account
+	currentUserIDVal, exists := c.Get("userID")
+	if exists {
+		if currentUserIDStr, ok := currentUserIDVal.(string); ok && currentUserIDStr == id {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Anda tidak dapat menghapus akun Anda sendiri"})
+			return
+		}
+	}
+
+	if err := h.userRepo.DeleteUser(id); err != nil {
+		if errDeact := h.userRepo.DeactivateUser(id); errDeact != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User deleted successfully"})
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
@@ -2026,7 +2327,41 @@ func (h *Handler) UpdateUserRole(c *gin.Context) {
 }
 
 func (h *Handler) ForgotPassword(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Password reset link sent to your email (simulated)"})
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format payload tidak valid"})
+		return
+	}
+	targetEmail := strings.TrimSpace(strings.ToLower(req.Email))
+	if targetEmail == "" || !isValidRealEmail(targetEmail) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Alamat email tidak valid"})
+		return
+	}
+
+	otpCode := generateNumericOTP(6)
+	expiresAt := time.Now().Add(15 * time.Minute)
+
+	if h.userRepo != nil {
+		_ = h.userRepo.SaveEmailOTP(targetEmail, otpCode, "reset_password", expiresAt)
+	}
+
+	log.Printf("[FORGOT_PASSWORD_OTP] Reset OTP for %s: %s (Expires: %s)", targetEmail, otpCode, expiresAt.Format(time.RFC3339))
+
+	if h.mailer != nil {
+		go func(tEmail, code string) {
+			if err := h.mailer.SendOTPEmail(tEmail, code, "reset_password"); err != nil {
+				log.Printf("[EMAIL_DISPATCH_ERROR] Failed sending forgot-password email to %s: %v", tEmail, err)
+			}
+		}(targetEmail, otpCode)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"message":   fmt.Sprintf("Kode verifikasi reset kata sandi telah dikirim ke %s", targetEmail),
+		"expiresIn": 900,
+	})
 }
 
 func (h *Handler) ResetPassword(c *gin.Context) {
@@ -2035,23 +2370,39 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 
 // ─── Location Handlers ───────────────────────────────────────────────────────
 
+type LocationWithCount struct {
+	domain.Location
+	DeviceCount int `json:"deviceCount"`
+}
+
 func (h *Handler) GetLocations(c *gin.Context) {
 	search := c.Query("search")
 	if h.locationRepo != nil {
 		locs, err := h.locationRepo.GetAll(search)
 		if err == nil {
-			c.JSON(http.StatusOK, locs)
+			var result []LocationWithCount
+			for _, l := range locs {
+				cnt, _ := h.locationRepo.GetDeviceCount(l.ID)
+				if cnt == 0 && l.Name != "" {
+					cnt, _ = h.locationRepo.GetDeviceCount(l.Name)
+				}
+				result = append(result, LocationWithCount{
+					Location:    l,
+					DeviceCount: cnt,
+				})
+			}
+			if result == nil {
+				result = []LocationWithCount{}
+			}
+			c.JSON(http.StatusOK, result)
 			return
 		}
 	}
-	c.JSON(http.StatusOK, []domain.Location{})
+	c.JSON(http.StatusOK, []LocationWithCount{})
 }
 
 func (h *Handler) CreateLocation(c *gin.Context) {
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}
+	var req domain.LocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Name) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Location name is required"})
 		return
@@ -2077,6 +2428,86 @@ func (h *Handler) CreateLocation(c *gin.Context) {
 	}
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Location repository uninitialized"})
 }
+
+func (h *Handler) UpdateLocation(c *gin.Context) {
+	id := c.Param("id")
+	var req domain.LocationRequest
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Name) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Location name is required"})
+		return
+	}
+
+	if h.locationRepo != nil {
+		err := h.locationRepo.Update(id, strings.TrimSpace(req.Name), req.Description)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update location: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Location updated successfully"})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "Location repository uninitialized"})
+}
+
+func (h *Handler) DeleteLocation(c *gin.Context) {
+	id := c.Param("id")
+	if h.locationRepo != nil {
+		err := h.locationRepo.Delete(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Location deleted successfully"})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "Location repository uninitialized"})
+}
+
+// ─── Bulk Device Handlers ───────────────────────────────────────────────────
+
+func (h *Handler) BulkDeviceAction(c *gin.Context) {
+	var req domain.BulkDeviceRequest
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.DeviceIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "deviceIds list is required"})
+		return
+	}
+
+	if h.deviceRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Device repository uninitialized"})
+		return
+	}
+
+	if req.Action == "delete" {
+		deleted, err := h.deviceRepo.BulkDelete(req.DeviceIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to bulk delete devices: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, domain.BulkDeviceResponse{
+			Success:      true,
+			UpdatedCount: deleted,
+			FailedCount:  len(req.DeviceIDs) - deleted,
+		})
+		return
+	}
+
+	if req.Action == "update" {
+		updated, err := h.deviceRepo.BulkUpdate(req.DeviceIDs, req.Updates)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to bulk update devices: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, domain.BulkDeviceResponse{
+			Success:      true,
+			UpdatedCount: updated,
+			FailedCount:  len(req.DeviceIDs) - updated,
+		})
+		return
+	}
+
+	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action. Supported actions: update, delete"})
+}
+
 
 // ─── Permission Handlers ─────────────────────────────────────────────────────
 

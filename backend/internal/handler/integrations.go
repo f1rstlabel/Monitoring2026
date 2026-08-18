@@ -659,9 +659,8 @@ func (h *IntegrationsHandler) WhatsAppTest(c *gin.Context) {
 		return
 	}
 
-	var target *domain.WhatsAppTarget
 	if req.TargetID != "" {
-		target, err = h.whatsappTargetRepo.GetByID(req.TargetID)
+		target, err := h.whatsappTargetRepo.GetByID(req.TargetID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to retrieve target for test"})
 			return
@@ -670,51 +669,93 @@ func (h *IntegrationsHandler) WhatsAppTest(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Test target not found"})
 			return
 		}
-	} else {
-		// Fallback to first target if no specific ID provided, or error if none
-		targets, err := h.whatsappTargetRepo.GetAll()
-		if err != nil || len(targets) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No WhatsApp targets configured to send test message"})
+
+		msg := req.Message
+		if msg == "" {
+			linkedNum, _ := status["linkedNumber"].(string)
+			msg = fmt.Sprintf("🟢 *SANOC — WhatsApp Test*\n\nBaileys gateway is connected and operational.\nLinked Number: %s\nTarget: %s (%s)\nTime: %s", linkedNum, target.Label, target.PhoneNumber, time.Now().Format("15:04:05 WIB"))
+		} else {
+			msg = notifier.FormatForWhatsApp(msg)
+		}
+
+		sendResp, err := h.sidecar.post("/send", map[string]string{
+			"recipient": target.JID,
+			"message":   msg,
+		})
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"success": false,
+				"error":   "Failed to communicate with WhatsApp sidecar: " + err.Error(),
+			})
 			return
 		}
-		target = &targets[0] // Use the first target found
-	}
+		defer sendResp.Body.Close()
 
+		var sendResult map[string]interface{}
+		_ = json.NewDecoder(sendResp.Body).Decode(&sendResult)
 
-	msg := req.Message
-	if msg == "" {
-		linkedNum, _ := status["linkedNumber"].(string)
-		msg = fmt.Sprintf("🟢 *SANOC — WhatsApp Test*\n\nBaileys gateway is connected and operational.\nLinked Number: %s\nTarget: %s\nTime: %s", linkedNum, target.PhoneNumber, time.Now().Format("15:04:05 WIB"))
-	} else {
-		msg = notifier.FormatForWhatsApp(msg)
-	}
+		if sendResp.StatusCode != http.StatusOK {
+			errMsg, _ := sendResult["error"].(string)
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": errMsg})
+			return
+		}
 
-	sendResp, err := h.sidecar.post("/send", map[string]string{
-		"recipient": target.JID,
-		"message":   msg,
-	})
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   "Failed to communicate with WhatsApp sidecar: " + err.Error(),
+		c.JSON(http.StatusOK, gin.H{
+			"success":   true,
+			"message":   fmt.Sprintf("Test WhatsApp message sent to %s (%s)", target.Label, target.PhoneNumber),
+			"recipient": target.PhoneNumber,
 		})
 		return
 	}
-	defer sendResp.Body.Close()
 
-	var sendResult map[string]interface{}
-	_ = json.NewDecoder(sendResp.Body).Decode(&sendResult)
+	// Broadcast to ALL configured targets when clicking outer test button
+	targets, err := h.whatsappTargetRepo.GetAll()
+	if err != nil || len(targets) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "No WhatsApp targets configured to send test message"})
+		return
+	}
 
-	if sendResp.StatusCode != http.StatusOK {
-		errMsg, _ := sendResult["error"].(string)
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": errMsg})
+	linkedNum, _ := status["linkedNumber"].(string)
+	successCount := 0
+	var failedTargets []string
+
+	for _, t := range targets {
+		msg := req.Message
+		if msg == "" {
+			msg = fmt.Sprintf("🟢 *SANOC — WhatsApp Test Broadcast*\n\nBaileys gateway is connected and operational.\nLinked Number: %s\nTarget: %s (%s)\nTime: %s", linkedNum, t.Label, t.PhoneNumber, time.Now().Format("15:04:05 WIB"))
+		} else {
+			msg = notifier.FormatForWhatsApp(msg)
+		}
+
+		sendResp, err := h.sidecar.post("/send", map[string]string{
+			"recipient": t.JID,
+			"message":   msg,
+		})
+		if err == nil && sendResp.StatusCode == http.StatusOK {
+			successCount++
+			sendResp.Body.Close()
+		} else {
+			if sendResp != nil {
+				sendResp.Body.Close()
+			}
+			failedTargets = append(failedTargets, fmt.Sprintf("%s (%s)", t.Label, t.PhoneNumber))
+		}
+	}
+
+	if successCount == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to deliver test message to all %d configured target(s)", len(targets)),
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":   true,
-		"message":   fmt.Sprintf("Test WhatsApp message sent to %s", target.PhoneNumber),
-		"recipient": target.PhoneNumber,
+		"success":      true,
+		"message":      fmt.Sprintf("Test notification broadcasted to %d/%d WhatsApp target(s)", successCount, len(targets)),
+		"total":        len(targets),
+		"successCount": successCount,
+		"failed":       failedTargets,
 	})
 }
 

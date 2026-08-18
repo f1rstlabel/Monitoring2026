@@ -18,8 +18,16 @@ export const useSettingStore = defineStore('settings', () => {
       intervalSeconds: 15,
       concurrencyBatchSize: 50,
       flapReuseWindowMinutes: 10
-    }
+    },
+    coreSwitch: {
+      ip: '',
+      community: 'public',
+      port: 161,
+      version: 'v2c'
+    },
+    retentionDays: 90
   });
+
 
   const users = ref<User[]>([
     { id: 'u-1', name: 'Budi Santoso', email: 'budi.santoso@jabarprov.go.id', role: 'admin', status: 'Active', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256', lastActive: 'Active Now' },
@@ -33,13 +41,20 @@ export const useSettingStore = defineStore('settings', () => {
     isLoading.value = true;
     try {
       const res = await settingsApi.getSettings();
-      if (res) settings.value = res;
+      if (res) {
+        settings.value = {
+          ...res,
+          coreSwitch: res.coreSwitch || { ip: '', community: 'public', port: 161, version: 'v2c' },
+          retentionDays: res.retentionDays || 90
+        };
+      }
     } catch (e) {
       // offline default
     } finally {
       isLoading.value = false;
     }
   }
+
 
   async function fetchUsers() {
     isLoading.value = true;
@@ -91,6 +106,7 @@ export const useSettingStore = defineStore('settings', () => {
     }
   }
 
+
   async function inviteUser(name: string, email: string, role: string) {
     const newUser: User = {
       id: `u-${Date.now()}`,
@@ -110,15 +126,25 @@ export const useSettingStore = defineStore('settings', () => {
     return newUser;
   }
 
-  async function saveSettings() {
+  async function deleteUser(id: string) {
+    users.value = users.value.filter(u => u.id !== id);
     try {
-      await settingsApi.updateThresholds(settings.value.thresholds);
-      await settingsApi.updatePolling(settings.value.polling);
-      await settingsApi.updateRateLimit(settings.value.rateLimitMaxMsgPerMin);
+      await usersApi.deleteUser(id);
     } catch (e) {
       // offline
     }
   }
+
+  async function saveSettings() {
+    try {
+      await settingsApi.updateAllSettings(settings.value);
+    } catch (e) {
+      await settingsApi.updateThresholds(settings.value.thresholds);
+      await settingsApi.updatePolling(settings.value.polling);
+      await settingsApi.updateRateLimit(settings.value.rateLimitMaxMsgPerMin);
+    }
+  }
+
 
   return {
     settings,
@@ -130,6 +156,7 @@ export const useSettingStore = defineStore('settings', () => {
     updateThreshold,
     updatePolling,
     updateRateLimit,
-    inviteUser
+    inviteUser,
+    deleteUser
   };
 });

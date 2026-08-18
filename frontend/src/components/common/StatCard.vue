@@ -1,11 +1,12 @@
 <template>
   <div 
-    class="rounded-xl border p-5 transition-all duration-200"
+    class="rounded-xl border p-5 transition-all duration-150"
     :class="[
       isAlert 
-        ? 'bg-red-950/20 border-red-500/40 text-red-200 shadow-lg shadow-red-500/5' 
-        : 'bg-[#151517] border-[#26262A] hover:border-[#3A3A40]'
+        ? (clickable ? 'bg-red-950/20 border-red-500/40 text-red-200 shadow-lg shadow-red-500/5 hover:border-red-500/70 hover:bg-red-950/30 cursor-pointer hover:scale-[1.01]' : 'bg-red-950/20 border-red-500/40 text-red-200 shadow-lg shadow-red-500/5') 
+        : (clickable ? 'bg-[#151517] border-[#26262A] hover:border-[#7B96F5]/50 hover:bg-[#1A1A1E] hover:shadow-lg hover:shadow-[#7B96F5]/5 cursor-pointer hover:scale-[1.01]' : 'bg-[#151517] border-[#26262A]')
     ]"
+    @click="clickable && $emit('click')"
   >
     <div class="flex items-start justify-between">
       <div>
@@ -59,5 +60,10 @@ defineProps<{
   changeType?: 'increase-good' | 'increase-bad' | 'warning';
   subtitle?: string;
   isAlert?: boolean;
+  clickable?: boolean;
+}>();
+
+defineEmits<{
+  (e: 'click'): void;
 }>();
 </script>

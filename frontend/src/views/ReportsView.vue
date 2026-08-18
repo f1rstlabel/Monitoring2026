@@ -3,8 +3,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
       <div>
-        <h1 class="text-xl font-extrabold text-white tracking-tight">Downtime &amp; Infrastructure Reports</h1>
-        <p class="text-xs text-gray-400 mt-1">Exportable SLA performance audits and recurring issue tracking for Biro Umum</p>
+        <h1 class="text-xl font-extrabold text-white tracking-tight">Availability & SLA Reports</h1>
+        <p class="text-xs text-gray-400 mt-1">Network performance analysis, device uptime metrics, MTTR, and downtime distribution</p>
       </div>
 
       <div class="flex items-center gap-3">
@@ -12,28 +12,28 @@
         <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5">
           <button
             @click="setPeriod('daily')"
-            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
             :class="reportStore.period === 'daily' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
           >
-            Harian (24h)
+            Today
           </button>
           <button
             @click="setPeriod('weekly')"
-            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
             :class="reportStore.period === 'weekly' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
           >
-            Mingguan (7d)
+            Last 7 Days
           </button>
           <button
             @click="setPeriod('monthly')"
-            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
             :class="reportStore.period === 'monthly' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
           >
-            Bulanan (30d)
+            Last 30 Days
           </button>
           <button
             @click="setPeriod('custom')"
-            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+            class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
             :class="reportStore.period === 'custom' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
           >
             Custom Range
@@ -59,7 +59,7 @@
             class="absolute right-0 mt-1.5 w-52 bg-[#1A1A1E] border border-[#26262A] rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
           >
             <div class="px-3 py-1.5 border-b border-[#26262A]/60 font-mono text-[10px] uppercase font-bold text-gray-400">
-              Pilih Format Export
+              Select Export Format
             </div>
             <button
               @click="reportStore.exportData('xls', activeTab, incidentStore.incidents)"
@@ -68,7 +68,7 @@
               <FileSpreadsheet class="w-4 h-4 text-emerald-400 shrink-0" />
               <div>
                 <div class="font-bold">Excel Spreadsheet (.xls)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Format tabel Excel terstruktur</div>
+                <div class="text-[10px] text-gray-400 font-sans">Structured Excel workbook</div>
               </div>
             </button>
             <button
@@ -78,7 +78,7 @@
               <FileText class="w-4 h-4 text-sky-400 shrink-0" />
               <div>
                 <div class="font-bold">CSV File (.csv)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Dokumen CSV standar UTF-8</div>
+                <div class="text-[10px] text-gray-400 font-sans">Standard UTF-8 CSV document</div>
               </div>
             </button>
           </div>
@@ -419,6 +419,10 @@ import SkeletonTable from '../components/common/SkeletonTable.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import { FileText, Printer, Calendar, ChevronDown, FileSpreadsheet } from 'lucide-vue-next';
 
+const reportStore = useReportStore();
+const incidentStore = useIncidentStore();
+const authStore = useAuthStore();
+
 const showExportDropdown = ref(false);
 const activeTab = ref<'downtime' | 'recurring' | 'active_incidents'>('downtime');
 
@@ -430,10 +434,6 @@ const recurringPageSize = ref(10);
 
 const incidentsPage = ref(1);
 const incidentsPageSize = ref(10);
-
-const reportStore = useReportStore();
-const incidentStore = useIncidentStore();
-const authStore = useAuthStore();
 
 const paginatedDowntimeRows = computed(() => {
   const start = (downtimePage.value - 1) * downtimePageSize.value;

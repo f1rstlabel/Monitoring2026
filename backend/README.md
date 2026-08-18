@@ -1,6 +1,6 @@
 # SANOC Backend Service (Golang)
 
-Backend service untuk aplikasi **SANOC (Smart Alert & Network Operation Center)** yang dibangun menggunakan bahasa pemrograman Go (Golang 1.22+) dengan framework Gin, PostgreSQL, Redis, dan Asynq task queue.
+Backend service untuk aplikasi **SANOC (Sanditel Network Operations Center)** yang dibangun menggunakan bahasa pemrograman Go (Golang 1.22+) dengan framework Gin, PostgreSQL, Redis, Asynq task queue, ICMP/SNMP Polling engine, dan Gmail Global SMTP Gateway.
 
 ---
 
@@ -11,7 +11,8 @@ Backend service untuk aplikasi **SANOC (Smart Alert & Network Operation Center)*
 - **Database**: PostgreSQL (Driver: `lib/pq` / `sql`)
 - **Caching & Rate Limiting**: Redis
 - **Background Worker**: Asynq (Go Distributed Task Queue)
-- **Authentication**: JWT (JSON Web Tokens), HttpOnly Secure Cookies, RFC 6238 TOTP (2FA/MFA)
+- **SMTP Gateway**: Gmail Global SMTP (`smtp.gmail.com:587`) & Local Mailpit support
+- **Authentication**: JWT (JSON Web Tokens), HttpOnly Secure Cookies, RFC 6238 TOTP (2FA/MFA), Real Email OTP Verification
 - **Security Protections**: Rate Limiting per IP, Security Headers, CSRF Token Verification, MIME Detection File Upload Validation.
 
 ---
@@ -26,10 +27,12 @@ backend/
 ├── internal/
 │   ├── config/               # Struct & pemuat konfigurasi (.env)
 │   ├── domain/               # Struct model data (User, Device, Incident, dll)
-│   ├── handler/              # HTTP Request Handlers (Auth, Devices, Incidents, Reports, TOTP)
+│   ├── handler/              # HTTP Request Handlers (Auth, Devices, Incidents, Reports, Integrations, Users)
+│   ├── mailer/               # SMTP Mailer Service (OTP Email Verification & Password Reset)
 │   ├── middleware/           # Security, Auth JWT, CSRF, Rate Limiter, & Logging
-│   ├── repository/           # Interface & implementasi PostgreSQL (pg_repo.go)
-│   └── service/              # ICMP Engine Poller & Asynq Notification Dispatcher
+│   ├── notifier/             # Asynq Task Queue Dispatcher & Formatter
+│   ├── poller/               # ICMP Ping & SNMP Core Switch Polling Engine
+│   └── repository/           # Interface & implementasi PostgreSQL (pg_repo.go)
 ├── migrations/               # File migrasi SQL (golang-migrate)
 └── wa-sidecar/               # Node.js Baileys WhatsApp Gateway Sidecar
 ```

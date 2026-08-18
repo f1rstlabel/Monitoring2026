@@ -189,11 +189,13 @@ const featureGroups: FeatureGroup[] = [
   {
     category: 'Settings & Administration',
     features: [
-      { key: 'settings.notifications', label: 'Manage Alert Gateways', description: 'Configure WhatsApp & Telegram' },
-      { key: 'settings.polling', label: 'Configure Engine Polling', description: 'Update interval, batch size & debounce' },
-      { key: 'settings.thresholds', label: 'Manage Failure Thresholds', description: 'Update consecutive failure rules' },
-      { key: 'settings.users', label: 'Manage Users & Roles', description: 'Direct user management & role updates' },
-      { key: 'settings.permissions', label: 'Access Control Matrix', description: 'Configure per-role permissions' }
+      { key: 'settings.notifications', label: 'Gateways & Alerts', description: 'Configure WhatsApp, Telegram & rate limits' },
+      { key: 'settings.polling', label: 'Engine & Thresholds', description: 'Configure ICMP interval, debounce & failure rules' },
+      { key: 'settings.network', label: 'Core Switch & SNMP', description: 'Configure cross-subnet L3 ARP SNMP target' },
+      { key: 'settings.retention', label: 'Retention Policy', description: 'Configure incident archiving & housekeeping' },
+      { key: 'settings.locations', label: 'Location Management', description: 'Add, edit and delete site locations' },
+      { key: 'settings.users', label: 'Users & Roles', description: 'Manage accounts, passwords and privileges' },
+      { key: 'settings.audit', label: 'Audit Logs & RBAC', description: 'View system audit logs and permission matrix' }
     ]
   }
 ];
@@ -222,9 +224,11 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'reports.export': true,
     'settings.notifications': false,
     'settings.polling': false,
-    'settings.thresholds': false,
+    'settings.network': false,
+    'settings.retention': false,
+    'settings.locations': false,
     'settings.users': false,
-    'settings.permissions': false
+    'settings.audit': false
   },
   anggota: {
     'devices.view': true,
@@ -237,9 +241,11 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'reports.export': true,
     'settings.notifications': false,
     'settings.polling': false,
-    'settings.thresholds': false,
+    'settings.network': false,
+    'settings.retention': false,
+    'settings.locations': false,
     'settings.users': false,
-    'settings.permissions': false
+    'settings.audit': false
   }
 });
 

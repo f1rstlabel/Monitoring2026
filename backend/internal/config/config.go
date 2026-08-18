@@ -35,10 +35,22 @@ type Config struct {
 
 	TelegramBotToken string
 	TelegramChatID   string
+
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
 }
 
 func LoadConfig() *Config {
-	_ = godotenv.Load(".env")
+	envPaths := []string{".env", "backend/.env", "../.env", "../../.env"}
+	for _, p := range envPaths {
+		if _, err := os.Stat(p); err == nil {
+			_ = godotenv.Overload(p)
+			break
+		}
+	}
 
 	cookieSecure := getEnv("COOKIE_SECURE", "false") == "true"
 	recaptchaEnabled := getEnv("RECAPTCHA_ENABLED", "false") == "true"
@@ -75,6 +87,12 @@ func LoadConfig() *Config {
 
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:   getEnv("TELEGRAM_CHAT_ID", ""),
+
+		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:     getEnv("SMTP_PORT", "587"),
+		SMTPUser:     getEnv("SMTP_USER", ""),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:     getEnv("SMTP_FROM", "SANOC Jabar Monitoring <noreply@jabarprov.go.id>"),
 	}
 }
 

@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase font-mono border"
+    class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-wide uppercase font-mono border"
     :class="[
       status === 'UP'
         ? 'bg-[#3ECF8E]/10 text-[#3ECF8E] border-[#3ECF8E]/30'
@@ -8,7 +8,7 @@
     ]"
   >
     <span
-      class="w-1.5 h-1.5 rounded-full"
+      class="w-1 h-1 rounded-full"
       :class="status === 'UP' ? 'bg-[#3ECF8E]' : 'bg-[#F16565]'"
     ></span>
     {{ status }}
