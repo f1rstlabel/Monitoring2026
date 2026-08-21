@@ -1,6 +1,6 @@
 # SANOC Frontend SPA (Vue 3 + TypeScript + Tailwind CSS)
 
-Aplikasi antarmuka pengguna (Single Page Application) untuk **SANOC (Sanditel Network Operations Center)** yang dibangun menggunakan Vue 3, Vite, TypeScript, Pinia, dan Tailwind CSS.
+Aplikasi antarmuka pengguna (Single Page Application) untuk **SANOC (Smart Agent and Network Operations Center)** yang dibangun menggunakan Vue 3, Vite, TypeScript, Pinia, dan Tailwind CSS.
 
 ---
 
