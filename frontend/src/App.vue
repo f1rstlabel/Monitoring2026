@@ -16,6 +16,9 @@
       <main class="p-6 flex-1 bg-[var(--bg-main)]">
         <router-view />
       </main>
+
+      <!-- AI Copilot Floating Drawer -->
+      <AICopilotDrawer />
     </div>
   </div>
 </template>
@@ -25,6 +28,7 @@ import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import Sidebar from './components/common/Sidebar.vue';
 import Topbar from './components/common/Topbar.vue';
+import AICopilotDrawer from './components/ai/AICopilotDrawer.vue';
 import { useLiveStore } from './stores/liveStore';
 import { useThemeStore } from './stores/themeStore';
 import { useSettingStore } from './stores/settingStore';
