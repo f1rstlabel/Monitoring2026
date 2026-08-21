@@ -292,102 +292,136 @@
     </div>
 
     <!-- Tab 2: Recurring Issues -->
-    <div v-if="activeTab === 'recurring'" class="space-y-4">
-      <SkeletonTable v-if="reportStore.isLoading" :rows="2" :cols="5" />
-      <template v-else>
-        <RecurringIssuesTable :devices="paginatedFlapDevices" />
-        <PaginationControl
-          v-model:current-page="recurringPage"
-          v-model:page-size="recurringPageSize"
-          :total="reportStore.flapDevices.length"
+    <div v-if="activeTab === 'recurring'" class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+      <!-- Recurring Table (2/3 width) -->
+      <div class="xl:col-span-2 space-y-4">
+        <SkeletonTable v-if="reportStore.isLoading" :rows="2" :cols="5" />
+        <template v-else>
+          <RecurringIssuesTable :devices="paginatedFlapDevices" />
+          <PaginationControl
+            v-model:current-page="recurringPage"
+            v-model:page-size="recurringPageSize"
+            :total="reportStore.flapDevices.length"
+          />
+        </template>
+      </div>
+
+      <!-- Recurring Flap Chart (1/3 width) -->
+      <div class="xl:col-span-1">
+        <template v-if="reportStore.isLoading">
+          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-3">
+            <Skeleton height="0.75rem" width="60%" />
+            <Skeleton v-for="i in 5" :key="i" height="1.25rem" :width="`${85 - i * 10}%`" />
+          </div>
+        </template>
+        <RecurringBarChart
+          v-else
+          :devices="reportStore.flapDevices"
         />
-      </template>
+      </div>
     </div>
 
     <!-- Tab 3: Active Incidents -->
-    <div v-if="activeTab === 'active_incidents'" class="space-y-4">
-      <SkeletonTable v-if="reportStore.isLoading" :rows="4" :cols="8" />
-      <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden">
-        <div class="px-5 py-3.5 border-b border-[#26262A] flex items-center justify-between">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300 font-mono">Active Incidents Report Table</h3>
-          <span class="text-[10px] text-gray-500 font-mono">Real-time incident ticket queue</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs text-gray-300">
-            <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-500 border-b border-[#26262A]">
-              <tr>
-                <th class="py-3 px-4">Ticket ID</th>
-                <th class="py-3 px-4">Device Name</th>
-                <th class="py-3 px-4">Type</th>
-                <th class="py-3 px-4">IP Address</th>
-                <th class="py-3 px-4">Duration</th>
-                <th class="py-3 px-4 text-center">Affected</th>
-                <th class="py-3 px-4">Status</th>
-                <th class="py-3 px-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[#26262A]">
-              <tr v-if="incidentStore.isLoading || reportStore.isLoading">
-                <td colspan="8" class="p-0 border-0">
-                  <SkeletonTable :rows="5" :cols="8" />
-                </td>
-              </tr>
-              <template v-else-if="paginatedIncidents.length > 0">
-                <tr
-                  v-for="inc in paginatedIncidents"
-                  :key="inc.id"
-                class="hover:bg-[#18181B] transition-colors"
-              >
-                <td class="py-3 px-4 font-mono font-bold text-[#7B96F5]">{{ inc.id }}</td>
-                <td class="py-3 px-4">
-                  <div>
-                    <p class="font-bold text-white">{{ inc.deviceName }}</p>
-                    <p class="text-[10px] text-gray-500 font-mono">{{ inc.location }}</p>
-                  </div>
-                </td>
-                <td class="py-3 px-4 text-gray-400">{{ inc.deviceType }}</td>
-                <td class="py-3 px-4 font-mono text-gray-400">{{ inc.deviceIp }}</td>
-                <td class="py-3 px-4 font-mono font-semibold" :class="inc.status === 'ACTIVE' ? 'text-red-400' : 'text-gray-400'">
-                  {{ formatLiveDuration(inc.startedAt, inc.status, inc.duration) }}
-                </td>
-                <td class="py-3 px-4 text-center font-mono">
-                  <span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 font-bold">
-                    {{ inc.affectedDevicesCount }}
-                  </span>
-                </td>
-                <td class="py-3 px-4">
-                  <span
-                    class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold"
-                    :class="inc.status === 'ACTIVE' ? 'bg-[#F16565]/10 text-[#F16565] border border-[#F16565]/20' : 'bg-[#3ECF8E]/10 text-[#3ECF8E] border border-[#3ECF8E]/20'"
+    <div v-if="activeTab === 'active_incidents'" class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+      <!-- Active Incidents Table (2/3 width) -->
+      <div class="xl:col-span-2 space-y-4">
+        <SkeletonTable v-if="reportStore.isLoading" :rows="4" :cols="8" />
+        <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-[#26262A] flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300 font-mono">Active Incidents Report Table</h3>
+            <span class="text-[10px] text-gray-500 font-mono">Real-time incident ticket queue</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-500 border-b border-[#26262A]">
+                <tr>
+                  <th class="py-3 px-4">Ticket ID</th>
+                  <th class="py-3 px-4">Device Name</th>
+                  <th class="py-3 px-4">Type</th>
+                  <th class="py-3 px-4">IP Address</th>
+                  <th class="py-3 px-4">Duration</th>
+                  <th class="py-3 px-4 text-center">Affected</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#26262A]">
+                <tr v-if="incidentStore.isLoading || reportStore.isLoading">
+                  <td colspan="8" class="p-0 border-0">
+                    <SkeletonTable :rows="5" :cols="8" />
+                  </td>
+                </tr>
+                <template v-else-if="paginatedIncidents.length > 0">
+                  <tr
+                    v-for="inc in paginatedIncidents"
+                    :key="inc.id"
+                    class="hover:bg-[#18181B] transition-colors"
                   >
-                    {{ inc.status }}
-                  </span>
-                </td>
-                <td class="py-3 px-4 text-right">
-                  <router-link
-                    :to="`/incidents/${inc.id}`"
-                    class="px-2.5 py-1 rounded-lg bg-[#26262A] hover:bg-[#323236] text-xs font-semibold text-gray-200 transition-colors inline-block"
-                  >
-                    View Details
-                  </router-link>
-                </td>
-              </tr>
-              </template>
-              <tr v-else-if="incidentStore.incidents.length === 0">
-                <td colspan="8" class="py-10 text-center text-gray-600 text-xs">
-                  No active or recent incidents reported
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                    <td class="py-3 px-4 font-mono font-bold text-[#7B96F5]">{{ inc.id }}</td>
+                    <td class="py-3 px-4">
+                      <div>
+                        <p class="font-bold text-white">{{ inc.deviceName }}</p>
+                        <p class="text-[10px] text-gray-500 font-mono">{{ inc.location }}</p>
+                      </div>
+                    </td>
+                    <td class="py-3 px-4 text-gray-400">{{ inc.deviceType }}</td>
+                    <td class="py-3 px-4 font-mono text-gray-400">{{ inc.deviceIp }}</td>
+                    <td class="py-3 px-4 font-mono font-semibold" :class="inc.status === 'ACTIVE' ? 'text-red-400' : 'text-gray-400'">
+                      {{ formatLiveDuration(inc.startedAt, inc.status, inc.duration) }}
+                    </td>
+                    <td class="py-3 px-4 text-center font-mono">
+                      <span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 font-bold">
+                        {{ inc.affectedDevicesCount }}
+                      </span>
+                    </td>
+                    <td class="py-3 px-4">
+                      <span
+                        class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold"
+                        :class="inc.status === 'ACTIVE' ? 'bg-[#F16565]/10 text-[#F16565] border border-[#F16565]/20' : 'bg-[#3ECF8E]/10 text-[#3ECF8E] border border-[#3ECF8E]/20'"
+                      >
+                        {{ inc.status }}
+                      </span>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                      <router-link
+                        :to="`/incidents/${inc.id}`"
+                        class="px-2.5 py-1 rounded-lg bg-[#26262A] hover:bg-[#323236] text-xs font-semibold text-gray-200 transition-colors inline-block"
+                      >
+                        View Details
+                      </router-link>
+                    </td>
+                  </tr>
+                </template>
+                <tr v-else-if="incidentStore.incidents.length === 0">
+                  <td colspan="8" class="py-10 text-center text-gray-600 text-xs">
+                    No active or recent incidents reported
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        <PaginationControl
+          v-model:current-page="incidentsPage"
+          v-model:page-size="incidentsPageSize"
+          :total="incidentStore.incidents.length"
+        />
       </div>
 
-      <PaginationControl
-        v-model:current-page="incidentsPage"
-        v-model:page-size="incidentsPageSize"
-        :total="incidentStore.incidents.length"
-      />
+      <!-- Active Incidents Chart (1/3 width) -->
+      <div class="xl:col-span-1">
+        <template v-if="reportStore.isLoading">
+          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-3">
+            <Skeleton height="0.75rem" width="60%" />
+            <Skeleton v-for="i in 4" :key="i" height="1.25rem" :width="`${85 - i * 10}%`" />
+          </div>
+        </template>
+        <ActiveIncidentsChart
+          v-else
+          :incidents="incidentStore.incidents"
+        />
+      </div>
     </div>
 
     <PrintableSLAAudit
@@ -411,6 +445,8 @@ import { useReportStore } from '../stores/reportStore';
 import { useIncidentStore } from '../stores/incidentStore';
 import { useAuthStore } from '../stores/authStore';
 import DowntimeBarChart from '../components/reports/DowntimeBarChart.vue';
+import RecurringBarChart from '../components/reports/RecurringBarChart.vue';
+import ActiveIncidentsChart from '../components/reports/ActiveIncidentsChart.vue';
 import RecurringIssuesTable from '../components/reports/RecurringIssuesTable.vue';
 import PrintableSLAAudit from '../components/reports/PrintableSLAAudit.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
