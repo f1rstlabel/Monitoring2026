@@ -240,3 +240,23 @@ export const diagnosticsApi = {
   }
 };
 
+export const aiApi = {
+  getStatus: async (): Promise<{ configured: boolean; model: string; provider: string }> => {
+    const res = await api.get('/ai/status');
+    return res.data;
+  },
+  getQuickPrompts: async (): Promise<{ prompts: string[] }> => {
+    const res = await api.get('/ai/quick-prompts');
+    return res.data;
+  },
+  chat: async (prompt: string, history: Array<{ role: string; content: string }>): Promise<{ reply: string; timestamp: string; model: string }> => {
+    const res = await api.post('/ai/chat', { prompt, history });
+    return res.data;
+  },
+  analyzeIncident: async (incidentId: string): Promise<{ incidentId: string; analysis: string; timestamp: string }> => {
+    const res = await api.post(`/ai/analyze-incident/${incidentId}`);
+    return res.data;
+  }
+};
+
+

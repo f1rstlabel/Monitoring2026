@@ -29,6 +29,16 @@
 
       <!-- Action Buttons — role-gated via v-if: pimpinan sees neither -->
       <div class="flex items-center gap-3">
+        <!-- AI RCA Analysis Button -->
+        <button
+          @click="aiStore.analyzeIncident(incident.id)"
+          class="px-3.5 py-2 rounded-lg bg-gradient-to-r from-[#7B96F5]/15 to-[#3ECF8E]/15 border border-[#7B96F5]/40 hover:border-[#7B96F5] text-white font-medium text-xs transition-all flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/10 cursor-pointer"
+          title="Run AI Root Cause Analysis & Remediation Guide"
+        >
+          <Sparkles class="w-4 h-4 text-[#7B96F5]" />
+          <span>Analisis AI</span>
+        </button>
+
         <!-- Export Structured PDF / Print -->
         <button
           @click="handlePrintPDF"
@@ -270,6 +280,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import { useAuthStore } from '../stores/authStore';
+import { useAIStore } from '../stores/aiStore';
 import StatusPill from '../components/common/StatusPill.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import PrintableIncidentReport from '../components/reports/PrintableIncidentReport.vue';
@@ -283,12 +294,14 @@ import {
   RefreshCw,
   Printer,
   MapPin,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-vue-next';
 
 const route = useRoute();
 const incidentStore = useIncidentStore();
 const authStore = useAuthStore();
+const aiStore = useAIStore();
 
 const pageState = ref<'loading' | 'ready' | 'not_found' | 'error'>('loading');
 const incident = ref(incidentStore.currentIncident);
