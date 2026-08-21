@@ -13,7 +13,7 @@
       <div class="flex items-center gap-2.5">
         <!-- Bulk Mode Toggle -->
         <button
-          v-if="authStore.canEditDevice"
+          v-if="authStore.canBulkManageDevices"
           @click="toggleBulkMode"
           class="px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer"
           :class="isBulkMode ? 'bg-[#7B96F5]/15 border-[#7B96F5]/40 text-[#7B96F5] shadow-sm shadow-[#7B96F5]/20' : 'border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-gray-300 hover:text-white'"
@@ -331,9 +331,9 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-[#26262A]">
-          <template v-if="deviceStore.devices.length > 0">
+          <template v-if="paginatedFlatDevices.length > 0">
             <tr
-              v-for="device in deviceStore.devices"
+              v-for="device in paginatedFlatDevices"
               :key="device.id"
               class="hover:bg-[#18181B] transition-colors group cursor-pointer"
               :class="{
@@ -389,6 +389,13 @@
               <td class="py-3 px-4 text-right" @click.stop>
                 <div class="flex items-center justify-end gap-1">
                   <button
+                    @click.stop="openDiagnosticsForDevice(device)"
+                    class="p-1.5 rounded-lg text-gray-400 hover:text-[#3ECF8E] hover:bg-[#3ECF8E]/10 cursor-pointer transition-colors"
+                    title="Run Ping / Diagnostics"
+                  >
+                    <Terminal class="w-3.5 h-3.5" />
+                  </button>
+                  <button
                     v-if="authStore.canEditDevice"
                     @click.stop="openEditDevice(device)"
                     class="p-1.5 rounded-lg text-gray-400 hover:text-[#7B96F5] hover:bg-[#7B96F5]/10 cursor-pointer"
@@ -433,187 +440,388 @@
     <!-- Floating Bulk Actions Bar (Visible when items selected in Bulk Mode) -->
     <div
       v-if="isBulkMode && selectedDeviceIds.length > 0"
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#151517] border border-[#7B96F5]/50 shadow-2xl rounded-2xl px-5 py-3.5 flex items-center gap-4 z-40 animate-fadeIn"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#151517] border border-[#7B96F5]/50 shadow-2xl rounded-2xl px-5 py-3.5 flex items-center gap-3.5 z-40 animate-fadeIn"
     >
-      <div class="flex items-center gap-2 border-r border-[#26262A] pr-4">
+      <div class="flex items-center gap-2 border-r border-[#26262A] pr-3.5">
         <span class="w-6 h-6 rounded-full bg-[#7B96F5] text-white font-mono text-xs font-bold flex items-center justify-center shadow-sm shadow-[#7B96F5]/30">
           {{ selectedDeviceIds.length }}
         </span>
-        <span class="text-xs font-bold text-white font-mono">Devices Selected</span>
+        <span class="text-xs font-bold text-white font-mono hidden sm:inline">Perangkat Dipilih</span>
       </div>
 
       <div class="flex items-center gap-2">
         <button
+          type="button"
           @click="isBulkDrawerOpen = true"
-          class="px-4 py-2 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#7B96F5]/25 transition-all cursor-pointer"
+          class="px-4 py-2 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#7B96F5]/25 transition-all cursor-pointer font-mono"
         >
           <Sliders class="w-3.5 h-3.5" />
-          <span>Open Bulk Actions Drawer &rarr;</span>
+          <span>Kelola Massal (Bulk Edit) &rarr;</span>
+        </button>
+
+        <button
+          type="button"
+          @click="triggerBulkPoll"
+          :disabled="isExecutingBulk"
+          class="px-3 py-2 rounded-xl bg-[#3ECF8E]/15 hover:bg-[#3ECF8E]/25 border border-[#3ECF8E]/30 text-[#3ECF8E] text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer font-mono"
+          title="Instant ICMP Ping"
+        >
+          <RefreshCw class="w-3.5 h-3.5" :class="isExecutingBulk && bulkActionType === 'poll' ? 'animate-spin' : ''" />
+          <span class="hidden md:inline">Ping Massal</span>
+        </button>
+
+        <button
+          v-if="authStore.canDeleteDevice"
+          type="button"
+          @click="isBulkDeleteConfirmModalOpen = true"
+          :disabled="isExecutingBulk"
+          class="px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer font-mono"
+          title="Hapus Massal"
+        >
+          <Trash2 class="w-3.5 h-3.5" />
+          <span class="hidden md:inline">Hapus</span>
         </button>
       </div>
 
       <button
+        type="button"
         @click="selectedDeviceIds = []"
         class="text-gray-400 hover:text-white p-1 rounded-lg border-l border-[#26262A] pl-3 text-xs font-mono cursor-pointer"
         title="Deselect All"
       >
-        Deselect All
+        Batal Pilih
       </button>
     </div>
 
     <!-- Slide-Over Right Drawer for Bulk Configuration -->
     <div v-if="isBulkDrawerOpen" class="fixed inset-0 z-50 overflow-hidden animate-fadeIn">
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/70 backdrop-blur-xs transition-opacity" @click="isBulkDrawerOpen = false"></div>
+      <div class="absolute inset-0 bg-black/75 backdrop-blur-xs transition-opacity" @click="handleCloseBulkDrawer"></div>
 
       <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div class="w-screen max-w-md bg-[#151517] border-l border-[#26262A] shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
+        <div class="w-screen max-w-lg bg-[#151517] border-l border-[#26262A] shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
           <!-- Drawer Header & Content -->
           <div class="space-y-5">
+            <!-- Header -->
             <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
               <div class="flex items-center gap-2.5">
                 <div class="w-9 h-9 rounded-xl bg-[#7B96F5]/15 border border-[#7B96F5]/30 flex items-center justify-center text-[#7B96F5]">
                   <Sliders class="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 class="text-sm font-bold text-white font-mono">BULK CONFIGURATION</h2>
-                  <p class="text-xs text-gray-400 font-mono">{{ selectedDeviceIds.length }} devices selected</p>
+                  <h2 class="text-sm font-bold text-white font-mono uppercase tracking-wide">BULK CONFIGURATION</h2>
+                  <p class="text-xs text-gray-400 font-mono">{{ selectedDeviceIds.length }} perangkat dipilih untuk diubah massal</p>
                 </div>
               </div>
-              <button @click="isBulkDrawerOpen = false" class="text-gray-400 hover:text-white p-1 rounded-lg cursor-pointer">
+              <button @click="handleCloseBulkDrawer" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-[#26262A] cursor-pointer transition-colors">
                 <X class="w-5 h-5" />
               </button>
             </div>
 
-            <!-- Selected Devices Chips Preview -->
+            <!-- Selected Devices Chips Preview with Quick Deselect Chip -->
             <div class="space-y-2">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-mono uppercase text-gray-400 font-bold">Selected Devices:</span>
+                <span class="text-[10px] font-mono uppercase text-gray-400 font-bold">Daftar Perangkat Terpilih:</span>
                 <span class="text-[10px] font-mono text-[#7B96F5]">{{ selectedDevicesList.length }} items</span>
               </div>
-              <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2.5 bg-[#18181B] border border-[#26262A] rounded-xl">
+              <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2.5 bg-[#18181B] border border-[#26262A] rounded-xl">
                 <span
-                  v-for="d in selectedDevicesList.slice(0, 8)"
+                  v-for="d in selectedDevicesList.slice(0, 10)"
                   :key="d.id"
-                  class="px-2 py-0.5 rounded-lg bg-[#26262A] border border-[#333338] text-[10px] font-mono text-gray-200"
+                  class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#26262A] border border-[#333338] text-[10px] font-mono text-gray-200 group"
                 >
-                  {{ d.name }}
+                  <span class="truncate max-w-[120px]">{{ d.name }}</span>
+                  <button
+                    type="button"
+                    @click="removeSelectedDevice(d.id)"
+                    class="text-gray-400 hover:text-red-400 cursor-pointer opacity-70 group-hover:opacity-100"
+                    title="Keluarkan dari batch"
+                  >
+                    <X class="w-3 h-3" />
+                  </button>
                 </span>
-                <span v-if="selectedDevicesList.length > 8" class="px-2 py-0.5 rounded-lg bg-[#7B96F5]/20 text-[#7B96F5] text-[10px] font-mono font-bold">
-                  +{{ selectedDevicesList.length - 8 }} more
+                <span v-if="selectedDevicesList.length > 10" class="px-2 py-0.5 rounded-lg bg-[#7B96F5]/20 text-[#7B96F5] text-[10px] font-mono font-bold">
+                  +{{ selectedDevicesList.length - 10 }} lainnya
                 </span>
               </div>
             </div>
 
-            <!-- Form Section 1: Pindah Lokasi Massal -->
-            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3">
-              <div class="flex items-center justify-between">
-                <h3 class="text-xs font-bold text-white font-mono flex items-center gap-1.5">
-                  <MapPin class="w-3.5 h-3.5 text-[#7B96F5]" />
-                  Relocate Location / Site
-                </h3>
-              </div>
-              <select
-                v-model="bulkLocationValue"
-                class="w-full bg-[#151517] border border-[#26262A] rounded-xl px-3 py-2 text-gray-200 text-xs font-mono focus:outline-none focus:border-[#7B96F5]"
-              >
-                <option value="" disabled>Select Target Location</option>
-                <option v-for="loc in availableLocations" :key="loc" :value="loc">{{ loc }}</option>
-              </select>
-              <button
-                @click="applyBulkLocation"
-                :disabled="!bulkLocationValue || isExecutingBulk"
-                class="w-full py-2 rounded-xl bg-[#7B96F5]/15 hover:bg-[#7B96F5]/25 border border-[#7B96F5]/30 text-[#7B96F5] text-xs font-bold font-mono transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>{{ isExecutingBulk && bulkActionType === 'location' ? 'Saving...' : 'Apply Location Changes' }}</span>
-              </button>
+            <!-- Validation Error Banner -->
+            <div v-if="bulkFormError" class="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-400 text-xs font-mono">
+              <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{{ bulkFormError }}</span>
             </div>
 
-            <!-- Form Section 2: Ubah Kategori / Tipe Perangkat -->
-            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3">
+            <!-- SECTION 1: Kategori & Mode Pengalamatan -->
+            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3.5 shadow-sm">
               <div class="flex items-center justify-between">
-                <h3 class="text-xs font-bold text-white font-mono flex items-center gap-1.5">
-                  <Sliders class="w-3.5 h-3.5 text-[#7B96F5]" />
-                  Change Device Type / Category
-                </h3>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    v-model="bulkForm.enableType"
+                    class="w-4 h-4 rounded bg-[#151517] border-[#333338] text-[#7B96F5] accent-[#7B96F5] cursor-pointer"
+                  />
+                  <span class="text-xs font-bold font-mono text-white flex items-center gap-1.5">
+                    <Layers class="w-3.5 h-3.5 text-[#7B96F5]" />
+                    Ubah Tipe / Kategori
+                  </span>
+                </label>
+                <span v-if="bulkForm.enableType" class="text-[9px] font-mono uppercase bg-[#7B96F5]/20 text-[#7B96F5] px-1.5 py-0.5 rounded font-bold">Aktif</span>
               </div>
-              <select
-                v-model="bulkTypeValue"
-                class="w-full bg-[#151517] border border-[#26262A] rounded-xl px-3 py-2 text-gray-200 text-xs font-mono focus:outline-none focus:border-[#7B96F5]"
-              >
-                <option value="Access Point">Access Point</option>
-                <option value="Switch">Switch</option>
-                <option value="Router">Router</option>
-                <option value="SmartPower">SmartPower</option>
-                <option value="CCTV">CCTV</option>
-                <option value="NVR">NVR</option>
-              </select>
-              <button
-                @click="applyBulkType"
-                :disabled="isExecutingBulk"
-                class="w-full py-2 rounded-xl bg-[#7B96F5]/15 hover:bg-[#7B96F5]/25 border border-[#7B96F5]/30 text-[#7B96F5] text-xs font-bold font-mono transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>{{ isExecutingBulk && bulkActionType === 'type' ? 'Saving...' : 'Apply New Type' }}</span>
-              </button>
+
+              <div v-if="bulkForm.enableType" class="pl-6 space-y-2 pt-1 border-t border-[#26262A]/60">
+                <select
+                  v-model="bulkForm.type"
+                  class="w-full bg-[#151517] border border-[#26262A] rounded-xl px-3 py-2 text-gray-200 text-xs font-mono focus:outline-none focus:border-[#7B96F5]"
+                >
+                  <option value="Access Point">Access Point</option>
+                  <option value="Switch">Switch</option>
+                  <option value="Router">Router</option>
+                  <option value="SmartPower">SmartPower</option>
+                  <option value="CCTV">CCTV</option>
+                  <option value="NVR">NVR</option>
+                </select>
+              </div>
+
+              <div class="border-t border-[#26262A]/60 pt-3">
+                <div class="flex items-center justify-between">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      v-model="bulkForm.enableAddressingMode"
+                      class="w-4 h-4 rounded bg-[#151517] border-[#333338] text-[#7B96F5] accent-[#7B96F5] cursor-pointer"
+                    />
+                    <span class="text-xs font-bold font-mono text-white flex items-center gap-1.5">
+                      <Radio class="w-3.5 h-3.5 text-[#7B96F5]" />
+                      Ubah Mode Pengalamatan
+                    </span>
+                  </label>
+                  <span v-if="bulkForm.enableAddressingMode" class="text-[9px] font-mono uppercase bg-[#7B96F5]/20 text-[#7B96F5] px-1.5 py-0.5 rounded font-bold">Aktif</span>
+                </div>
+
+                <div v-if="bulkForm.enableAddressingMode" class="pl-6 pt-2 flex items-center gap-6 text-xs text-gray-300">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" v-model="bulkForm.addressingMode" value="Static" class="accent-[#7B96F5]" />
+                    <span>Static IP</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" v-model="bulkForm.addressingMode" value="DHCP" class="accent-[#7B96F5]" />
+                    <span>DHCP Reservation</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
-            <!-- Form Section 3: Force Immediate ICMP Poll -->
-            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3">
+            <!-- SECTION 2: Penempatan Lokasi & Rak -->
+            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3.5 shadow-sm">
               <div class="flex items-center justify-between">
-                <h3 class="text-xs font-bold text-white font-mono flex items-center gap-1.5">
-                  <Activity class="w-3.5 h-3.5 text-[#3ECF8E]" />
-                  Trigger Instant Polling
-                </h3>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    v-model="bulkForm.enableLocation"
+                    class="w-4 h-4 rounded bg-[#151517] border-[#333338] text-[#7B96F5] accent-[#7B96F5] cursor-pointer"
+                  />
+                  <span class="text-xs font-bold font-mono text-white flex items-center gap-1.5">
+                    <MapPin class="w-3.5 h-3.5 text-[#7B96F5]" />
+                    Relokasi Lokasi / Site
+                  </span>
+                </label>
+                <span v-if="bulkForm.enableLocation" class="text-[9px] font-mono uppercase bg-[#7B96F5]/20 text-[#7B96F5] px-1.5 py-0.5 rounded font-bold">Aktif</span>
               </div>
-              <p class="text-[11px] text-gray-400 font-mono">
-                Send instant ICMP ping probes to {{ selectedDeviceIds.length }} selected devices.
-              </p>
-              <button
-                @click="triggerBulkPoll"
-                :disabled="isExecutingBulk"
-                class="w-full py-2 rounded-xl bg-[#3ECF8E]/15 hover:bg-[#3ECF8E]/25 border border-[#3ECF8E]/30 text-[#3ECF8E] text-xs font-bold font-mono transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <RefreshCw class="w-3.5 h-3.5" :class="isExecutingBulk && bulkActionType === 'poll' ? 'animate-spin' : ''" />
-                <span>{{ isExecutingBulk && bulkActionType === 'poll' ? 'Pinging...' : 'Poll Selected Devices' }}</span>
-              </button>
+
+              <div v-if="bulkForm.enableLocation" class="pl-6 space-y-2 pt-1 border-t border-[#26262A]/60">
+                <LocationCombobox
+                  v-model="bulkForm.location"
+                  v-model:locationId="bulkForm.locationId"
+                />
+              </div>
+
+              <div class="border-t border-[#26262A]/60 pt-3">
+                <div class="flex items-center justify-between">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      v-model="bulkForm.enableRack"
+                      class="w-4 h-4 rounded bg-[#151517] border-[#333338] text-[#7B96F5] accent-[#7B96F5] cursor-pointer"
+                    />
+                    <span class="text-xs font-bold font-mono text-white flex items-center gap-1.5">
+                      <Server class="w-3.5 h-3.5 text-[#7B96F5]" />
+                      Ubah Posisi Rak (Rack)
+                    </span>
+                  </label>
+                  <span v-if="bulkForm.enableRack" class="text-[9px] font-mono uppercase bg-[#7B96F5]/20 text-[#7B96F5] px-1.5 py-0.5 rounded font-bold">Aktif</span>
+                </div>
+
+                <div v-if="bulkForm.enableRack" class="pl-6 pt-2">
+                  <input
+                    v-model="bulkForm.rack"
+                    type="text"
+                    placeholder="e.g. Rack B-04 (atau kosongkan jika tanpa rak)"
+                    class="w-full bg-[#151517] border border-[#26262A] rounded-xl px-3 py-2 text-gray-200 text-xs font-mono focus:outline-none focus:border-[#7B96F5]"
+                  />
+                </div>
+              </div>
             </div>
 
-            <!-- Form Section 4: Hapus Massal -->
-            <div v-if="authStore.canDeleteDevice" class="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl space-y-3">
-              <div class="flex items-center justify-between text-red-400">
-                <h3 class="text-xs font-bold font-mono flex items-center gap-1.5">
+            <!-- SECTION 3: Konfigurasi SNMP Polling -->
+            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3.5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    v-model="bulkForm.enableSNMP"
+                    class="w-4 h-4 rounded bg-[#151517] border-[#333338] text-[#7B96F5] accent-[#7B96F5] cursor-pointer"
+                  />
+                  <span class="text-xs font-bold font-mono text-white flex items-center gap-1.5">
+                    <Cpu class="w-3.5 h-3.5 text-[#7B96F5]" />
+                    Konfigurasi SNMP Polling
+                  </span>
+                </label>
+                <span v-if="bulkForm.enableSNMP" class="text-[9px] font-mono uppercase bg-[#7B96F5]/20 text-[#7B96F5] px-1.5 py-0.5 rounded font-bold">Aktif</span>
+              </div>
+
+              <div v-if="bulkForm.enableSNMP" class="pl-6 space-y-3 pt-1 border-t border-[#26262A]/60">
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-xs text-gray-300 font-mono">SNMP Query Status</span>
+                  <button
+                    type="button"
+                    @click="bulkForm.snmpEnabled = !bulkForm.snmpEnabled"
+                    class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                    :class="bulkForm.snmpEnabled ? 'bg-[#7B96F5]' : 'bg-[#26262A]'"
+                  >
+                    <span
+                      class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                      :class="bulkForm.snmpEnabled ? 'translate-x-4' : 'translate-x-0'"
+                    />
+                  </button>
+                </div>
+
+                <div v-if="bulkForm.snmpEnabled" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div class="space-y-1">
+                    <label class="block font-mono uppercase text-[10px] text-gray-400">Community String</label>
+                    <input
+                      v-model="bulkForm.snmpCommunity"
+                      type="text"
+                      placeholder="public"
+                      class="w-full bg-[#151517] border border-[#26262A] rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#7B96F5]"
+                    />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="block font-mono uppercase text-[10px] text-gray-400">Port (Default 161)</label>
+                    <input
+                      v-model.number="bulkForm.snmpPort"
+                      type="number"
+                      min="1"
+                      max="65535"
+                      class="w-full bg-[#151517] border border-[#26262A] rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#7B96F5]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 4: Toleransi Alarm / Failure Threshold Override -->
+            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3.5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    v-model="bulkForm.enableThreshold"
+                    class="w-4 h-4 rounded bg-[#151517] border-[#333338] text-[#7B96F5] accent-[#7B96F5] cursor-pointer"
+                  />
+                  <span class="text-xs font-bold font-mono text-white flex items-center gap-1.5">
+                    <Sliders class="w-3.5 h-3.5 text-[#7B96F5]" />
+                    Ambang Batas Alarm (Failure Threshold)
+                  </span>
+                </label>
+                <span v-if="bulkForm.enableThreshold" class="text-[9px] font-mono uppercase bg-[#7B96F5]/20 text-[#7B96F5] px-1.5 py-0.5 rounded font-bold">Aktif</span>
+              </div>
+
+              <div v-if="bulkForm.enableThreshold" class="pl-6 space-y-3 pt-1 border-t border-[#26262A]/60">
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-xs text-gray-300 font-mono">Custom Threshold Override</span>
+                  <button
+                    type="button"
+                    @click="bulkForm.useCustomThreshold = !bulkForm.useCustomThreshold"
+                    class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                    :class="bulkForm.useCustomThreshold ? 'bg-[#7B96F5]' : 'bg-[#26262A]'"
+                  >
+                    <span
+                      class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                      :class="bulkForm.useCustomThreshold ? 'translate-x-4' : 'translate-x-0'"
+                    />
+                  </button>
+                </div>
+
+                <div v-if="bulkForm.useCustomThreshold" class="space-y-1 pt-1">
+                  <label class="block font-mono uppercase text-[10px] text-gray-400">Jumlah Kegagalan Probe Sebelum Alert (1–10)</label>
+                  <div class="flex items-center gap-3">
+                    <input
+                      v-model.number="bulkForm.failureThreshold"
+                      type="number"
+                      min="1"
+                      max="10"
+                      class="w-24 bg-[#151517] border border-[#26262A] rounded-xl px-3 py-1.5 text-xs text-white font-mono text-center focus:outline-none focus:border-[#7B96F5]"
+                    />
+                    <span class="text-[11px] font-mono text-gray-400">kali gagal berturut-turut</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 5: Quick Actions (Instant Poll & Bulk Delete) -->
+            <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-2xl space-y-3 shadow-sm">
+              <h3 class="text-xs font-bold text-gray-400 font-mono uppercase tracking-wider">Aksi Cepat Lainnya</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  @click="triggerBulkPoll"
+                  :disabled="isExecutingBulk"
+                  class="w-full py-2.5 px-3 rounded-xl bg-[#3ECF8E]/10 hover:bg-[#3ECF8E]/20 border border-[#3ECF8E]/30 text-[#3ECF8E] text-xs font-bold font-mono transition-all disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw class="w-3.5 h-3.5" :class="isExecutingBulk && bulkActionType === 'poll' ? 'animate-spin' : ''" />
+                  <span>{{ isExecutingBulk && bulkActionType === 'poll' ? 'Pinging...' : 'Instant Ping All' }}</span>
+                </button>
+
+                <button
+                  v-if="authStore.canDeleteDevice"
+                  type="button"
+                  @click="isBulkDeleteConfirmModalOpen = true"
+                  :disabled="isExecutingBulk"
+                  class="w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold font-mono transition-all disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
                   <Trash2 class="w-3.5 h-3.5" />
-                  Bulk Delete Devices
-                </h3>
+                  <span>Hapus Massal</span>
+                </button>
               </div>
-              <p class="text-[11px] text-gray-300 font-mono">
-                Permanently remove {{ selectedDeviceIds.length }} devices from system inventory.
-              </p>
-              <button
-                @click="confirmBulkDelete"
-                :disabled="isExecutingBulk"
-                class="w-full py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold font-mono shadow-md shadow-red-500/20 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 class="w-3.5 h-3.5" />
-                <span>{{ isExecutingBulk && bulkActionType === 'delete' ? 'Deleting...' : `Delete ${selectedDeviceIds.length} Devices` }}</span>
-              </button>
             </div>
           </div>
 
-          <!-- Drawer Footer -->
-          <div class="pt-5 border-t border-[#26262A] flex items-center justify-between mt-6">
-            <button
-              @click="selectedDeviceIds = []"
-              class="px-4 py-2 rounded-xl bg-[#18181B] border border-[#26262A] hover:bg-[#26262A] text-gray-300 text-xs font-mono cursor-pointer"
-            >
-              Deselect All
-            </button>
-            <button
-              @click="isBulkDrawerOpen = false"
-              class="px-5 py-2 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-bold font-mono shadow-md shadow-[#7B96F5]/20 cursor-pointer"
-            >
-              Close Panel
-            </button>
+          <!-- Sticky Drawer Footer -->
+          <div class="pt-5 border-t border-[#26262A] bg-[#151517] sticky bottom-0 space-y-3 mt-6">
+            <div class="flex items-center justify-between text-[11px] font-mono text-gray-400">
+              <span>{{ activeBulkFieldCount }} properti aktif</span>
+              <span class="text-[#7B96F5] font-bold">{{ selectedDeviceIds.length }} perangkat terpilih</span>
+            </div>
+
+            <div class="flex items-center gap-2.5">
+              <button
+                type="button"
+                @click="resetBulkForm"
+                class="px-4 py-2.5 rounded-xl bg-[#18181B] border border-[#26262A] hover:bg-[#26262A] text-gray-300 text-xs font-mono transition-colors cursor-pointer"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                @click="handleAttemptApplyBulk"
+                :disabled="activeBulkFieldCount === 0 || isExecutingBulk"
+                class="flex-1 py-2.5 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-bold font-mono shadow-md shadow-[#7B96F5]/20 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Check class="w-4 h-4" />
+                <span>{{ isExecutingBulk && bulkActionType === 'update' ? 'Menerapkan...' : 'Terapkan Perubahan Massal' }}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -625,7 +833,14 @@
       :mode="formModalMode"
       :device="editTarget"
       @close="isFormModalOpen = false"
-      @saved="deviceStore.fetchDevices(); isFormModalOpen = false"
+      @saved="loadDevices(); isFormModalOpen = false"
+    />
+
+    <!-- Diagnostic Terminal Modal -->
+    <DiagnosticTerminalModal
+      :is-open="isTerminalModalOpen"
+      :initial-target="selectedDiagnosticTarget"
+      @close="isTerminalModalOpen = false"
     />
 
     <!-- Single Device Delete Modal -->
@@ -745,8 +960,166 @@
       </template>
     </Modal>
 
+    <!-- Bulk Update Confirmation Modal -->
+    <Modal :is-open="isBulkConfirmModalOpen" title="Konfirmasi Perubahan Massal" @close="isBulkConfirmModalOpen = false">
+      <template #default>
+        <div class="space-y-3.5 text-xs font-mono">
+          <div class="p-4 bg-[#7B96F5]/10 border border-[#7B96F5]/30 rounded-2xl text-gray-200 space-y-2.5">
+            <h4 class="font-bold text-white text-xs flex items-center gap-1.5">
+              <Info class="w-4 h-4 text-[#7B96F5]" />
+              Ringkasan Perubahan Konfigurasi
+            </h4>
+            <p class="text-[11px] text-gray-300">
+              Anda akan menerapkan konfigurasi berikut secara massal ke <strong class="text-white font-bold">{{ selectedDeviceIds.length }} perangkat terpilih</strong>:
+            </p>
+            <ul class="list-disc list-inside space-y-1.5 text-[11px] text-gray-200 pt-1 border-t border-[#26262A]/80">
+              <li v-if="bulkForm.enableType">
+                Tipe / Kategori &rarr; <span class="text-[#7B96F5] font-bold">{{ bulkForm.type }}</span>
+              </li>
+              <li v-if="bulkForm.enableAddressingMode">
+                Mode Pengalamatan &rarr; <span class="text-[#7B96F5] font-bold">{{ bulkForm.addressingMode }}</span>
+              </li>
+              <li v-if="bulkForm.enableLocation">
+                Relokasi Lokasi &rarr; <span class="text-[#7B96F5] font-bold">{{ bulkForm.location }}</span>
+              </li>
+              <li v-if="bulkForm.enableRack">
+                Posisi Rak (Rack) &rarr; <span class="text-[#7B96F5] font-bold">{{ bulkForm.rack || '(Dikosongkan / Reset)' }}</span>
+              </li>
+              <li v-if="bulkForm.enableSNMP">
+                SNMP Polling &rarr; <span class="text-[#7B96F5] font-bold">{{ bulkForm.snmpEnabled ? `Aktif (Community: ${bulkForm.snmpCommunity}, Port: ${bulkForm.snmpPort})` : 'Nonaktif' }}</span>
+              </li>
+              <li v-if="bulkForm.enableThreshold">
+                Threshold Override &rarr; <span class="text-[#7B96F5] font-bold">{{ bulkForm.useCustomThreshold ? `Aktif (${bulkForm.failureThreshold} checks)` : 'Nonaktif (Gunakan Standar Sistem)' }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3 w-full">
+          <button
+            type="button"
+            @click="isBulkConfirmModalOpen = false"
+            class="px-4 py-2 rounded-xl border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs font-mono cursor-pointer"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            @click="executeBulkUpdate"
+            :disabled="isExecutingBulk"
+            class="px-5 py-2 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 font-mono disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Check class="w-3.5 h-3.5" />
+            <span>{{ isExecutingBulk ? 'Menyimpan...' : 'Ya, Terapkan Sekarang' }}</span>
+          </button>
+        </div>
+      </template>
+    </Modal>
+
+    <!-- Bulk Delete Confirmation Modal -->
+    <Modal :is-open="isBulkDeleteConfirmModalOpen" title="Konfirmasi Hapus Massal" @close="isBulkDeleteConfirmModalOpen = false">
+      <template #default>
+        <div class="space-y-4 text-xs font-mono">
+          <div class="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3 text-red-400">
+            <AlertTriangle class="w-5 h-5 shrink-0 mt-0.5" />
+            <div class="space-y-1.5">
+              <h4 class="font-bold text-white text-xs">Tindakan Bersifat Permanen</h4>
+              <p class="text-[11px] text-gray-300 leading-relaxed">
+                Apakah Anda yakin ingin menghapus permanen <strong class="text-white font-bold">{{ selectedDeviceIds.length }} perangkat terpilih</strong> dari sistem inventaris? Seluruh riwayat probe, uptime, dan log status perangkat tersebut akan dihapus.
+              </p>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3 w-full">
+          <button
+            type="button"
+            @click="isBulkDeleteConfirmModalOpen = false"
+            class="px-4 py-2 rounded-xl border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs font-mono cursor-pointer"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            @click="executeBulkDelete"
+            :disabled="isExecutingBulk"
+            class="px-5 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-xs shadow-md shadow-red-500/20 font-mono disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Trash2 class="w-3.5 h-3.5" />
+            <span>{{ isExecutingBulk ? 'Menghapus...' : `Hapus ${selectedDeviceIds.length} Perangkat` }}</span>
+          </button>
+        </div>
+      </template>
+    </Modal>
+
+    <!-- Bulk Drawer Discard Unsaved Changes Modal -->
+    <Modal :is-open="isBulkDiscardModalOpen" title="Batalkan Perubahan Bulk" @close="isBulkDiscardModalOpen = false">
+      <template #default>
+        <div class="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-amber-400 text-xs font-mono">
+          <AlertTriangle class="w-5 h-5 shrink-0 mt-0.5" />
+          <div class="space-y-1">
+            <h4 class="font-bold text-white text-xs">Perubahan Belum Diterapkan</h4>
+            <p class="text-gray-300 text-[11px] leading-relaxed">
+              Anda telah mengaktifkan konfigurasi pada panel Kelola Massal namun belum menyimpannya. Apakah Anda ingin membatalkan perubahan dan menutup panel?
+            </p>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3 w-full">
+          <button
+            type="button"
+            @click="isBulkDiscardModalOpen = false"
+            class="px-4 py-2 rounded-xl border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs font-mono cursor-pointer"
+          >
+            Tetap Edit
+          </button>
+          <button
+            type="button"
+            @click="confirmDiscardAndCloseBulkDrawer"
+            class="px-5 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-xs shadow-md shadow-red-500/20 font-mono cursor-pointer"
+          >
+            Batalkan &amp; Tutup
+          </button>
+        </div>
+      </template>
+    </Modal>
+
+    <!-- Unified Feedback Modal -->
+    <Modal :is-open="showFeedbackModal" :title="feedbackTitle" @close="showFeedbackModal = false">
+      <template #default>
+        <div class="space-y-3 text-xs font-mono">
+          <div
+            class="p-4 rounded-2xl border flex items-start gap-3"
+            :class="feedbackSuccess ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-red-500/10 border-red-500/30 text-red-300'"
+          >
+            <CheckCircle2 v-if="feedbackSuccess" class="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
+            <AlertTriangle v-else class="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
+            <div class="space-y-1">
+              <h4 class="font-bold text-white text-sm">{{ feedbackTitle }}</h4>
+              <p class="text-xs opacity-90 leading-relaxed">{{ feedbackMessage }}</p>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <button
+          @click="showFeedbackModal = false"
+          class="px-5 py-2 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 cursor-pointer font-mono"
+        >
+          OK
+        </button>
+      </template>
+    </Modal>
+
     <!-- Bulk Import Modal -->
-    <BulkImportModal :is-open="isImportModalOpen" @close="isImportModalOpen = false" />
+    <BulkImportModal :is-open="isImportModalOpen" @close="isImportModalOpen = false; loadDevices(); fetchAllLocations();" />
   </div>
 </template>
 
@@ -755,16 +1128,18 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useDeviceStore } from '../stores/deviceStore';
 import { useAuthStore } from '../stores/authStore';
-import type { Device, DeviceType, LocationItem } from '../types';
+import type { Device, DeviceType, LocationItem, BulkDeviceUpdates } from '../types';
 import { devicesApi, locationsApi } from '../api';
 import api from '../api/client';
 import DeviceFormModal from '../components/devices/DeviceFormModal.vue';
+import LocationCombobox from '../components/devices/LocationCombobox.vue';
 import Modal from '../components/common/Modal.vue';
 import StatusPill from '../components/common/StatusPill.vue';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import BulkImportModal from '../components/devices/BulkImportModal.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
+import DiagnosticTerminalModal from '../components/diagnostics/DiagnosticTerminalModal.vue';
 import {
   Plus,
   Search,
@@ -776,10 +1151,17 @@ import {
   X,
   MapPin,
   List,
-  Activity,
   Sliders,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Terminal,
+  Check,
+  CheckCircle2,
+  Info,
+  Layers,
+  Radio,
+  Server,
+  Cpu
 } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -792,27 +1174,148 @@ const expandedGroups = reactive<Record<string, boolean>>({});
 const isFormModalOpen = ref(false);
 const formModalMode = ref<'add' | 'edit'>('add');
 const isImportModalOpen = ref(false);
+const isTerminalModalOpen = ref(false);
+const selectedDiagnosticTarget = ref('');
 const editTarget = ref<Device | null>(null);
 const deleteTarget = ref<Device | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(10);
 
-// Bulk Mode State
+function openDiagnosticsForDevice(device: Device) {
+  selectedDiagnosticTarget.value = device.ip || device.mac || '';
+  isTerminalModalOpen.value = true;
+}
+
+// Bulk Mode & Comprehensive Form State
 const isBulkMode = ref(false);
 const isBulkDrawerOpen = ref(false);
 const selectedDeviceIds = ref<string[]>([]);
 const isExecutingBulk = ref(false);
-const bulkActionType = ref<'location' | 'type' | 'poll' | 'delete' | ''>('');
-const bulkLocationValue = ref('');
-const bulkTypeValue = ref<DeviceType>('Access Point');
+const bulkActionType = ref<'update' | 'poll' | 'delete' | ''>('');
+const bulkFormError = ref('');
+
+const isBulkConfirmModalOpen = ref(false);
+const isBulkDeleteConfirmModalOpen = ref(false);
+const isBulkDiscardModalOpen = ref(false);
+
+// Unified Feedback Modal State
+const showFeedbackModal = ref(false);
+const feedbackTitle = ref('');
+const feedbackMessage = ref('');
+const feedbackSuccess = ref(true);
+
+function triggerFeedback(title: string, message: string, success = true) {
+  feedbackTitle.value = title;
+  feedbackMessage.value = message;
+  feedbackSuccess.value = success;
+  showFeedbackModal.value = true;
+}
+
+const bulkForm = reactive({
+  enableType: false,
+  type: 'Access Point' as DeviceType,
+
+  enableAddressingMode: false,
+  addressingMode: 'Static' as 'Static' | 'DHCP',
+
+  enableLocation: false,
+  location: '',
+  locationId: '',
+
+  enableRack: false,
+  rack: '',
+
+  enableSNMP: false,
+  snmpEnabled: false,
+  snmpCommunity: 'public',
+  snmpPort: 161,
+
+  enableThreshold: false,
+  useCustomThreshold: false,
+  failureThreshold: 3
+});
+
+const activeBulkFieldCount = computed(() => {
+  let count = 0;
+  if (bulkForm.enableType) count++;
+  if (bulkForm.enableAddressingMode) count++;
+  if (bulkForm.enableLocation) count++;
+  if (bulkForm.enableRack) count++;
+  if (bulkForm.enableSNMP) count++;
+  if (bulkForm.enableThreshold) count++;
+  return count;
+});
+
+function isBulkFormDirty(): boolean {
+  return activeBulkFieldCount.value > 0;
+}
+
+function resetBulkForm() {
+  bulkForm.enableType = false;
+  bulkForm.type = 'Access Point';
+  bulkForm.enableAddressingMode = false;
+  bulkForm.addressingMode = 'Static';
+  bulkForm.enableLocation = false;
+  bulkForm.location = '';
+  bulkForm.locationId = '';
+  bulkForm.enableRack = false;
+  bulkForm.rack = '';
+  bulkForm.enableSNMP = false;
+  bulkForm.snmpEnabled = false;
+  bulkForm.snmpCommunity = 'public';
+  bulkForm.snmpPort = 161;
+  bulkForm.enableThreshold = false;
+  bulkForm.useCustomThreshold = false;
+  bulkForm.failureThreshold = 3;
+  bulkFormError.value = '';
+}
+
+function handleCloseBulkDrawer() {
+  if (isBulkFormDirty()) {
+    isBulkDiscardModalOpen.value = true;
+  } else {
+    isBulkDrawerOpen.value = false;
+  }
+}
+
+function confirmDiscardAndCloseBulkDrawer() {
+  resetBulkForm();
+  isBulkDiscardModalOpen.value = false;
+  isBulkDrawerOpen.value = false;
+}
+
+function removeSelectedDevice(id: string) {
+  selectedDeviceIds.value = selectedDeviceIds.value.filter((dId) => dId !== id);
+  if (selectedDeviceIds.value.length === 0) {
+    isBulkDrawerOpen.value = false;
+    resetBulkForm();
+  }
+}
 
 function toggleBulkMode() {
+  if (!authStore.canBulkManageDevices) {
+    isBulkMode.value = false;
+    isBulkDrawerOpen.value = false;
+    selectedDeviceIds.value = [];
+    resetBulkForm();
+    return;
+  }
   isBulkMode.value = !isBulkMode.value;
   if (!isBulkMode.value) {
     selectedDeviceIds.value = [];
     isBulkDrawerOpen.value = false;
+    resetBulkForm();
   }
 }
+
+watch(() => authStore.canBulkManageDevices, (can) => {
+  if (!can && isBulkMode.value) {
+    isBulkMode.value = false;
+    isBulkDrawerOpen.value = false;
+    selectedDeviceIds.value = [];
+    resetBulkForm();
+  }
+});
 
 const selectedDevicesList = computed(() => {
   return deviceStore.devices.filter((d) => selectedDeviceIds.value.includes(d.id));
@@ -894,17 +1397,6 @@ async function handleConfirmLocDelete() {
   }
 }
 
-const availableLocations = computed(() => {
-  const set = new Set<string>();
-  for (const loc of allLocations.value) {
-    if (loc.name) set.add(loc.name);
-  }
-  for (const d of deviceStore.devices) {
-    if (d.location) set.add(d.location);
-  }
-  return Array.from(set);
-});
-
 function isGroupSelected(groupDevices: Device[]) {
   if (!groupDevices || groupDevices.length === 0) return false;
   return groupDevices.every((d) => selectedDeviceIds.value.includes(d.id));
@@ -923,9 +1415,17 @@ function toggleSelectGroup(groupDevices: Device[]) {
   }
 }
 
+const paginatedFlatDevices = computed(() => {
+  if (deviceStore.devices.length <= pageSize.value) {
+    return deviceStore.devices;
+  }
+  const start = (currentPage.value - 1) * pageSize.value;
+  return deviceStore.devices.slice(start, start + pageSize.value);
+});
+
 const visibleDevices = computed(() => {
   if (viewMode.value === 'flat') {
-    return deviceStore.devices;
+    return paginatedFlatDevices.value;
   }
   return deviceStore.filteredDevices;
 });
@@ -948,45 +1448,91 @@ function toggleSelectAllVisible() {
   }
 }
 
-// Bulk Actions Handlers
-async function applyBulkLocation() {
-  if (!bulkLocationValue.value || selectedDeviceIds.value.length === 0) return;
-  isExecutingBulk.value = true;
-  bulkActionType.value = 'location';
-  try {
-    await devicesApi.bulkAction({
-      action: 'update',
-      deviceIds: selectedDeviceIds.value,
-      updates: { location: bulkLocationValue.value }
-    });
-    alert(`Lokasi untuk ${selectedDeviceIds.value.length} perangkat berhasil diubah ke "${bulkLocationValue.value}".`);
-    selectedDeviceIds.value = [];
-    isBulkDrawerOpen.value = false;
-    loadDevices();
-  } catch (e: any) {
-    alert(e.response?.data?.error || 'Gagal memindahkan lokasi perangkat');
-  } finally {
-    isExecutingBulk.value = false;
-    bulkActionType.value = '';
+// ─── Bulk Actions Handlers & Validations ──────────────────────────────────────────
+
+function validateBulkForm(): boolean {
+  bulkFormError.value = '';
+  if (activeBulkFieldCount.value === 0) {
+    bulkFormError.value = 'Silakan aktifkan minimal satu opsi konfigurasi untuk diterapkan.';
+    return false;
   }
+  if (bulkForm.enableLocation && !bulkForm.location.trim()) {
+    bulkFormError.value = 'Lokasi target harus dipilih jika opsi Relokasi Lokasi diaktifkan.';
+    return false;
+  }
+  if (bulkForm.enableSNMP && bulkForm.snmpEnabled) {
+    if (!bulkForm.snmpPort || bulkForm.snmpPort < 1 || bulkForm.snmpPort > 65535) {
+      bulkFormError.value = 'Port SNMP harus berupa angka antara 1 dan 65535.';
+      return false;
+    }
+  }
+  if (bulkForm.enableThreshold && bulkForm.useCustomThreshold) {
+    if (!bulkForm.failureThreshold || bulkForm.failureThreshold < 1 || bulkForm.failureThreshold > 10) {
+      bulkFormError.value = 'Ambang batas kegagalan probe harus berupa angka antara 1 dan 10.';
+      return false;
+    }
+  }
+  return true;
 }
 
-async function applyBulkType() {
-  if (!bulkTypeValue.value || selectedDeviceIds.value.length === 0) return;
+function handleAttemptApplyBulk() {
+  if (!validateBulkForm()) return;
+  isBulkConfirmModalOpen.value = true;
+}
+
+async function executeBulkUpdate() {
+  if (selectedDeviceIds.value.length === 0 || !validateBulkForm()) return;
   isExecutingBulk.value = true;
-  bulkActionType.value = 'type';
+  bulkActionType.value = 'update';
+
+  const updates: BulkDeviceUpdates = {};
+  if (bulkForm.enableType) updates.type = bulkForm.type;
+  if (bulkForm.enableAddressingMode) updates.addressingMode = bulkForm.addressingMode;
+  if (bulkForm.enableLocation) {
+    updates.location = bulkForm.location.trim();
+    if (bulkForm.locationId) updates.locationId = bulkForm.locationId;
+  }
+  if (bulkForm.enableRack) {
+    updates.rack = bulkForm.rack.trim();
+  }
+  if (bulkForm.enableSNMP) {
+    updates.snmpEnabled = bulkForm.snmpEnabled;
+    if (bulkForm.snmpEnabled) {
+      updates.snmpCommunity = bulkForm.snmpCommunity.trim();
+      updates.snmpPort = Number(bulkForm.snmpPort) || 161;
+    }
+  }
+  if (bulkForm.enableThreshold) {
+    updates.useCustomThreshold = bulkForm.useCustomThreshold;
+    if (bulkForm.useCustomThreshold) {
+      updates.customFailureThreshold = Number(bulkForm.failureThreshold) || 3;
+      updates.failureThreshold = Number(bulkForm.failureThreshold) || 3;
+    }
+  }
+
   try {
-    await devicesApi.bulkAction({
+    const res = await devicesApi.bulkAction({
       action: 'update',
       deviceIds: selectedDeviceIds.value,
-      updates: { type: bulkTypeValue.value }
+      updates
     });
-    alert(`Tipe untuk ${selectedDeviceIds.value.length} perangkat berhasil diubah ke "${bulkTypeValue.value}".`);
-    selectedDeviceIds.value = [];
+    isBulkConfirmModalOpen.value = false;
     isBulkDrawerOpen.value = false;
-    loadDevices();
+    triggerFeedback(
+      'Perubahan Massal Berhasil',
+      `Berhasil memperbarui konfigurasi untuk ${res.updatedCount || selectedDeviceIds.value.length} perangkat terpilih.`,
+      true
+    );
+    selectedDeviceIds.value = [];
+    resetBulkForm();
+    await loadDevices();
+    await fetchAllLocations();
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Gagal mengubah tipe perangkat');
+    triggerFeedback(
+      'Gagal Menyimpan Perubahan Massal',
+      e.response?.data?.error || 'Terjadi kesalahan sistem saat memperbarui data perangkat.',
+      false
+    );
   } finally {
     isExecutingBulk.value = false;
     bulkActionType.value = '';
@@ -999,35 +1545,53 @@ async function triggerBulkPoll() {
   bulkActionType.value = 'poll';
   try {
     await api.post('/monitoring/refresh-now');
-    alert(`ICMP Probe scan berhasil dikirimkan ke ${selectedDeviceIds.value.length} perangkat.`);
+    triggerFeedback(
+      'ICMP Probe Terkirim',
+      `Permintaan probe instan berhasil dikirimkan ke ${selectedDeviceIds.value.length} perangkat terpilih. Data status akan terupdate secara real-time.`,
+      true
+    );
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Gagal melakukan polling');
+    triggerFeedback(
+      'Gagal Melakukan Polling',
+      e.response?.data?.error || 'Gagal mengirim sinyal polling ke daemon monitoring.',
+      false
+    );
   } finally {
     setTimeout(() => {
       isExecutingBulk.value = false;
       bulkActionType.value = '';
-    }, 600);
+    }, 500);
   }
 }
 
-async function confirmBulkDelete() {
+async function executeBulkDelete() {
   if (selectedDeviceIds.value.length === 0) return;
-  if (!confirm(`Apakah Anda yakin ingin menghapus permanen ${selectedDeviceIds.value.length} perangkat terpilih?`)) {
-    return;
-  }
   isExecutingBulk.value = true;
   bulkActionType.value = 'delete';
+  const targetCount = selectedDeviceIds.value.length;
+
   try {
     await devicesApi.bulkAction({
       action: 'delete',
       deviceIds: selectedDeviceIds.value
     });
-    alert(`${selectedDeviceIds.value.length} perangkat berhasil dihapus dari inventaris.`);
-    selectedDeviceIds.value = [];
+    isBulkDeleteConfirmModalOpen.value = false;
     isBulkDrawerOpen.value = false;
-    loadDevices();
+    triggerFeedback(
+      'Perangkat Berhasil Dihapus',
+      `Sebanyak ${targetCount} perangkat telah dihapus permanen dari sistem inventaris.`,
+      true
+    );
+    selectedDeviceIds.value = [];
+    resetBulkForm();
+    await loadDevices();
+    await fetchAllLocations();
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Gagal menghapus perangkat');
+    triggerFeedback(
+      'Gagal Menghapus Perangkat',
+      e.response?.data?.error || 'Terjadi kesalahan saat menghapus data perangkat massal.',
+      false
+    );
   } finally {
     isExecutingBulk.value = false;
     bulkActionType.value = '';
@@ -1036,7 +1600,7 @@ async function confirmBulkDelete() {
 
 const paginatedTotal = computed(() => {
   if (viewMode.value === 'flat') {
-    return deviceStore.totalCount;
+    return deviceStore.totalCount || deviceStore.devices.length;
   }
   return groupedByLocation.value.length;
 });
@@ -1102,30 +1666,29 @@ async function executeDelete() {
   try {
     await devicesApi.deleteDevice(deleteTarget.value.id);
     deleteTarget.value = null;
-    loadDevices();
+    await loadDevices();
   } catch (e: any) {
     alert(e.response?.data?.error || 'Gagal menghapus perangkat');
   }
 }
 
-function loadDevices() {
+async function loadDevices() {
   if (viewMode.value === 'flat') {
-    deviceStore.fetchDevices({
+    await deviceStore.fetchDevices({
       page: currentPage.value,
       pageSize: pageSize.value
     });
   } else {
-    deviceStore.fetchDevices();
+    await deviceStore.fetchDevices();
   }
 }
 
 onMounted(() => {
   fetchAllLocations();
-  if (route.query.status) {
-    deviceStore.selectedStatusFilter = route.query.status as string;
-  }
-  if (route.query.type) {
-    deviceStore.selectedTypeFilter = route.query.type as string;
+  deviceStore.selectedStatusFilter = (route.query.status as string) || 'All';
+  deviceStore.selectedTypeFilter = (route.query.type as string) || 'All';
+  if (route.query.search) {
+    deviceStore.searchQuery = route.query.search as string;
   }
   loadDevices();
 });
@@ -1137,11 +1700,10 @@ watch([currentPage, pageSize], () => {
 watch(
   () => route.query,
   (newQ) => {
-    if (newQ.status) {
-      deviceStore.selectedStatusFilter = newQ.status as string;
-    }
-    if (newQ.type) {
-      deviceStore.selectedTypeFilter = newQ.type as string;
+    deviceStore.selectedStatusFilter = (newQ.status as string) || 'All';
+    deviceStore.selectedTypeFilter = (newQ.type as string) || 'All';
+    if (newQ.search !== undefined) {
+      deviceStore.searchQuery = (newQ.search as string) || '';
     }
   }
 );

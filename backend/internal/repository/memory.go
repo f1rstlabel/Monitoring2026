@@ -200,11 +200,35 @@ func (r *MemoryDeviceRepository) BulkUpdate(ids []string, updates domain.BulkDev
 			if updates.Location != "" {
 				r.devices[i].Location = updates.Location
 			}
-			if updates.SNMPEnabled != nil {
-				r.devices[i].SNMPEnabled = *updates.SNMPEnabled
+			if updates.Rack != nil {
+				r.devices[i].Rack = *updates.Rack
 			}
 			if updates.Type != "" {
 				r.devices[i].Type = updates.Type
+			}
+			if updates.AddressingMode != nil && *updates.AddressingMode != "" {
+				r.devices[i].AddressingMode = *updates.AddressingMode
+			}
+			if updates.SNMPEnabled != nil {
+				r.devices[i].SNMPEnabled = *updates.SNMPEnabled
+			}
+			if updates.SNMPCommunity != nil {
+				r.devices[i].SNMPCommunity = *updates.SNMPCommunity
+			}
+			if updates.SNMPPort != nil && *updates.SNMPPort > 0 {
+				r.devices[i].SNMPPort = *updates.SNMPPort
+			}
+			if updates.SNMPIfIndex != nil {
+				r.devices[i].SNMPIfIndex = *updates.SNMPIfIndex
+			}
+			if updates.UseCustomThreshold != nil {
+				r.devices[i].UseCustomThreshold = *updates.UseCustomThreshold
+			}
+			if updates.CustomFailureThreshold != nil && *updates.CustomFailureThreshold > 0 {
+				r.devices[i].CustomFailureThreshold = updates.CustomFailureThreshold
+				r.devices[i].FailureThreshold = *updates.CustomFailureThreshold
+			} else if updates.FailureThreshold != nil && *updates.FailureThreshold > 0 {
+				r.devices[i].FailureThreshold = *updates.FailureThreshold
 			}
 			count++
 		}
