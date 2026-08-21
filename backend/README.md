@@ -1,6 +1,6 @@
 # SANOC Backend Service (Golang)
 
-Backend service untuk aplikasi **SANOC (Sanditel Network Operations Center)** yang dibangun menggunakan bahasa pemrograman Go (Golang 1.22+) dengan framework Gin, PostgreSQL, Redis, Asynq task queue, ICMP/SNMP Polling engine, dan Gmail Global SMTP Gateway.
+Backend service untuk aplikasi **SANOC (Smart Agent and Network Operations Center)** yang dibangun menggunakan bahasa pemrograman Go (Golang 1.22+) dengan framework Gin, PostgreSQL, Redis, Asynq task queue, ICMP/SNMP Polling engine, dan Gmail Global SMTP Gateway.
 
 ---
 

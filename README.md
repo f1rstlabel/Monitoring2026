@@ -1,4 +1,4 @@
-# SANOC — Sanditel Network Operations Center
+# SANOC — Smart Agent and Network Operations Center
 
 > **Enterprise System Monitoring & SLA Compliance Audit Platform — Infrastructure NOC**  
 > *Sistem Monitoring Infrastruktur Jaringan & Audit Kepatuhan SLA Real-time*  
@@ -33,15 +33,15 @@ Daftar modul panduan teknis yang tersedia di folder [`/docs`](./docs/README.md):
 ## 🇬🇧 English Documentation
 
 ### 📌 Project Overview
-**SANOC (Sanditel Network Operations Center)** is an enterprise-grade network infrastructure monitoring and SLA compliance auditing system developed for **Diskominfo Pemerintah Daerah Provinsi Jawa Barat**. It provides real-time automated ICMP ping and SNMP polling across regional network nodes, switches, routers, access points, and server devices.
+**SANOC (Smart Agent and Network Operations Center)** is an enterprise-grade network infrastructure monitoring and SLA compliance auditing system developed for **Diskominfo Pemerintah Daerah Provinsi Jawa Barat**. It provides real-time automated ICMP ping and SNMP polling across regional network nodes, switches, routers, access points, and server devices.
 
 Key capabilities include:
 - **Real-Time Monitoring**: Automated ICMP & SNMP polling engine with sub-minute failure detection and debounce logic.
 - **Incident & Outage Management**: Automated incident ticket generation, live outage duration tracking, and incident resolution workflows.
-- **Multi-Channel Alerting**: Instant dispatching of outage notifications via WhatsApp Baileys Gateway (broadcast to all target recipients & groups) and Telegram Bot Channel.
-- **Email Verification Gateway**: Real email validation with 6-digit OTP codes for new user registrations and dual-method password resets.
-- **SLA Compliance Reporting**: Automated SLA uptime calculations, Mean Time to Recovery (MTTR) tracking, and customizable export options (PDF A4, Excel `.xls`, CSV `.csv`).
-- **Enterprise Security**: Two-Factor Authentication (TOTP MFA via Google Authenticator / Authy), Role-Based Access Control (Admin, Pimpinan, Anggota SANOC), and secure avatar file uploads.
+- **Multi-Channel Alert Gateway**: Real-time broadcast alerts via Baileys WhatsApp Sidecar and Telegram Bot.
+- **AI Copilot Assistant**: In-system Google Gemini AI agent assisting technicians with root cause analysis (RCA), diagnostic guidance, and executive summaries.
+- **Live SLA & Availability Analytics**: Dynamic SLA metrics, Mean Time to Recovery (MTTR), and scheduled compliance reports.
+- **Enterprise Security**: Role-based access control (RBAC), Time-based One-Time Password (TOTP) MFA, and email verification.
 
 ---
 
@@ -94,7 +94,7 @@ Open browser at `http://localhost:5173`.
 ## 🇮🇩 Dokumentasi Bahasa Indonesia
 
 ### 📌 Penjelasan Project
-**SANOC (Sanditel Network Operations Center)** adalah sistem pemantauan infrastruktur jaringan berbasis *enterprise* dan pengauditan kepatuhan SLA (*Service Level Agreement*) resmi **Diskominfo Pemerintah Daerah Provinsi Jawa Barat**. Sistem ini secara otomatis memonitor ketersediaan perangkat jaringan (router, switch, access point, server, CCTV) menggunakan protokol ICMP Ping dan SNMP Polling secara real-time.
+**SANOC (Smart Agent and Network Operations Center)** adalah sistem pemantauan infrastruktur jaringan berbasis *enterprise* dan pengauditan kepatuhan SLA (*Service Level Agreement*) resmi **Diskominfo Pemerintah Daerah Provinsi Jawa Barat**. Sistem ini secara otomatis memonitor ketersediaan perangkat jaringan (router, switch, access point, server, CCTV) menggunakan protokol ICMP Ping dan SNMP Polling secara real-time.
 
 Fitur Unggulan:
 - **Monitoring Real-time**: Engine polling ICMP & SNMP otomatis dengan goroutines performa tinggi dan deteksi gangguan dalam hitungan detik.
