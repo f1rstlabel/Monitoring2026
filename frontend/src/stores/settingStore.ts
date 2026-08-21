@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { SystemSettings, User } from '../types';
-import { settingsApi, usersApi } from '../api';
+import type { SystemSettings, User, BrandingSettings } from '../types';
+import { settingsApi, usersApi, brandingApi } from '../api';
 
 export const useSettingStore = defineStore('settings', () => {
   const settings = ref<SystemSettings>({
@@ -28,6 +28,15 @@ export const useSettingStore = defineStore('settings', () => {
     retentionDays: 90
   });
 
+  const branding = ref<BrandingSettings>({
+    appTitle: 'SANOC',
+    appSubtitle: 'Jabar Regional SANOC',
+    logoUrl: '',
+    logoFit: 'cover',
+    logoScale: 100,
+    faviconUrl: '',
+    footerText: 'SANOC Network Operations Center'
+  });
 
   const users = ref<User[]>([
     { id: 'u-1', name: 'Budi Santoso', email: 'budi.santoso@jabarprov.go.id', role: 'admin', status: 'Active', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256', lastActive: 'Active Now' },
@@ -55,6 +64,56 @@ export const useSettingStore = defineStore('settings', () => {
     }
   }
 
+  function applyBrandingDOM() {
+    if (branding.value.faviconUrl) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = branding.value.faviconUrl;
+    }
+    if (branding.value.appTitle) {
+      document.title = `${branding.value.appTitle} — Network Control Center`;
+    }
+  }
+
+  async function fetchBranding() {
+    try {
+      const res = await brandingApi.getBranding();
+      if (res) {
+        branding.value = {
+          appTitle: res.appTitle || 'SANOC',
+          appSubtitle: res.appSubtitle || 'Jabar Regional SANOC',
+          logoUrl: res.logoUrl || '',
+          logoFit: res.logoFit || 'cover',
+          logoScale: res.logoScale || 100,
+          faviconUrl: res.faviconUrl || '',
+          footerText: res.footerText || 'SANOC Network Operations Center'
+        };
+        applyBrandingDOM();
+      }
+    } catch (e) {
+      // offline default
+    }
+  }
+
+  async function updateBranding(data: BrandingSettings) {
+    branding.value = { ...data };
+    applyBrandingDOM();
+    try {
+      const res = await brandingApi.updateBranding(data);
+      return res;
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  async function uploadBrandingAsset(file: File, type: 'logo' | 'favicon') {
+    const res = await brandingApi.uploadAsset(file, type);
+    return res;
+  }
 
   async function fetchUsers() {
     isLoading.value = true;
@@ -106,7 +165,6 @@ export const useSettingStore = defineStore('settings', () => {
     }
   }
 
-
   async function inviteUser(name: string, email: string, role: string) {
     const newUser: User = {
       id: `u-${Date.now()}`,
@@ -145,12 +203,16 @@ export const useSettingStore = defineStore('settings', () => {
     }
   }
 
-
   return {
     settings,
+    branding,
     users,
     isLoading,
     fetchSettings,
+    fetchBranding,
+    updateBranding,
+    uploadBrandingAsset,
+    applyBrandingDOM,
     fetchUsers,
     saveSettings,
     updateThreshold,
@@ -160,3 +222,4 @@ export const useSettingStore = defineStore('settings', () => {
     deleteUser
   };
 });
+

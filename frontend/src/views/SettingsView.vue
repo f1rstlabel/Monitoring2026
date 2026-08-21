@@ -81,9 +81,16 @@
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold font-mono tracking-tight truncate" :class="activeTab === tab.id ? 'text-white' : 'text-gray-300'">
-                  {{ tab.label }}
-                </span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="text-xs font-bold font-mono tracking-tight truncate" :class="activeTab === tab.id ? 'text-white' : 'text-gray-300'">
+                    {{ tab.label }}
+                  </span>
+                  <span
+                    v-if="isTabDirty(tab.id)"
+                    class="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-sm shadow-amber-400/50 animate-pulse"
+                    title="Perubahan belum disimpan"
+                  ></span>
+                </div>
                 <span
                   v-if="tab.badge"
                   class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase"
@@ -236,15 +243,25 @@
                 <Sliders class="w-4 h-4 text-[#7B96F5]" />
                 Asynq Redis Queue Rate-Limit Spacing
               </h3>
-              <button
-                type="button"
-                @click="handleSaveRateLimit"
-                :disabled="isSavingRateLimit"
-                class="px-3.5 py-1.5 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/20 transition-all disabled:opacity-50 cursor-pointer"
-              >
-                <Save class="w-3.5 h-3.5" />
-                <span>{{ isSavingRateLimit ? 'Saving...' : 'Save Queue Settings' }}</span>
-              </button>
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="isTabDirty('notifications')"
+                  type="button"
+                  @click="revertTabState('notifications')"
+                  class="px-3 py-1.5 rounded-xl border border-[#26262A] text-gray-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Batal / Reset
+                </button>
+                <button
+                  type="button"
+                  @click="handleSaveRateLimit"
+                  :disabled="isSavingRateLimit"
+                  class="px-3.5 py-1.5 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/20 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Save class="w-3.5 h-3.5" />
+                  <span>{{ isSavingRateLimit ? 'Saving...' : 'Save Queue Settings' }}</span>
+                </button>
+              </div>
             </div>
 
             <div class="space-y-3 text-xs max-w-md">
@@ -283,6 +300,14 @@
               <p class="text-xs text-gray-400 mt-0.5">Control ICMP probe frequencies, concurrency workers, debouncing, and anti-flap reuse.</p>
             </div>
             <div class="flex items-center gap-2">
+              <button
+                v-if="isTabDirty('polling')"
+                type="button"
+                @click="revertTabState('polling')"
+                class="px-3 py-1.5 rounded-xl border border-[#26262A] text-gray-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+              >
+                Batal / Reset
+              </button>
               <button
                 type="button"
                 @click="handleManualRefresh"
@@ -422,15 +447,25 @@
               </h2>
               <p class="text-xs text-gray-400 mt-0.5">Cross-subnet L3 ARP table querying for automatic IP-to-MAC resolution.</p>
             </div>
-            <button
-              type="button"
-              @click="handleSaveCoreSwitch"
-              :disabled="isSavingCoreSwitch"
-              class="px-3.5 py-1.5 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/20 transition-all disabled:opacity-50 cursor-pointer"
-            >
-              <Save class="w-3.5 h-3.5" />
-              <span>{{ isSavingCoreSwitch ? 'Saving...' : 'Save SNMP Target' }}</span>
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="isTabDirty('network')"
+                type="button"
+                @click="revertTabState('network')"
+                class="px-3 py-1.5 rounded-xl border border-[#26262A] text-gray-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+              >
+                Batal / Reset
+              </button>
+              <button
+                type="button"
+                @click="handleSaveCoreSwitch"
+                :disabled="isSavingCoreSwitch"
+                class="px-3.5 py-1.5 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/20 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Save class="w-3.5 h-3.5" />
+                <span>{{ isSavingCoreSwitch ? 'Saving...' : 'Save SNMP Target' }}</span>
+              </button>
+            </div>
           </div>
 
           <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-5 space-y-4 shadow-xl">
@@ -500,15 +535,25 @@
               </h2>
               <p class="text-xs text-gray-400 mt-0.5">Automated database archiving and housekeeping schedules for resolved tickets.</p>
             </div>
-            <button
-              type="button"
-              @click="handleSaveRetention"
-              :disabled="isSavingRetention"
-              class="px-3.5 py-1.5 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/20 transition-all disabled:opacity-50 cursor-pointer"
-            >
-              <Save class="w-3.5 h-3.5" />
-              <span>{{ isSavingRetention ? 'Saving...' : 'Save Retention Policy' }}</span>
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="isTabDirty('retention')"
+                type="button"
+                @click="revertTabState('retention')"
+                class="px-3 py-1.5 rounded-xl border border-[#26262A] text-gray-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+              >
+                Batal / Reset
+              </button>
+              <button
+                type="button"
+                @click="handleSaveRetention"
+                :disabled="isSavingRetention"
+                class="px-3.5 py-1.5 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/20 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Save class="w-3.5 h-3.5" />
+                <span>{{ isSavingRetention ? 'Saving...' : 'Save Retention Policy' }}</span>
+              </button>
+            </div>
           </div>
 
           <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-5 space-y-4 shadow-xl">
@@ -793,6 +838,215 @@
           </div>
         </div>
 
+        <!-- ══════════════════════════════════════════════════════════════════════════
+             TAB 8: Branding & Appearance (Admin Only)
+             ══════════════════════════════════════════════════════════════════════════ -->
+        <div v-else-if="activeTab === 'branding'" class="space-y-6 animate-fadeIn">
+          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+            <div>
+              <h2 class="text-sm font-extrabold text-white font-mono flex items-center gap-2">
+                <Palette class="w-4 h-4 text-[#7B96F5]" />
+                BRANDING &amp; APPEARANCE SETTINGS
+              </h2>
+              <p class="text-xs text-gray-400 mt-0.5">Customize web logo, browser tab favicon, and system agency title.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="isBrandingDirty"
+                type="button"
+                @click="resetBrandingForm"
+                class="px-3.5 py-2 rounded-xl border border-[#26262A] text-gray-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+              >
+                Batal / Reset
+              </button>
+              <button
+                @click="handleSaveBranding"
+                :disabled="isSavingBranding"
+                class="px-4 py-2 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <Save class="w-4 h-4" />
+                <span>{{ isSavingBranding ? 'Saving...' : 'Save Branding' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- App Titles Form -->
+            <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-5 space-y-4">
+              <h3 class="text-xs font-bold text-white font-mono uppercase tracking-wider">System Names &amp; Labels</h3>
+              
+              <div class="space-y-1.5">
+                <label class="block font-mono uppercase text-[10px] text-gray-400">Application Title / Header</label>
+                <input
+                  v-model="brandingForm.appTitle"
+                  type="text"
+                  placeholder="e.g. SANOC"
+                  class="w-full bg-[#18181B] border border-[#26262A] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#7B96F5] font-mono"
+                />
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="block font-mono uppercase text-[10px] text-gray-400">Application Subtitle</label>
+                <input
+                  v-model="brandingForm.appSubtitle"
+                  type="text"
+                  placeholder="e.g. Jabar Regional SANOC"
+                  class="w-full bg-[#18181B] border border-[#26262A] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#7B96F5]"
+                />
+              </div>
+            </div>
+
+            <!-- Live Preview Card -->
+            <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-5 space-y-4">
+              <h3 class="text-xs font-bold text-white font-mono uppercase tracking-wider">Live Preview</h3>
+              
+              <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-3">
+                <span class="text-[10px] font-mono text-gray-500 uppercase">Sidebar Header Preview</span>
+                <div class="flex items-center gap-3 p-3 bg-[#111113] rounded-xl border border-[#26262A]">
+                  <div class="w-10 h-10 rounded-xl bg-[#151517] border border-[#26262A] flex items-center justify-center shrink-0 overflow-hidden relative shadow-sm">
+                    <img
+                      v-if="brandingForm.logoUrl"
+                      :src="brandingForm.logoUrl"
+                      alt="Logo Preview"
+                      class="w-full h-full block"
+                      :class="(brandingForm.logoFit || 'cover') === 'cover' ? 'object-cover' : 'object-contain p-1'"
+                    />
+                    <Activity v-else class="w-5 h-5 text-[#7B96F5]" />
+                  </div>
+                  <div class="min-w-0 flex-1 flex flex-col justify-center">
+                    <div class="flex items-center justify-between gap-1">
+                      <h4 class="text-sm font-black text-white font-mono leading-none truncate">{{ brandingForm.appTitle || 'SANOC' }}</h4>
+                      <span class="text-[9px] font-mono text-[#7B96F5] font-semibold bg-[#7B96F5]/10 px-1 py-0.5 rounded border border-[#7B96F5]/20 shrink-0">v2.6.0</span>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1 truncate leading-tight font-mono uppercase">{{ brandingForm.appSubtitle || 'Jabar Regional SANOC' }}</p>
+                  </div>
+                </div>
+
+                <span class="text-[10px] font-mono text-gray-500 uppercase mt-2 block">Browser Tab Preview</span>
+                <div class="flex items-center gap-2 p-2 bg-[#202024] rounded-t-lg border-t border-x border-[#2E2E33] max-w-xs">
+                  <img v-if="brandingForm.faviconUrl" :src="brandingForm.faviconUrl" class="w-4 h-4 object-contain rounded" alt="Favicon Preview" />
+                  <div v-else class="w-4 h-4 rounded-full bg-[#7B96F5]/30"></div>
+                  <span class="text-xs text-gray-200 truncate font-sans">{{ brandingForm.appTitle || 'SANOC' }} — Network Control Center</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Logo Card & Fit Mode -->
+            <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-5 space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-white font-mono uppercase tracking-wider">Logo Image</h3>
+                <span class="text-[10px] text-gray-400">PNG, SVG, JPG (Max 2MB)</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-[#18181B] border border-[#26262A] flex items-center justify-center overflow-hidden shrink-0 relative">
+                  <img
+                    v-if="brandingForm.logoUrl"
+                    :src="brandingForm.logoUrl"
+                    class="w-full h-full block"
+                    :class="(brandingForm.logoFit || 'cover') === 'cover' ? 'object-cover' : 'object-contain p-2'"
+                  />
+                  <Image v-else class="w-6 h-6 text-gray-500" />
+                </div>
+                <div class="space-y-2 flex-1">
+                  <input
+                    ref="logoInputRef"
+                    type="file"
+                    accept="image/png,image/svg+xml,image/jpeg,image/webp"
+                    class="hidden"
+                    @change="handleLogoUpload"
+                  />
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      @click="logoInputRef?.click()"
+                      :disabled="isUploadingLogo"
+                      class="px-3 py-1.5 rounded-lg bg-[#7B96F5]/15 border border-[#7B96F5]/30 text-[#7B96F5] hover:bg-[#7B96F5]/25 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Upload class="w-3.5 h-3.5" />
+                      {{ isUploadingLogo ? 'Uploading...' : 'Upload Logo' }}
+                    </button>
+                    <button
+                      v-if="brandingForm.logoUrl"
+                      type="button"
+                      @click="brandingForm.logoUrl = ''"
+                      class="px-2.5 py-1.5 rounded-lg border border-[#26262A] text-gray-400 hover:text-red-400 text-xs transition-colors cursor-pointer"
+                    >
+                      Reset Image
+                    </button>
+                  </div>
+                  <p class="text-[10px] text-gray-500">Tampil pada sidebar kiri, header navigasi, dan halaman login.</p>
+                </div>
+              </div>
+
+              <!-- Fit Mode Selector -->
+              <div v-if="brandingForm.logoUrl" class="p-3 bg-[#18181B] border border-[#26262A] rounded-xl flex flex-wrap items-center justify-between gap-3">
+                <span class="text-[11px] font-mono text-gray-300 font-medium">Tampilan / Mode Logo:</span>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    @click="brandingForm.logoFit = 'cover'"
+                    class="px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer flex items-center gap-1.5"
+                    :class="brandingForm.logoFit === 'cover' ? 'bg-[#7B96F5] text-white font-bold shadow-md shadow-[#7B96F5]/20' : 'bg-[#151517] border border-[#26262A] text-gray-400 hover:text-white'"
+                  >
+                    <span>Penuh (Cover / Pas Rapat)</span>
+                  </button>
+                  <button
+                    type="button"
+                    @click="brandingForm.logoFit = 'contain'"
+                    class="px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer flex items-center gap-1.5"
+                    :class="brandingForm.logoFit === 'contain' ? 'bg-[#7B96F5] text-white font-bold shadow-md shadow-[#7B96F5]/20' : 'bg-[#151517] border border-[#26262A] text-gray-400 hover:text-white'"
+                  >
+                    <span>Utuh (Contain / Proporsional)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Favicon Card -->
+            <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-5 space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-white font-mono uppercase tracking-wider">Browser Favicon</h3>
+                <span class="text-[10px] text-gray-400">.ICO, .PNG, .SVG (Max 2MB)</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-[#18181B] border border-[#26262A] flex items-center justify-center overflow-hidden shrink-0">
+                  <img v-if="brandingForm.faviconUrl" :src="brandingForm.faviconUrl" class="w-8 h-8 object-contain" />
+                  <Globe v-else class="w-6 h-6 text-gray-500" />
+                </div>
+                <div class="space-y-2 flex-1">
+                  <input
+                    ref="faviconInputRef"
+                    type="file"
+                    accept=".ico,image/x-icon,image/png,image/svg+xml"
+                    class="hidden"
+                    @change="handleFaviconUpload"
+                  />
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      @click="faviconInputRef?.click()"
+                      :disabled="isUploadingFavicon"
+                      class="px-3 py-1.5 rounded-lg bg-[#7B96F5]/15 border border-[#7B96F5]/30 text-[#7B96F5] hover:bg-[#7B96F5]/25 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Upload class="w-3.5 h-3.5" />
+                      {{ isUploadingFavicon ? 'Uploading...' : 'Upload Favicon' }}
+                    </button>
+                    <button
+                      v-if="brandingForm.faviconUrl"
+                      type="button"
+                      @click="brandingForm.faviconUrl = ''"
+                      class="px-2.5 py-1.5 rounded-lg border border-[#26262A] text-gray-400 hover:text-red-400 text-xs transition-colors cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <p class="text-[10px] text-gray-500">Icon displayed in the browser tab and bookmarks.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Fallback if unauthorized tab is somehow targeted -->
         <div v-else class="p-8 text-center bg-[#151517] border border-[#26262A] rounded-2xl space-y-3">
           <ShieldAlert class="w-8 h-8 text-amber-400 mx-auto" />
@@ -834,8 +1088,42 @@
       </template>
     </Modal>
 
+    <!-- Tab Switch Discard Confirmation Modal -->
+    <Modal :is-open="showTabSwitchConfirmModal" title="Perubahan Belum Disimpan" @close="showTabSwitchConfirmModal = false">
+      <template #default>
+        <div class="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-400 text-xs">
+          <AlertTriangle class="w-5 h-5 shrink-0 mt-0.5" />
+          <div class="space-y-1">
+            <h4 class="font-bold text-white text-sm">Ada Perubahan yang Belum Disimpan</h4>
+            <p class="text-gray-300 leading-relaxed">
+              Anda telah mengubah konfigurasi pada tab <span class="font-bold text-amber-400">"{{ currentTabLabel }}"</span> tetapi belum menyimpannya. 
+              Apakah Anda ingin membatalkan perubahan tersebut dan berpindah tab?
+            </p>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex items-center justify-end gap-3 w-full">
+          <button
+            type="button"
+            @click="showTabSwitchConfirmModal = false"
+            class="px-4 py-2 rounded-xl border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs font-mono cursor-pointer"
+          >
+            Tetap di Tab Ini
+          </button>
+          <button
+            type="button"
+            @click="confirmDiscardTabSwitch"
+            class="px-5 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-xs shadow-md shadow-red-500/20 font-mono cursor-pointer"
+          >
+            Batalkan &amp; Pindah Tab
+          </button>
+        </div>
+      </template>
+    </Modal>
+
     <!-- Location Modal (Add / Edit) -->
-    <Modal :is-open="isLocationModalOpen" :title="isLocationEdit ? 'Edit Location' : 'Add New Location'" @close="isLocationModalOpen = false">
+    <Modal :is-open="isLocationModalOpen" :title="isLocationEdit ? 'Edit Location' : 'Add New Location'" @close="closeLocationModal">
       <template #default>
         <form @submit.prevent="handleSaveLocation" class="space-y-4 text-xs">
           <div class="space-y-1.5">
@@ -862,12 +1150,14 @@
 
       <template #footer>
         <button
-          @click="isLocationModalOpen = false"
+          type="button"
+          @click="closeLocationModal"
           class="px-4 py-2 rounded-xl border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs cursor-pointer"
         >
           Cancel
         </button>
         <button
+          type="button"
           @click="handleSaveLocation"
           :disabled="isSavingLocation"
           class="px-5 py-2 rounded-xl bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 disabled:opacity-50 cursor-pointer"
@@ -1138,7 +1428,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { useSettingStore } from '../stores/settingStore';
 import { useAuthStore } from '../stores/authStore';
 import Modal from '../components/common/Modal.vue';
@@ -1172,7 +1462,11 @@ import {
   Plus,
   Save,
   Check,
-  ShieldAlert
+  ShieldAlert,
+  Palette,
+  Upload,
+  Image,
+  Globe
 } from 'lucide-vue-next';
 import api from '../api/client';
 import { locationsApi, authApi, usersApi } from '../api';
@@ -1409,17 +1703,21 @@ const allTabs = computed(() => [
     badge: undefined,
     badgeClass: undefined,
     permission: () => authStore.user?.role === 'admin' || authStore.hasPermission('settings.audit')
+  },
+  {
+    id: 'branding',
+    label: 'Branding & Appearance',
+    description: 'Logo, Favicon & App Title',
+    icon: Palette,
+    badge: 'Admin Only',
+    badgeClass: 'bg-[#7B96F5]/15 text-[#7B96F5]',
+    permission: () => authStore.user?.role === 'admin'
   }
 ]);
 
 const availableTabs = computed(() => {
   return allTabs.value.filter((t) => t.permission());
 });
-
-function switchTab(tabId: string) {
-  activeTab.value = tabId;
-  router.replace({ query: { ...route.query, tab: tabId } });
-}
 
 // Sync active tab with route query and permissions
 watch(
@@ -1466,11 +1764,125 @@ async function handleDeleteUser() {
   }
 }
 
+// Snapshot of initial settings to track dirty changes and allow clean rollback
+const savedSettingsSnapshot = ref<any>(null);
+
+function updateSettingsSnapshot() {
+  if (settingStore.settings) {
+    savedSettingsSnapshot.value = JSON.parse(JSON.stringify(settingStore.settings));
+  }
+}
+
+function isTabDirty(tabId: string): boolean {
+  if (tabId === 'branding') {
+    return isBrandingDirty.value;
+  }
+  if (!savedSettingsSnapshot.value || !settingStore.settings) return false;
+  const s = savedSettingsSnapshot.value;
+  const curr = settingStore.settings;
+
+  if (tabId === 'notifications') {
+    return curr.rateLimitMaxMsgPerMin !== s.rateLimitMaxMsgPerMin;
+  }
+
+  if (tabId === 'polling') {
+    const pollingChanged =
+      curr.polling?.intervalSeconds !== s.polling?.intervalSeconds ||
+      curr.polling?.concurrencyBatchSize !== s.polling?.concurrencyBatchSize ||
+      curr.polling?.flapReuseWindowMinutes !== s.polling?.flapReuseWindowMinutes;
+    const thresholdsChanged =
+      JSON.stringify(curr.thresholds) !== JSON.stringify(s.thresholds);
+    return pollingChanged || thresholdsChanged;
+  }
+
+  if (tabId === 'network') {
+    return (
+      curr.coreSwitch?.ip !== s.coreSwitch?.ip ||
+      curr.coreSwitch?.community !== s.coreSwitch?.community ||
+      curr.coreSwitch?.port !== s.coreSwitch?.port ||
+      curr.coreSwitch?.version !== s.coreSwitch?.version
+    );
+  }
+
+  if (tabId === 'retention') {
+    return curr.retentionDays !== s.retentionDays;
+  }
+
+  return false;
+}
+
+function revertTabState(tabId: string) {
+  if (tabId === 'branding') {
+    resetBrandingForm();
+    return;
+  }
+  if (!savedSettingsSnapshot.value) return;
+  const s = savedSettingsSnapshot.value;
+
+  if (tabId === 'notifications') {
+    settingStore.settings.rateLimitMaxMsgPerMin = s.rateLimitMaxMsgPerMin;
+  } else if (tabId === 'polling') {
+    if (s.polling) settingStore.settings.polling = JSON.parse(JSON.stringify(s.polling));
+    if (s.thresholds) settingStore.settings.thresholds = JSON.parse(JSON.stringify(s.thresholds));
+  } else if (tabId === 'network') {
+    if (s.coreSwitch) settingStore.settings.coreSwitch = JSON.parse(JSON.stringify(s.coreSwitch));
+  } else if (tabId === 'retention') {
+    settingStore.settings.retentionDays = s.retentionDays;
+  }
+}
+
+const isCurrentTabDirty = computed(() => isTabDirty(activeTab.value));
+const isAnyTabDirty = computed(() => ['notifications', 'polling', 'network', 'retention', 'branding'].some(isTabDirty));
+
+const currentTabLabel = computed(() => {
+  const t = availableTabs.value.find(tab => tab.id === activeTab.value);
+  return t ? t.label : activeTab.value;
+});
+
+const pendingTabId = ref<string | null>(null);
+const showTabSwitchConfirmModal = ref(false);
+
+function switchTab(targetTabId: string) {
+  if (targetTabId === activeTab.value) return;
+  if (isCurrentTabDirty.value) {
+    pendingTabId.value = targetTabId;
+    showTabSwitchConfirmModal.value = true;
+  } else {
+    activeTab.value = targetTabId;
+    router.replace({ query: { ...route.query, tab: targetTabId } });
+  }
+}
+
+function confirmDiscardTabSwitch() {
+  revertTabState(activeTab.value);
+  showTabSwitchConfirmModal.value = false;
+  if (pendingTabId.value) {
+    activeTab.value = pendingTabId.value;
+    router.replace({ query: { ...route.query, tab: pendingTabId.value } });
+    pendingTabId.value = null;
+  }
+}
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (isAnyTabDirty.value) {
+    const ok = window.confirm(`Anda memiliki perubahan konfigurasi yang belum disimpan pada tab "${currentTabLabel.value}". Apakah Anda yakin ingin membatalkan perubahan dan meninggalkan halaman ini?`);
+    if (ok) {
+      ['notifications', 'polling', 'network', 'retention', 'branding'].forEach(revertTabState);
+      next();
+    } else {
+      next(false);
+    }
+  } else {
+    next();
+  }
+});
+
 // Per-category Save Handlers
 async function handleSaveRateLimit() {
   isSavingRateLimit.value = true;
   try {
     await settingStore.saveSettings();
+    updateSettingsSnapshot();
     triggerFeedback('Queue Settings Saved', `Asynq Redis rate-limit updated: ${settingStore.settings.rateLimitMaxMsgPerMin} messages/minute.`);
   } catch (e: any) {
     triggerFeedback('Save Failed', e.response?.data?.error || 'Failed to save rate limit settings', false);
@@ -1488,6 +1900,7 @@ async function handleSaveEngineAndThresholds() {
         thresholds: settingStore.settings.thresholds
       })
     ]);
+    updateSettingsSnapshot();
     triggerFeedback(
       'Engine & Thresholds Saved',
       `Polling interval (${settingStore.settings.polling.intervalSeconds}s), concurrency (${settingStore.settings.polling.concurrencyBatchSize}), and device failure thresholds updated successfully!`
@@ -1503,6 +1916,7 @@ async function handleSaveCoreSwitch() {
   isSavingCoreSwitch.value = true;
   try {
     await settingStore.saveSettings();
+    updateSettingsSnapshot();
     triggerFeedback('Core Switch SNMP Saved', `Target SNMP Core Switch (${settingStore.settings.coreSwitch?.ip || 'Configured'}) saved for cross-subnet L3 ARP resolution.`);
   } catch (e: any) {
     triggerFeedback('Save Failed', e.response?.data?.error || 'Failed to save Core Switch SNMP settings', false);
@@ -1515,6 +1929,7 @@ async function handleSaveRetention() {
   isSavingRetention.value = true;
   try {
     await settingStore.saveSettings();
+    updateSettingsSnapshot();
     triggerFeedback('Retention Policy Saved', `Auto-archive policy set to ${settingStore.settings.retentionDays} days.`);
   } catch (e: any) {
     triggerFeedback('Save Failed', e.response?.data?.error || 'Failed to save retention policy', false);
@@ -1696,6 +2111,14 @@ function openEditLocationModal(loc: LocationItem) {
   isLocationModalOpen.value = true;
 }
 
+function closeLocationModal() {
+  locationForm.name = '';
+  locationForm.description = '';
+  editingLocationId.value = '';
+  isLocationEdit.value = false;
+  isLocationModalOpen.value = false;
+}
+
 async function handleSaveLocation() {
   if (!locationForm.name.trim()) return;
   isSavingLocation.value = true;
@@ -1708,7 +2131,7 @@ async function handleSaveLocation() {
       triggerFeedback('Location Created', `Lokasi "${locationForm.name}" berhasil ditambahkan.`);
     }
     await fetchLocations();
-    isLocationModalOpen.value = false;
+    closeLocationModal();
   } catch (e: any) {
     triggerFeedback('Location Error', e.response?.data?.error || 'Failed to save location', false);
   } finally {
@@ -1736,10 +2159,127 @@ async function handleDeleteLocation() {
   }
 }
 
+// ─── Branding & Appearance Settings ──────────────────────────────────────────
+const isSavingBranding = ref(false);
+const isUploadingLogo = ref(false);
+const isUploadingFavicon = ref(false);
+const logoInputRef = ref<HTMLInputElement | null>(null);
+const faviconInputRef = ref<HTMLInputElement | null>(null);
+
+const brandingForm = reactive({
+  appTitle: '',
+  appSubtitle: '',
+  logoUrl: '',
+  logoFit: 'cover' as 'cover' | 'contain',
+  logoScale: 100,
+  faviconUrl: '',
+  footerText: ''
+});
+
+const isBrandingDirty = computed(() => {
+  const b = settingStore.branding;
+  if (!b) return false;
+  return (
+    brandingForm.appTitle !== (b.appTitle || 'SANOC') ||
+    brandingForm.appSubtitle !== (b.appSubtitle || 'Jabar Regional SANOC') ||
+    brandingForm.logoUrl !== (b.logoUrl || '') ||
+    brandingForm.logoFit !== (b.logoFit || 'cover') ||
+    brandingForm.faviconUrl !== (b.faviconUrl || '')
+  );
+});
+
+function resetBrandingForm() {
+  const b = settingStore.branding;
+  if (b) {
+    brandingForm.appTitle = b.appTitle || 'SANOC';
+    brandingForm.appSubtitle = b.appSubtitle || 'Jabar Regional SANOC';
+    brandingForm.logoUrl = b.logoUrl || '';
+    brandingForm.logoFit = b.logoFit || 'cover';
+    brandingForm.logoScale = b.logoScale || 100;
+    brandingForm.faviconUrl = b.faviconUrl || '';
+    brandingForm.footerText = b.footerText || 'SANOC Network Operations Center';
+  }
+}
+
+watch(
+  () => settingStore.branding,
+  (b) => {
+    if (b) {
+      brandingForm.appTitle = b.appTitle || 'SANOC';
+      brandingForm.appSubtitle = b.appSubtitle || 'Jabar Regional SANOC';
+      brandingForm.logoUrl = b.logoUrl || '';
+      brandingForm.logoFit = b.logoFit || 'cover';
+      brandingForm.logoScale = b.logoScale || 100;
+      brandingForm.faviconUrl = b.faviconUrl || '';
+      brandingForm.footerText = b.footerText || 'SANOC Network Operations Center';
+    }
+  },
+  { immediate: true, deep: true }
+);
+
+async function handleLogoUpload(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+  const file = target.files[0];
+  isUploadingLogo.value = true;
+  try {
+    const res = await settingStore.uploadBrandingAsset(file, 'logo');
+    if (res && res.url) {
+      brandingForm.logoUrl = res.url;
+      triggerFeedback('Logo Berhasil Diunggah', 'Logo baru siap diterapkan. Klik Simpan Branding untuk mengaktifkan.', true);
+    }
+  } catch (err: any) {
+    triggerFeedback('Upload Gagal', err.response?.data?.error || 'Gagal mengunggah logo.', false);
+  } finally {
+    isUploadingLogo.value = false;
+    if (logoInputRef.value) logoInputRef.value.value = '';
+  }
+}
+
+async function handleFaviconUpload(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+  const file = target.files[0];
+  isUploadingFavicon.value = true;
+  try {
+    const res = await settingStore.uploadBrandingAsset(file, 'favicon');
+    if (res && res.url) {
+      brandingForm.faviconUrl = res.url;
+      triggerFeedback('Favicon Berhasil Diunggah', 'Favicon baru siap diterapkan. Klik Simpan Branding untuk mengaktifkan.', true);
+    }
+  } catch (err: any) {
+    triggerFeedback('Upload Gagal', err.response?.data?.error || 'Gagal mengunggah favicon.', false);
+  } finally {
+    isUploadingFavicon.value = false;
+    if (faviconInputRef.value) faviconInputRef.value.value = '';
+  }
+}
+
+async function handleSaveBranding() {
+  isSavingBranding.value = true;
+  try {
+    await settingStore.updateBranding({
+      appTitle: brandingForm.appTitle.trim() || 'SANOC',
+      appSubtitle: brandingForm.appSubtitle.trim(),
+      logoUrl: brandingForm.logoUrl,
+      logoFit: brandingForm.logoFit,
+      logoScale: Number(brandingForm.logoScale) || 100,
+      faviconUrl: brandingForm.faviconUrl,
+      footerText: brandingForm.footerText.trim()
+    });
+    triggerFeedback('Branding Berhasil Disimpan', 'Logo, Favicon, dan Nama Sistem telah diperbarui di seluruh aplikasi.', true);
+  } catch (err: any) {
+    triggerFeedback('Gagal Menyimpan Branding', err.response?.data?.error || 'Terjadi kesalahan sistem saat menyimpan branding.', false);
+  } finally {
+    isSavingBranding.value = false;
+  }
+}
+
 onMounted(async () => {
   try {
     await Promise.allSettled([
       settingStore.fetchSettings(),
+      settingStore.fetchBranding(),
       settingStore.fetchUsers(),
       fetchIntegrationsConfig(),
       fetchUserLogs(),
@@ -1750,6 +2290,7 @@ onMounted(async () => {
   } finally {
     isInitialLoaded.value = true;
     settingStore.isLoading = false;
+    updateSettingsSnapshot();
   }
 
   wsClient.connect();

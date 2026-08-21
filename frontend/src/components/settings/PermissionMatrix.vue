@@ -170,13 +170,16 @@ const featureGroups: FeatureGroup[] = [
       { key: 'devices.create', label: 'Add New Device', description: 'Register single network node' },
       { key: 'devices.edit', label: 'Edit Device Settings', description: 'Update IP, MAC, SNMP & thresholds' },
       { key: 'devices.delete', label: 'Delete Devices', description: 'Permanently remove node from inventory' },
-      { key: 'devices.import', label: 'Bulk Import CSV/Excel', description: 'Batch import devices' }
+      { key: 'devices.import', label: 'Bulk Import CSV/Excel', description: 'Batch upload multiple devices via spreadsheet' },
+      { key: 'devices.bulk', label: 'Bulk Operations (Kelola Massal)', description: 'Batch update device attributes and bulk operations' },
+      { key: 'diagnostics.run', label: 'Network Diagnostic Terminal', description: 'Run live ICMP ping, traceroute & port probing' }
     ]
   },
   {
-    category: 'Incidents Queue',
+    category: 'Incidents & Outages',
     features: [
-      { key: 'incidents.view', label: 'View Active Incidents', description: 'Access incidents queue & timeline' }
+      { key: 'incidents.view', label: 'View Incident Stream', description: 'Read-only access to alerts and outage logs' },
+      { key: 'incidents.resolve', label: 'Acknowledge & Resolve Incidents', description: 'Mark alerts resolved or silenced' }
     ]
   },
   {
@@ -189,6 +192,7 @@ const featureGroups: FeatureGroup[] = [
   {
     category: 'Settings & Administration',
     features: [
+      { key: 'settings.branding', label: 'Branding & Appearance', description: 'Change system logo, favicon and application titles' },
       { key: 'settings.notifications', label: 'Gateways & Alerts', description: 'Configure WhatsApp, Telegram & rate limits' },
       { key: 'settings.polling', label: 'Engine & Thresholds', description: 'Configure ICMP interval, debounce & failure rules' },
       { key: 'settings.network', label: 'Core Switch & SNMP', description: 'Configure cross-subnet L3 ARP SNMP target' },
@@ -219,9 +223,12 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'devices.edit': false,
     'devices.delete': false,
     'devices.import': false,
+    'devices.bulk': false,
+    'diagnostics.run': false,
     'incidents.view': true,
     'reports.view': true,
     'reports.export': true,
+    'settings.branding': false,
     'settings.notifications': false,
     'settings.polling': false,
     'settings.network': false,
@@ -236,9 +243,12 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'devices.edit': true,
     'devices.delete': false,
     'devices.import': false,
+    'devices.bulk': false,
+    'diagnostics.run': true,
     'incidents.view': true,
     'reports.view': true,
     'reports.export': true,
+    'settings.branding': false,
     'settings.notifications': false,
     'settings.polling': false,
     'settings.network': false,
