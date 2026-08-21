@@ -302,6 +302,7 @@ func main() {
 	router.POST("/api/v1/auth/reset-password", h.ResetPassword)
 	router.POST("/api/v1/auth/send-verification-otp", h.SendAccountVerificationOTP)
 	router.POST("/api/v1/auth/verify-account-otp", h.VerifyAccountOTP)
+	router.GET("/api/v1/settings/branding", h.GetBranding)
 
 	// User logs (accessible for activity log viewing)
 	v1.GET("/user-logs", h.GetUserLogs)
@@ -338,7 +339,7 @@ func main() {
 		devices.POST("", middleware.RequirePermission(permRepo, "devices.create", "admin", "anggota"), h.CreateDevice)
 		devices.PUT("/:id", middleware.RequirePermission(permRepo, "devices.edit", "admin", "anggota"), h.UpdateDevice)
 		devices.DELETE("/:id", middleware.RequirePermission(permRepo, "devices.delete", "admin"), h.DeleteDevice)
-		devices.PATCH("/bulk", middleware.RequirePermission(permRepo, "devices.edit", "admin", "anggota"), h.BulkDeviceAction)
+		devices.PATCH("/bulk", middleware.RequirePermission(permRepo, "devices.bulk", "admin"), h.BulkDeviceAction)
 		devices.POST("/import", middleware.RequirePermission(permRepo, "devices.import", "admin"), importH.ImportDevices)
 		devices.GET("/auto-detect", middleware.RequirePermission(permRepo, "devices.view", "admin", "anggota"), h.AutoDetect)
 	}
@@ -367,8 +368,17 @@ func main() {
 		settings.PUT("/thresholds", middleware.RequirePermission(permRepo, "settings.polling", "settings.thresholds", "admin"), h.UpdateThresholds)
 		settings.PUT("/polling", middleware.RequirePermission(permRepo, "settings.polling", "admin"), h.UpdatePolling)
 		settings.PUT("/rate-limit", middleware.RequirePermission(permRepo, "settings.notifications", "admin"), h.UpdateRateLimit)
+		settings.PUT("/branding", middleware.RequirePermission(permRepo, "settings.branding", "admin"), h.UpdateBranding)
+		settings.POST("/branding/upload", middleware.RequirePermission(permRepo, "settings.branding", "admin"), h.UploadBrandingAsset)
 	}
 
+	// Diagnostics
+	diagnostics := v1.Group("/diagnostics")
+	{
+		diagnostics.POST("/ping", middleware.RequirePermission(permRepo, "diagnostics.run", "admin", "anggota"), h.RunPing)
+		diagnostics.POST("/traceroute", middleware.RequirePermission(permRepo, "diagnostics.run", "admin", "anggota"), h.RunTraceroute)
+		diagnostics.POST("/port-probe", middleware.RequirePermission(permRepo, "diagnostics.run", "admin", "anggota"), h.RunPortProbe)
+	}
 
 	// Users
 	users := v1.Group("/users")

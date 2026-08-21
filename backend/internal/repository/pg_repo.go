@@ -211,8 +211,8 @@ func (r *PostgresDeviceRepository) Update(d *domain.Device) error {
 	if d.LocationID != "" {
 		locID = d.LocationID
 	}
-	query := `UPDATE devices SET name=$1, type=$2, last_known_ip=$3, addressing_mode=$4, location_id=$5, location=$6, rack=$7, failure_threshold=$8, snmp_enabled=$9, snmp_community=$10, snmp_port=$11, snmp_if_index=$12, snmp_sys_name=$13, use_custom_threshold=$14, custom_failure_threshold=$15, updated_at=CURRENT_TIMESTAMP WHERE id=$16`
-	_, err := r.db.Exec(query, d.Name, d.Type, d.IP, d.AddressingMode, locID, d.Location, d.Rack, d.FailureThreshold, d.SNMPEnabled, d.SNMPCommunity, d.SNMPPort, d.SNMPIfIndex, d.SNMPSysName, d.UseCustomThreshold, d.CustomFailureThreshold, d.ID)
+	query := `UPDATE devices SET name=$1, type=$2, mac_address=$3, last_known_ip=$4, addressing_mode=$5, location_id=$6, location=$7, rack=$8, failure_threshold=$9, snmp_enabled=$10, snmp_community=$11, snmp_port=$12, snmp_if_index=$13, snmp_sys_name=$14, use_custom_threshold=$15, custom_failure_threshold=$16, updated_at=CURRENT_TIMESTAMP WHERE id=$17`
+	_, err := r.db.Exec(query, d.Name, d.Type, d.MAC, d.IP, d.AddressingMode, locID, d.Location, d.Rack, d.FailureThreshold, d.SNMPEnabled, d.SNMPCommunity, d.SNMPPort, d.SNMPIfIndex, d.SNMPSysName, d.UseCustomThreshold, d.CustomFailureThreshold, d.ID)
 	if r.redis != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		_ = r.redis.Client.Del(ctx, "devices:all").Err()
@@ -296,15 +296,22 @@ func (r *PostgresDeviceRepository) BulkUpdate(ids []string, updates domain.BulkD
 		setClauses = append(setClauses, fmt.Sprintf("location_id = $%d", argIdx))
 		args = append(args, updates.LocationID)
 		argIdx++
+	} else if updates.Location != "" {
+		locID := r.resolveLocationID(updates.Location)
+		if locID != "" {
+			setClauses = append(setClauses, fmt.Sprintf("location_id = $%d", argIdx))
+			args = append(args, locID)
+			argIdx++
+		}
 	}
 	if updates.Location != "" {
 		setClauses = append(setClauses, fmt.Sprintf("location = $%d", argIdx))
 		args = append(args, updates.Location)
 		argIdx++
 	}
-	if updates.SNMPEnabled != nil {
-		setClauses = append(setClauses, fmt.Sprintf("snmp_enabled = $%d", argIdx))
-		args = append(args, *updates.SNMPEnabled)
+	if updates.Rack != nil {
+		setClauses = append(setClauses, fmt.Sprintf("rack = $%d", argIdx))
+		args = append(args, *updates.Rack)
 		argIdx++
 	}
 	if updates.Type != "" {
@@ -312,10 +319,54 @@ func (r *PostgresDeviceRepository) BulkUpdate(ids []string, updates domain.BulkD
 		args = append(args, string(updates.Type))
 		argIdx++
 	}
+	if updates.AddressingMode != nil && *updates.AddressingMode != "" {
+		setClauses = append(setClauses, fmt.Sprintf("addressing_mode = $%d", argIdx))
+		args = append(args, string(*updates.AddressingMode))
+		argIdx++
+	}
+	if updates.SNMPEnabled != nil {
+		setClauses = append(setClauses, fmt.Sprintf("snmp_enabled = $%d", argIdx))
+		args = append(args, *updates.SNMPEnabled)
+		argIdx++
+	}
+	if updates.SNMPCommunity != nil {
+		setClauses = append(setClauses, fmt.Sprintf("snmp_community = $%d", argIdx))
+		args = append(args, *updates.SNMPCommunity)
+		argIdx++
+	}
+	if updates.SNMPPort != nil && *updates.SNMPPort > 0 {
+		setClauses = append(setClauses, fmt.Sprintf("snmp_port = $%d", argIdx))
+		args = append(args, *updates.SNMPPort)
+		argIdx++
+	}
+	if updates.SNMPIfIndex != nil {
+		setClauses = append(setClauses, fmt.Sprintf("snmp_if_index = $%d", argIdx))
+		args = append(args, *updates.SNMPIfIndex)
+		argIdx++
+	}
+	if updates.UseCustomThreshold != nil {
+		setClauses = append(setClauses, fmt.Sprintf("use_custom_threshold = $%d", argIdx))
+		args = append(args, *updates.UseCustomThreshold)
+		argIdx++
+	}
+	if updates.CustomFailureThreshold != nil && *updates.CustomFailureThreshold > 0 {
+		setClauses = append(setClauses, fmt.Sprintf("custom_failure_threshold = $%d", argIdx))
+		args = append(args, *updates.CustomFailureThreshold)
+		argIdx++
+		setClauses = append(setClauses, fmt.Sprintf("failure_threshold = $%d", argIdx))
+		args = append(args, *updates.CustomFailureThreshold)
+		argIdx++
+	} else if updates.FailureThreshold != nil && *updates.FailureThreshold > 0 {
+		setClauses = append(setClauses, fmt.Sprintf("failure_threshold = $%d", argIdx))
+		args = append(args, *updates.FailureThreshold)
+		argIdx++
+	}
 
 	if len(setClauses) == 0 {
 		return 0, nil
 	}
+
+	setClauses = append(setClauses, "updated_at = CURRENT_TIMESTAMP")
 
 	query := fmt.Sprintf("UPDATE devices SET %s WHERE id IN (", strings.Join(setClauses, ", "))
 	for i, id := range ids {

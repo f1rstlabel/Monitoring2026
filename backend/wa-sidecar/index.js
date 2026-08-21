@@ -78,17 +78,6 @@ let isConnecting = false;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 
-function clearAuthDir() {
-  if (fs.existsSync(AUTH_DIR)) {
-    try {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-      console.log('[Baileys Sidecar] Auth directory cleared:', AUTH_DIR);
-    } catch (err) {
-      console.error('[Baileys Sidecar] Failed to clear auth dir:', err);
-    }
-  }
-}
-
 function cleanupExistingSocket() {
   if (sock) {
     try {
@@ -98,6 +87,33 @@ function cleanupExistingSocket() {
       // ignore cleanup errors
     }
     sock = null;
+  }
+}
+
+function clearAuthDir() {
+  cleanupExistingSocket();
+  if (fs.existsSync(AUTH_DIR)) {
+    try {
+      const files = fs.readdirSync(AUTH_DIR);
+      for (const file of files) {
+        const curPath = path.join(AUTH_DIR, file);
+        try {
+          if (fs.lstatSync(curPath).isDirectory()) {
+            fs.rmSync(curPath, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(curPath);
+          }
+        } catch (e) {
+          // ignore single-file permission locks on Windows
+        }
+      }
+      try {
+        fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      } catch (e) {}
+      console.log('[Baileys Sidecar] Auth directory cleared successfully:', AUTH_DIR);
+    } catch (err) {
+      console.error('[Baileys Sidecar] Failed to clear auth dir:', err?.message || err);
+    }
   }
 }
 
@@ -251,7 +267,7 @@ app.post('/connect', async (req, res) => {
     return res.json({ status: 'connected', linkedNumber });
   }
 
-  if (connectionStatus === 'pending' && sock) {
+  if (connectionStatus === 'pending' && sock && qrCode) {
     return res.json({
       status: 'pending',
       qr: qrCode,
@@ -262,6 +278,8 @@ app.post('/connect', async (req, res) => {
   qrCode = '';
   connectionStatus = 'pending';
   reconnectAttempts = 0;
+  isConnecting = false;
+  cleanupExistingSocket();
 
   connectToWhatsApp();
 

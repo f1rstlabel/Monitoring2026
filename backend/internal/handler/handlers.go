@@ -1013,20 +1013,40 @@ func (h *Handler) GetStatusHistory(c *gin.Context) {
 }
 
 func (h *Handler) GetIncidents(c *gin.Context) {
-	deviceID := c.Query("deviceId")
+	deviceID := strings.TrimSpace(c.Query("deviceId"))
+	status := strings.TrimSpace(c.Query("status"))
+	search := strings.ToLower(strings.TrimSpace(c.Query("search")))
+
 	if h.incidentRepo != nil {
+		var incidents []domain.Incident
+		var err error
+
 		if deviceID != "" {
-			incidents, err := h.incidentRepo.GetByDeviceID(deviceID)
-			if err == nil {
-				paginateSlice(c, incidents)
-				return
-			}
+			incidents, err = h.incidentRepo.GetByDeviceID(deviceID)
+		} else if status == "ACTIVE" {
+			incidents, err = h.incidentRepo.GetActive()
 		} else {
-			incidents, err := h.incidentRepo.GetAll()
-			if err == nil {
-				paginateSlice(c, incidents)
-				return
+			incidents, err = h.incidentRepo.GetAll()
+		}
+
+		if err == nil {
+			var filtered []domain.Incident
+			for _, inc := range incidents {
+				if status != "" && status != "ALL" && !strings.EqualFold(inc.Status, status) {
+					continue
+				}
+				if search != "" {
+					matchID := strings.Contains(strings.ToLower(inc.ID), search)
+					matchName := strings.Contains(strings.ToLower(inc.DeviceName), search)
+					matchIP := strings.Contains(strings.ToLower(inc.DeviceIP), search)
+					if !matchID && !matchName && !matchIP {
+						continue
+					}
+				}
+				filtered = append(filtered, inc)
 			}
+			paginateSlice(c, filtered)
+			return
 		}
 	}
 	paginateSlice(c, []domain.Incident{})
@@ -2478,6 +2498,16 @@ func (h *Handler) BulkDeviceAction(c *gin.Context) {
 	}
 
 	if req.Action == "delete" {
+		userRole, exists := c.Get("userRole")
+		roleStr, _ := userRole.(string)
+		if exists && roleStr != "admin" && h.permRepo != nil {
+			hasDelete, err := h.permRepo.HasPermission(domain.Role(roleStr), "devices.delete")
+			if err != nil || !hasDelete {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: missing devices.delete permission"})
+				return
+			}
+		}
+
 		deleted, err := h.deviceRepo.BulkDelete(req.DeviceIDs)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to bulk delete devices: " + err.Error()})
@@ -2492,6 +2522,25 @@ func (h *Handler) BulkDeviceAction(c *gin.Context) {
 	}
 
 	if req.Action == "update" {
+		if req.Updates.SNMPPort != nil && (*req.Updates.SNMPPort < 1 || *req.Updates.SNMPPort > 65535) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "SNMP Port must be between 1 and 65535"})
+			return
+		}
+		if req.Updates.CustomFailureThreshold != nil && (*req.Updates.CustomFailureThreshold < 1 || *req.Updates.CustomFailureThreshold > 10) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failure threshold must be between 1 and 10"})
+			return
+		}
+		if req.Updates.FailureThreshold != nil && (*req.Updates.FailureThreshold < 1 || *req.Updates.FailureThreshold > 10) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failure threshold must be between 1 and 10"})
+			return
+		}
+		if req.Updates.AddressingMode != nil && *req.Updates.AddressingMode != "" {
+			if *req.Updates.AddressingMode != "Static" && *req.Updates.AddressingMode != "DHCP" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Addressing mode must be Static or DHCP"})
+				return
+			}
+		}
+
 		updated, err := h.deviceRepo.BulkUpdate(req.DeviceIDs, req.Updates)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to bulk update devices: " + err.Error()})
@@ -2558,4 +2607,122 @@ func (h *Handler) UpdatePermissions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// ─── Branding & Appearance Settings ──────────────────────────────────────────
+
+func (h *Handler) GetBranding(c *gin.Context) {
+	branding := domain.BrandingSettings{
+		AppTitle:    "SANOC",
+		AppSubtitle: "Jabar Regional SANOC",
+		LogoURL:     "",
+		LogoFit:     "cover",
+		LogoScale:   100,
+		FaviconURL:  "",
+		FooterText:  "SANOC Network Operations Center",
+	}
+
+	if h.settingsRepo != nil {
+		_ = h.settingsRepo.GetJSON("branding", &branding)
+		if branding.LogoFit == "" {
+			branding.LogoFit = "cover"
+		}
+		if branding.LogoScale <= 0 {
+			branding.LogoScale = 100
+		}
+	}
+
+	c.JSON(http.StatusOK, branding)
+}
+
+func (h *Handler) UpdateBranding(c *gin.Context) {
+	var req domain.BrandingSettings
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid branding payload"})
+		return
+	}
+
+	req.AppTitle = strings.TrimSpace(req.AppTitle)
+	if req.AppTitle == "" {
+		req.AppTitle = "SANOC"
+	}
+	req.AppSubtitle = strings.TrimSpace(req.AppSubtitle)
+	req.FooterText = strings.TrimSpace(req.FooterText)
+	if req.LogoFit == "" {
+		req.LogoFit = "cover"
+	}
+	if req.LogoScale <= 0 {
+		req.LogoScale = 100
+	}
+
+	if h.settingsRepo != nil {
+		if err := h.settingsRepo.SetJSON("branding", req); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save branding settings"})
+			return
+		}
+	}
+
+	if h.hub != nil {
+		h.hub.BroadcastMessage(domain.WSMessage{
+			Type:        "BRANDING_UPDATED",
+			Description: "System branding settings updated",
+			Severity:    "info",
+			Timestamp:   time.Now(),
+		})
+	}
+
+	c.JSON(http.StatusOK, req)
+}
+
+func (h *Handler) UploadBrandingAsset(c *gin.Context) {
+	assetType := c.Query("type") // "logo" or "favicon"
+	if assetType != "logo" && assetType != "favicon" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query param ?type= must be 'logo' or 'favicon'"})
+		return
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
+		return
+	}
+
+	if file.Size > 2*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File size must not exceed 2MB"})
+		return
+	}
+
+	uploadDir := "./uploads/branding"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create branding upload directory"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if assetType == "favicon" {
+		if ext != ".ico" && ext != ".png" && ext != ".svg" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Favicon must be .ico, .png, or .svg"})
+			return
+		}
+	} else {
+		if ext != ".png" && ext != ".svg" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Logo must be PNG, SVG, JPG, or WebP"})
+			return
+		}
+	}
+
+	filename := fmt.Sprintf("%s_%d%s", assetType, time.Now().UnixNano()/1e6, ext)
+	dstPath := filepath.Join(uploadDir, filename)
+
+	if err := c.SaveUploadedFile(file, dstPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save uploaded file"})
+		return
+	}
+
+	assetURL := fmt.Sprintf("/uploads/branding/%s", filename)
+	c.JSON(http.StatusOK, gin.H{
+		"url":       assetURL,
+		"assetType": assetType,
+		"filename":  filename,
+	})
 }

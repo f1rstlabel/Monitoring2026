@@ -297,12 +297,30 @@ type SystemSettings struct {
 	RetentionDays int              `json:"retentionDays"`
 }
 
+type BrandingSettings struct {
+	AppTitle    string `json:"appTitle"`
+	AppSubtitle string `json:"appSubtitle"`
+	LogoURL     string `json:"logoUrl"`
+	LogoFit     string `json:"logoFit"`   // "cover" | "contain"
+	LogoScale   int    `json:"logoScale"` // 50 to 200, default 100
+	FaviconURL  string `json:"faviconUrl"`
+	FooterText  string `json:"footerText"`
+}
+
 
 type BulkDeviceUpdates struct {
-	LocationID  string     `json:"locationId,omitempty"`
-	Location    string     `json:"location,omitempty"`
-	SNMPEnabled *bool      `json:"snmpEnabled,omitempty"`
-	Type        DeviceType `json:"type,omitempty"`
+	LocationID             string          `json:"locationId,omitempty"`
+	Location               string          `json:"location,omitempty"`
+	Rack                   *string         `json:"rack,omitempty"`
+	Type                   DeviceType      `json:"type,omitempty"`
+	AddressingMode         *AddressingMode `json:"addressingMode,omitempty"`
+	SNMPEnabled            *bool           `json:"snmpEnabled,omitempty"`
+	SNMPCommunity          *string         `json:"snmpCommunity,omitempty"`
+	SNMPPort               *int            `json:"snmpPort,omitempty"`
+	SNMPIfIndex            *int            `json:"snmpIfIndex,omitempty"`
+	UseCustomThreshold     *bool           `json:"useCustomThreshold,omitempty"`
+	CustomFailureThreshold *int            `json:"customFailureThreshold,omitempty"`
+	FailureThreshold       *int            `json:"failureThreshold,omitempty"`
 }
 
 type BulkDeviceRequest struct {
