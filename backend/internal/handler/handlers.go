@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"sanoc/backend/internal/ai"
 	"sanoc/backend/internal/config"
 	"sanoc/backend/internal/domain"
 	"sanoc/backend/internal/mailer"
@@ -79,6 +80,7 @@ type Handler struct {
 	permRepo           repository.PermissionRepository
 	whatsappTargetRepo repository.WhatsAppTargetRepository
 	mailer             *mailer.Mailer
+	aiService          *ai.Service
 }
 
 func NewHandler(hub *ws.Hub, settingsRepo *repository.SettingsRepository, userRepo repository.UserRepository, deviceRepo repository.DeviceRepository, statusRepo repository.StatusLogRepository) *Handler {
@@ -89,6 +91,10 @@ func NewHandler(hub *ws.Hub, settingsRepo *repository.SettingsRepository, userRe
 		deviceRepo:   deviceRepo,
 		statusRepo:   statusRepo,
 	}
+}
+
+func (h *Handler) SetAIService(s *ai.Service) {
+	h.aiService = s
 }
 
 func (h *Handler) SetMailer(m *mailer.Mailer) {

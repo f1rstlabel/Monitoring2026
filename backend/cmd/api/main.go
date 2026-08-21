@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"sanoc/backend/internal/ai"
 	"sanoc/backend/internal/config"
 	"sanoc/backend/internal/domain"
 	"sanoc/backend/internal/handler"
@@ -257,6 +258,15 @@ func main() {
 	h.SetPermissionRepo(permRepo)
 	h.SetWhatsAppTargetRepo(whatsappTargetRepo)
 	h.SetMailer(mailer.NewMailer(cfg))
+	// ─── AI Service (Google Gemini) ─────────────────────────────────────────────
+	aiService := ai.NewService(cfg.GeminiAPIKey, cfg.GeminiModel, deviceRepo, incidentRepo, statusRepo)
+	h.SetAIService(aiService)
+	if aiService.IsConfigured() {
+		log.Printf("[SANOC] Gemini AI Copilot initialized successfully (Model: %s)", aiService.GetModel())
+	} else {
+		log.Printf("[SANOC] Gemini AI Copilot: GEMINI_API_KEY not configured in .env (Copilot ready on key provision)")
+	}
+
 	importH := handler.NewImportHandler(deviceRepo, locationRepo)
 
 	// Integrations handler — uses real sidecar proxy (URL + internal token from .env)
@@ -378,6 +388,15 @@ func main() {
 		diagnostics.POST("/ping", middleware.RequirePermission(permRepo, "diagnostics.run", "admin", "anggota"), h.RunPing)
 		diagnostics.POST("/traceroute", middleware.RequirePermission(permRepo, "diagnostics.run", "admin", "anggota"), h.RunTraceroute)
 		diagnostics.POST("/port-probe", middleware.RequirePermission(permRepo, "diagnostics.run", "admin", "anggota"), h.RunPortProbe)
+	}
+
+	// AI Copilot
+	aiGroup := v1.Group("/ai")
+	{
+		aiGroup.GET("/status", h.GetAIStatus)
+		aiGroup.GET("/quick-prompts", h.GetAIQuickPrompts)
+		aiGroup.POST("/chat", h.ChatAI)
+		aiGroup.POST("/analyze-incident/:id", h.AnalyzeIncidentAI)
 	}
 
 	// Users

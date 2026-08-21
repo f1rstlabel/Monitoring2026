@@ -41,6 +41,9 @@ type Config struct {
 	SMTPUser     string
 	SMTPPassword string
 	SMTPFrom     string
+
+	GeminiAPIKey string
+	GeminiModel  string
 }
 
 func LoadConfig() *Config {
@@ -93,6 +96,9 @@ func LoadConfig() *Config {
 		SMTPUser:     getEnv("SMTP_USER", ""),
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
 		SMTPFrom:     getEnv("SMTP_FROM", "SANOC Jabar Monitoring <noreply@jabarprov.go.id>"),
+
+		GeminiAPIKey: getEnvWithFallback("GEMINI_API_KEY", "GOOGLE_API_KEY", ""),
+		GeminiModel:  getEnv("GEMINI_MODEL", "gemini-1.5-flash"),
 	}
 }
 
