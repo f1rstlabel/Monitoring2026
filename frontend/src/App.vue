@@ -27,15 +27,18 @@ import Sidebar from './components/common/Sidebar.vue';
 import Topbar from './components/common/Topbar.vue';
 import { useLiveStore } from './stores/liveStore';
 import { useThemeStore } from './stores/themeStore';
+import { useSettingStore } from './stores/settingStore';
 
 const route = useRoute();
 const liveStore = useLiveStore();
 const themeStore = useThemeStore();
+const settingStore = useSettingStore();
 
 const isLoginPage = computed(() => route.path === '/login');
 
 onMounted(() => {
   themeStore.initTheme();
   liveStore.initWebSocket();
+  settingStore.fetchBranding();
 });
 </script>

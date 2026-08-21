@@ -3,17 +3,36 @@
     <!-- Top Branding & Navigation -->
     <div>
       <!-- Header / Logo -->
-      <div class="px-5 py-5 border-b border-[#26262A]/60 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-[#0082FF]/10 border border-[#0082FF]/30 flex items-center justify-center p-1.5 shadow-sm shadow-[#0082FF]/20">
-            <img src="../../assets/logo-sanoc-mark.svg" alt="SANOC Logo" class="w-full h-full object-contain" />
-          </div>
-          <div>
-            <h1 class="text-sm font-black text-white tracking-wider leading-none">SANOC</h1>
-            <p class="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-wider">Jabar Regional SANOC</p>
-          </div>
+      <div class="px-4 py-4 border-b border-[#26262A]/60 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-[#151517] border border-[#26262A] flex items-center justify-center shrink-0 overflow-hidden relative shadow-sm">
+          <img
+            v-if="settingStore.branding.logoUrl"
+            :src="settingStore.branding.logoUrl"
+            alt="System Logo"
+            class="w-full h-full block"
+            :class="(settingStore.branding.logoFit || 'cover') === 'cover' ? 'object-cover' : 'object-contain p-1'"
+          />
+          <img
+            v-else
+            src="../../assets/logo-sanoc-mark.svg"
+            alt="SANOC Logo"
+            class="w-full h-full object-contain p-1.5"
+          />
         </div>
-        <span class="text-[10px] font-mono bg-[#18181B] text-[#7B96F5] px-1.5 py-0.5 rounded border border-[#26262A]">v2.6.0</span>
+        <div class="min-w-0 flex-1 flex flex-col justify-center">
+          <div class="flex items-center justify-between gap-1">
+            <h1 class="text-sm font-black text-white tracking-wider leading-none truncate">
+              {{ settingStore.branding.appTitle || 'SANOC' }}
+            </h1>
+            <span class="text-[9px] font-mono text-[#7B96F5] font-semibold bg-[#7B96F5]/10 px-1 py-0.5 rounded border border-[#7B96F5]/20 shrink-0">v2.6.0</span>
+          </div>
+          <p
+            class="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-tight truncate leading-tight"
+            :title="settingStore.branding.appSubtitle || 'Jabar Regional SANOC'"
+          >
+            {{ settingStore.branding.appSubtitle || 'Jabar Regional SANOC' }}
+          </p>
+        </div>
       </div>
 
       <!-- Navigation Items — conditionally rendered per feature permissions -->
@@ -139,6 +158,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useDeviceStore } from '../../stores/deviceStore';
+import { useSettingStore } from '../../stores/settingStore';
 import {
   LayoutGrid,
   Server,
@@ -156,6 +176,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const deviceStore = useDeviceStore();
+const settingStore = useSettingStore();
 
 function navLinkClass(path: string) {
   const isActive = route.path === path || (route.path.startsWith(path) && path !== '/dashboard');

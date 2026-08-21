@@ -285,12 +285,8 @@ const paginatedDevices = computed(() => {
 
 function navigateToDevices(statusFilter?: string) {
   if (statusFilter) {
-    deviceStore.selectedStatusFilter = statusFilter;
     router.push({ path: '/devices', query: { status: statusFilter } });
   } else {
-    deviceStore.selectedStatusFilter = 'All';
-    deviceStore.selectedTypeFilter = 'All';
-    deviceStore.searchQuery = '';
     router.push('/devices');
   }
 }
@@ -304,6 +300,9 @@ function navigateToIncidents(statusFilter?: string) {
 }
 
 onMounted(() => {
+  deviceStore.selectedStatusFilter = 'All';
+  deviceStore.selectedTypeFilter = 'All';
+  deviceStore.searchQuery = '';
   deviceStore.fetchDevices();
   deviceStore.fetchSummary();
 });
