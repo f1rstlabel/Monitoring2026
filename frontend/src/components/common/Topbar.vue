@@ -7,16 +7,18 @@
       class="fixed inset-0 z-30 bg-black/10 backdrop-blur-[1px]"
     ></div>
 
-    <!-- Search Input -->
-    <div class="relative w-80 z-20">
-      <Search class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-      <input
-        v-model="deviceStore.searchQuery"
-        type="text"
-        placeholder="Search devices, IP, or incidents..."
-        class="w-full bg-[#151517] border border-[#26262A] rounded-lg pl-9 pr-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-[#7B96F5] transition-colors"
-      />
-      <span v-if="deviceStore.searchQuery" @click="deviceStore.searchQuery = ''" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 cursor-pointer hover:text-gray-300">✕</span>
+    <!-- Dynamic Page Breadcrumbs & Module Title -->
+    <div class="flex items-center gap-3 select-none">
+      <div class="flex items-center gap-2 text-xs font-mono">
+        <span class="text-gray-500 font-semibold tracking-wider uppercase text-[10px] bg-[#151517] px-2 py-0.5 rounded border border-[#26262A]">
+          {{ pageMeta.category }}
+        </span>
+        <span class="text-gray-600">/</span>
+        <div class="flex items-center gap-1.5 text-gray-200 font-bold">
+          <component :is="pageMeta.icon" class="w-3.5 h-3.5 text-[#7B96F5]" />
+          <span>{{ pageMeta.title }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Right Controls -->
@@ -148,9 +150,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import {
-  Search,
   Bell,
   ShieldCheck,
   Eye,
@@ -160,7 +161,14 @@ import {
   CheckCircle2,
   MessageSquare,
   RefreshCw,
-  Terminal
+  Terminal,
+  LayoutDashboard,
+  Server,
+  Network,
+  BarChart3,
+  Settings,
+  Users,
+  User
 } from 'lucide-vue-next';
 import DiagnosticTerminalModal from '../diagnostics/DiagnosticTerminalModal.vue';
 import { useDeviceStore } from '../../stores/deviceStore';
@@ -170,10 +178,46 @@ import { useNotificationStore, type AppNotification } from '../../stores/notific
 import { dashboardApi } from '../../api';
 
 const router = useRouter();
+const route = useRoute();
 const deviceStore = useDeviceStore();
 const liveStore = useLiveStore();
 const authStore = useAuthStore();
 const notifStore = useNotificationStore();
+
+const pageMeta = computed(() => {
+  const path = route.path;
+  if (path === '/' || path === '/dashboard') {
+    return { title: 'Live Dashboard', category: 'Monitoring', icon: LayoutDashboard };
+  }
+  if (path.startsWith('/devices/')) {
+    return { title: 'Device Telemetry & Analytics', category: 'Infrastructure', icon: Cpu };
+  }
+  if (path === '/devices') {
+    return { title: 'Device Inventory', category: 'Infrastructure', icon: Server };
+  }
+  if (path.startsWith('/incidents/')) {
+    return { title: 'Incident Investigation', category: 'Operations', icon: AlertTriangle };
+  }
+  if (path === '/incidents') {
+    return { title: 'Incident Center', category: 'Operations', icon: AlertTriangle };
+  }
+  if (path === '/topology') {
+    return { title: 'Network Topology Map', category: 'Infrastructure', icon: Network };
+  }
+  if (path === '/reports') {
+    return { title: 'Availability & SLA Reports', category: 'Analytics', icon: BarChart3 };
+  }
+  if (path === '/settings') {
+    return { title: 'System Settings', category: 'Administration', icon: Settings };
+  }
+  if (path === '/users') {
+    return { title: 'User & Role Management', category: 'Administration', icon: Users };
+  }
+  if (path === '/profile') {
+    return { title: 'User Profile', category: 'Account', icon: User };
+  }
+  return { title: 'Network Operations Center', category: 'SANOC', icon: Activity };
+});
 
 const isNotifOpen = ref(false);
 const isRefreshing = ref(false);
