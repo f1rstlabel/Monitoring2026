@@ -66,14 +66,24 @@
         </div>
       </div>
 
-      <button
-        v-if="authStore.canEditDevice"
-        @click="openEditDevice()"
-        class="px-4 py-2 rounded-lg bg-[#18181B] border border-[#26262A] hover:bg-[#26262A] text-gray-200 font-medium text-xs transition-all flex items-center gap-2"
-      >
-        <Edit3 class="w-4 h-4 text-[#7B96F5]" />
-        Edit Configuration
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          @click="isTerminalOpen = true"
+          class="px-3.5 py-2 rounded-lg bg-[#18181B] border border-[#26262A] hover:border-[#3ECF8E] text-[#3ECF8E] font-medium text-xs transition-all flex items-center gap-2 cursor-pointer shadow-sm shadow-[#3ECF8E]/10"
+        >
+          <Terminal class="w-4 h-4" />
+          Run Diagnostics
+        </button>
+        <button
+          v-if="authStore.canEditDevice"
+          @click="openEditDevice()"
+          class="px-4 py-2 rounded-lg bg-[#18181B] border border-[#26262A] hover:bg-[#26262A] text-gray-200 font-medium text-xs transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <Edit3 class="w-4 h-4 text-[#7B96F5]" />
+          Edit Configuration
+        </button>
+      </div>
     </div>
 
     <!-- Top Grid: Device Overview & 7-Day History Chart -->
@@ -342,6 +352,13 @@
     @close="isFormModalOpen = false"
     @saved="deviceStore.fetchDevices()"
   />
+
+  <!-- Diagnostic Terminal Modal -->
+  <DiagnosticTerminalModal
+    :is-open="isTerminalOpen"
+    :initial-target="device?.ip || device?.mac || ''"
+    @close="isTerminalOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -355,6 +372,7 @@ import StatusPill from '../components/common/StatusPill.vue';
 import UptimeGauge from '../components/devices/UptimeGauge.vue';
 import StatusHistoryChart from '../components/devices/StatusHistoryChart.vue';
 import DeviceFormModal from '../components/devices/DeviceFormModal.vue';
+import DiagnosticTerminalModal from '../components/diagnostics/DiagnosticTerminalModal.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import SkeletonTable from '../components/common/SkeletonTable.vue';
@@ -370,7 +388,8 @@ import {
   Server,
   Clock,
   UserCheck,
-  Layers
+  Layers,
+  Terminal
 } from 'lucide-vue-next';
 
 const route = useRoute();
@@ -379,6 +398,7 @@ const authStore = useAuthStore();
 
 const isDetailLoading = ref(true);
 const isFormModalOpen = ref(false);
+const isTerminalOpen = ref(false);
 const formModalMode = ref<'add' | 'edit'>('edit');
 
 const deviceId = computed(() => route.params.id as string);

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, createLogger } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -20,6 +20,35 @@ const isOfflineError = (err: any) => {
   );
 };
 
+const customLogger = createLogger();
+const originalError = customLogger.error;
+customLogger.error = (msg, options) => {
+  if (
+    msg.includes('ws proxy socket error') ||
+    msg.includes('ws proxy error') ||
+    msg.includes('http proxy error') ||
+    msg.includes('ECONNABORTED') ||
+    msg.includes('ECONNRESET') ||
+    msg.includes('ECONNREFUSED') ||
+    msg.includes('EPIPE')
+  ) {
+    return;
+  }
+  originalError(msg, options);
+};
+
+const originalWarn = customLogger.warn;
+customLogger.warn = (msg, options) => {
+  if (
+    msg.includes('ws proxy') ||
+    msg.includes('ECONNABORTED') ||
+    msg.includes('ECONNRESET')
+  ) {
+    return;
+  }
+  originalWarn(msg, options);
+};
+
 const setupSilentProxy = (proxy: any) => {
   proxy.on('error', (err: any) => {
     if (isOfflineError(err)) {
@@ -31,6 +60,14 @@ const setupSilentProxy = (proxy: any) => {
     if (isOfflineError(err)) {
       return; // Silence WebSocket disconnect/abort errors
     }
+  });
+
+  proxy.on('proxyReqWs', (_proxyReq: any, _req: any, socket: any) => {
+    socket.on('error', (err: any) => {
+      if (isOfflineError(err)) {
+        return;
+      }
+    });
   });
 
   const originalEmit = proxy.emit;
@@ -47,6 +84,7 @@ const setupSilentProxy = (proxy: any) => {
 
 // https://vite.dev/config/
 export default defineConfig({
+  customLogger,
   plugins: [vue()],
   resolve: {
     alias: {
@@ -77,5 +115,3 @@ export default defineConfig({
     }
   }
 })
-
-

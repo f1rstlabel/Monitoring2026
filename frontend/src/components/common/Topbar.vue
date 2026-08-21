@@ -47,6 +47,17 @@
           <RefreshCw class="w-3 h-3" :class="isRefreshing ? 'animate-spin' : ''" />
           <span>{{ isRefreshing ? 'Polling...' : 'Poll Now' }}</span>
         </button>
+
+        <!-- Network Diagnostic Terminal Button -->
+        <button
+          type="button"
+          @click="isTerminalOpen = true"
+          class="px-2.5 py-1 rounded-full bg-[#151517] border border-[#26262A] hover:border-[#3ECF8E] text-[#3ECF8E] hover:text-[#56E3A4] text-[11px] font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-[#3ECF8E]/10"
+          title="Open Network Diagnostic Terminal (Ping & Traceroute)"
+        >
+          <Terminal class="w-3 h-3" />
+          <span>Diagnostics</span>
+        </button>
       </div>
 
       <!-- Active Role Badge & Profile Quick Link -->
@@ -126,6 +137,12 @@
         </div>
       </div>
     </div>
+
+    <!-- Diagnostic Terminal Modal -->
+    <DiagnosticTerminalModal
+      :is-open="isTerminalOpen"
+      @close="isTerminalOpen = false"
+    />
   </header>
 </template>
 
@@ -142,8 +159,10 @@ import {
   Activity,
   CheckCircle2,
   MessageSquare,
-  RefreshCw
+  RefreshCw,
+  Terminal
 } from 'lucide-vue-next';
+import DiagnosticTerminalModal from '../diagnostics/DiagnosticTerminalModal.vue';
 import { useDeviceStore } from '../../stores/deviceStore';
 import { useLiveStore } from '../../stores/liveStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -158,6 +177,7 @@ const notifStore = useNotificationStore();
 
 const isNotifOpen = ref(false);
 const isRefreshing = ref(false);
+const isTerminalOpen = ref(false);
 
 async function handleManualRefresh() {
   isRefreshing.value = true;

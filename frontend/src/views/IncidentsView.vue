@@ -84,8 +84,8 @@
           class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
         >
           <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active Outages (Open)</option>
-          <option value="RESOLVED">Resolved Incidents</option>
+          <option value="ACTIVE">Active (Open)</option>
+          <option value="RESOLVED">Resolved</option>
         </select>
         <select
           v-model="groupingMode"
@@ -99,7 +99,7 @@
       </div>
 
       <span class="text-xs font-mono text-gray-400">
-        Showing <span class="text-white font-bold">{{ filteredIncidents.length }}</span> of {{ incidentStore.incidents.length }} incidents
+        Showing <span class="text-white font-bold">{{ filteredIncidents.length }}</span> of {{ incidentStore.totalCount || incidentStore.incidents.length }} incidents
       </span>
     </div>
 
@@ -472,9 +472,7 @@ function loadIncidents() {
 }
 
 onMounted(() => {
-  if (route.query.status) {
-    statusFilter.value = route.query.status as string;
-  }
+  statusFilter.value = (route.query.status as string) || 'ALL';
   loadIncidents();
 });
 
@@ -485,9 +483,7 @@ watch([currentPage, pageSize], () => {
 watch(
   () => route.query,
   (newQ) => {
-    if (newQ.status) {
-      statusFilter.value = newQ.status as string;
-    }
+    statusFilter.value = (newQ.status as string) || 'ALL';
   }
 );
 

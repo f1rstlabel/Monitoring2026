@@ -205,3 +205,38 @@ export const usersApi = {
     return res.data;
   }
 };
+
+export const brandingApi = {
+  getBranding: async (): Promise<any> => {
+    const res = await api.get('/settings/branding');
+    return res.data;
+  },
+  updateBranding: async (data: { appTitle: string; appSubtitle: string; logoUrl: string; faviconUrl: string; footerText: string }): Promise<any> => {
+    const res = await api.put('/settings/branding', data);
+    return res.data;
+  },
+  uploadAsset: async (file: File, type: 'logo' | 'favicon'): Promise<{ url: string; assetType: string; filename: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(`/settings/branding/upload?type=${type}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  }
+};
+
+export const diagnosticsApi = {
+  runPing: async (target: string, count = 4): Promise<any> => {
+    const res = await api.post('/diagnostics/ping', { target, count });
+    return res.data;
+  },
+  runTraceroute: async (target: string): Promise<any> => {
+    const res = await api.post('/diagnostics/traceroute', { target });
+    return res.data;
+  },
+  runPortProbe: async (target: string, port: number): Promise<any> => {
+    const res = await api.post('/diagnostics/port-probe', { target, port });
+    return res.data;
+  }
+};
+

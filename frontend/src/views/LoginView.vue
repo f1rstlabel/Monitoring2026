@@ -8,11 +8,23 @@
     <div class="w-full max-w-md bg-[#151517] border border-[#26262A] rounded-2xl p-8 shadow-2xl relative z-10">
       <!-- Top Icon & Header -->
       <div class="flex flex-col items-center text-center">
-        <div class="w-14 h-14 rounded-2xl bg-[#0082FF]/10 border border-[#0082FF]/30 flex items-center justify-center p-2.5 shadow-lg shadow-[#0082FF]/20 mb-4">
-          <img src="../assets/logo-sanoc-mark.svg" alt="SANOC Logo" class="w-full h-full object-contain" />
+        <div class="w-16 h-16 rounded-2xl bg-[#18181B] border border-[#26262A] flex items-center justify-center shadow-lg shadow-black/40 mb-4 overflow-hidden relative">
+          <img
+            v-if="settingStore.branding.logoUrl"
+            :src="settingStore.branding.logoUrl"
+            alt="Logo"
+            class="w-full h-full block"
+            :class="(settingStore.branding.logoFit || 'cover') === 'cover' ? 'object-cover' : 'object-contain p-2'"
+          />
+          <img
+            v-else
+            src="../assets/logo-sanoc-mark.svg"
+            alt="SANOC Logo"
+            class="w-full h-full object-contain p-2 block"
+          />
         </div>
-        <h1 class="text-2xl font-black text-white tracking-wider">SANOC</h1>
-        <p class="text-xs text-gray-400 mt-1 font-medium">Enterprise Infrastructure &amp; Network Monitoring</p>
+        <h1 class="text-2xl font-black text-white tracking-wider">{{ settingStore.branding.appTitle || 'SANOC' }}</h1>
+        <p class="text-xs text-gray-400 mt-1 font-medium">{{ settingStore.branding.appSubtitle || 'Enterprise Infrastructure & Network Monitoring' }}</p>
       </div>
 
       <!-- Login Form -->
@@ -155,10 +167,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../stores/authStore';
+import { useSettingStore } from '../stores/settingStore';
 import OtpInput from '../components/common/OtpInput.vue';
 import { User, Lock, Eye, EyeOff, AlertCircle, ShieldCheck } from 'lucide-vue-next';
 
 const authStore = useAuthStore();
+const settingStore = useSettingStore();
 
 const username = ref('');
 const password = ref('');
@@ -179,6 +193,7 @@ const recaptchaToken = ref('');
 let recaptchaWidgetId: number | null = null;
 
 onMounted(() => {
+  settingStore.fetchBranding();
   if (!recaptchaSiteKey) return;
 
   const renderWidget = () => {
