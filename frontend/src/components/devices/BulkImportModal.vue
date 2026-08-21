@@ -245,7 +245,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
 
               <div v-if="importSummary.failed > 0" class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-2">
                 <p class="text-[10px] font-mono uppercase text-gray-500">Failed rows</p>
-                <div v-for="r in importSummary.results.filter(x => x.status === 'failed')" :key="r.rowIndex" class="flex items-center gap-3">
+                <div v-for="r in importSummary.results.filter((x: any) => x.status === 'failed')" :key="r.rowIndex" class="flex items-center gap-3">
                   <span class="text-[10px] font-mono text-gray-600">Row {{ r.rowIndex + 1 }}</span>
                   <span class="text-xs text-[#F16565]">{{ r.reason }}</span>
                 </div>
@@ -322,7 +322,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
 import { ref, computed, watch } from 'vue';
 import { useDeviceStore } from '../../stores/deviceStore';
 import { locationsApi } from '../../api';
-import type { ImportRow, ImportSummary, ColumnMapping, Device } from '../../types';
+import type { ImportRow, ImportResult, ImportSummary, ColumnMapping, Device } from '../../types';
 import {
   FileSpreadsheet, X, Upload, Check, ArrowRight, FileCheck,
   ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Download
@@ -681,8 +681,8 @@ function rowStatusLabel(status: string) {
 }
 
 function downloadErrorLog() {
-  const failed = importSummary.value.results.filter(r => r.status === 'failed' || r.status === 'skipped');
-  const csv = ['Row,Status,Reason', ...failed.map(r => `${r.rowIndex + 1},${r.status},"${r.reason}"`)].join('\n');
+  const failed = importSummary.value.results.filter((r: ImportResult) => r.status === 'failed' || r.status === 'skipped');
+  const csv = ['Row,Status,Reason', ...failed.map((r: ImportResult) => `${r.rowIndex + 1},${r.status},"${r.reason}"`)].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

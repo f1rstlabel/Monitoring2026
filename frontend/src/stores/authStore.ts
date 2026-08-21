@@ -80,6 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
   const canEditDevice = computed(() => hasPermission('devices.edit'));
   const canDeleteDevice = computed(() => hasPermission('devices.delete'));
   const canImportDevices = computed(() => hasPermission('devices.import'));
+  const canBulkManageDevices = computed(() => hasPermission('devices.bulk'));
   const canSeeSettings = computed(() =>
     user.value.role === 'admin' ||
     hasPermission('settings.notifications') ||
@@ -278,6 +279,7 @@ export const useAuthStore = defineStore('auth', () => {
     canEditDevice,
     canDeleteDevice,
     canImportDevices,
+    canBulkManageDevices,
     canSeeSettings,
     canManageSettings,
     canManageUsers,

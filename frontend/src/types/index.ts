@@ -233,6 +233,36 @@ export interface ImportSummary {
   results: ImportResult[];
 }
 
+// ─── Bulk Operations Types ──────────────────────────────────────────────────
+
+export interface BulkDeviceUpdates {
+  locationId?: string;
+  location?: string;
+  rack?: string;
+  type?: DeviceType;
+  addressingMode?: 'Static' | 'DHCP';
+  snmpEnabled?: boolean;
+  snmpCommunity?: string;
+  snmpPort?: number;
+  snmpIfIndex?: number;
+  useCustomThreshold?: boolean;
+  customFailureThreshold?: number;
+  failureThreshold?: number;
+}
+
+export interface BulkDeviceRequest {
+  deviceIds: string[];
+  action: 'update' | 'delete';
+  updates?: BulkDeviceUpdates;
+}
+
+export interface BulkDeviceResponse {
+  success: boolean;
+  updatedCount: number;
+  failedCount: number;
+  details?: Array<{ deviceId: string; status: string; reason?: string }>;
+}
+
 // ─── Report Types ────────────────────────────────────────────────────────────
 
 export interface ReportRow {
@@ -259,3 +289,38 @@ export interface ColumnMapping {
   sourceColumn: string;
   targetField: keyof Device | 'model' | 'firmwareStatus' | '';
 }
+
+export interface BrandingSettings {
+  appTitle: string;
+  appSubtitle: string;
+  logoUrl: string;
+  logoFit?: 'cover' | 'contain';
+  logoScale?: number;
+  faviconUrl: string;
+  footerText: string;
+}
+
+export interface PingResult {
+  target: string;
+  success: boolean;
+  durationMs: number;
+  output: string[];
+  raw: string;
+}
+
+export interface TracerouteResult {
+  target: string;
+  durationMs: number;
+  output: string[];
+  raw: string;
+}
+
+export interface PortProbeResult {
+  target: string;
+  port: number;
+  open: boolean;
+  latencyMs: number;
+  message: string;
+  error?: string;
+}
+
