@@ -21,6 +21,9 @@
       <AICopilotDrawer />
     </div>
   </div>
+  
+  <!-- Cookie Consent Banner -->
+  <CookieConsent />
 </template>
 
 <script setup lang="ts">
@@ -29,6 +32,7 @@ import { useRoute } from 'vue-router';
 import Sidebar from './components/common/Sidebar.vue';
 import Topbar from './components/common/Topbar.vue';
 import AICopilotDrawer from './components/ai/AICopilotDrawer.vue';
+import CookieConsent from './components/common/CookieConsent.vue';
 import { useLiveStore } from './stores/liveStore';
 import { useThemeStore } from './stores/themeStore';
 import { useSettingStore } from './stores/settingStore';

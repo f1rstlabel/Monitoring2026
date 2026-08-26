@@ -4,37 +4,10 @@ import { authApi } from '../api';
 import type { UserRole } from '../types';
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('sanoc_token') || localStorage.getItem('gov_monitor_token'));
+  // Use user state to determine authentication instead of token, since token is now in HttpOnly cookie
+  const token = ref<string | null>(null);
 
-  // Parse initial role from stored token
-  function parseRoleFromToken(tok: string | null): UserRole {
-    if (!tok) return 'admin';
-    if (tok.includes('pimpinan')) return 'pimpinan';
-    if (tok.includes('anggota')) return 'anggota';
-    if (tok.includes('admin') || tok.includes('superadmin')) return 'admin';
-    try {
-      const parts = tok.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        if (payload.role) {
-          if (payload.role === 'superadmin') return 'admin';
-          if (['admin', 'pimpinan', 'anggota'].includes(payload.role)) {
-            return payload.role as UserRole;
-          }
-        }
-      }
-    } catch (e) {
-      // fallback
-    }
-    return 'admin';
-  }
 
-  const initialRole = parseRoleFromToken(token.value);
-  const initialNameMap: Record<UserRole, { name: string; email: string }> = {
-    admin: { name: 'Budi Santoso (Admin)', email: 'admin.noc@jabarprov.go.id' },
-    pimpinan: { name: 'Sari Dewi (Pimpinan)', email: 'sari.dewi@jabarprov.go.id' },
-    anggota: { name: 'Rian Pratama (Anggota SANOC)', email: 'rian.pratama@jabarprov.go.id' }
-  };
 
   const user = ref<{
     id?: string;
@@ -45,11 +18,11 @@ export const useAuthStore = defineStore('auth', () => {
     avatarUrl: string;
     mfaEnabled?: boolean;
   }>({
-    username: 'admin.noc',
-    name: initialNameMap[initialRole]?.name || 'SANOC Administrator',
-    email: initialNameMap[initialRole]?.email || 'admin.noc@jabarprov.go.id',
-    role: initialRole,
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'
+    username: '',
+    name: '',
+    email: '',
+    role: 'anggota',
+    avatarUrl: ''
   });
 
   const featurePermissions = ref<Record<string, boolean>>({});
@@ -73,7 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
     return false;
   }
 
-  const isAuthenticated = computed(() => !!token.value);
+  const isAuthenticated = computed(() => !!user.value.email);
 
   // ─── Dynamic Feature Permission Derivations ──────────────────────────────
   const canAddDevice = computed(() => hasPermission('devices.create'));
@@ -103,8 +76,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   // ─── Auth Actions ────────────────────────────────────────────────────────────
 
+  const isInitialized = ref(false);
+  let initPromise: Promise<void> | null = null;
+
   async function fetchMe() {
-    if (!token.value) return;
     try {
       const res = await authApi.getMe();
       if (res) {
@@ -123,13 +98,20 @@ export const useAuthStore = defineStore('auth', () => {
       }
     } catch (e) {
       // Keep existing local user state
+    } finally {
+      isInitialized.value = true;
     }
   }
 
-  // Automatically fetch fresh user info and permissions if authenticated on load
-  if (token.value) {
-    fetchMe();
+  function init() {
+    if (!initPromise) {
+      initPromise = fetchMe();
+    }
+    return initPromise;
   }
+
+  // Automatically fetch fresh user info and permissions if authenticated on load
+  init();
 
   async function login(usernameOrEmail: string, password: string, rememberMe = true, recaptchaToken?: string) {
     try {
@@ -139,8 +121,6 @@ export const useAuthStore = defineStore('auth', () => {
       }
       if (res.token) {
         token.value = res.token;
-        localStorage.setItem('sanoc_token', res.token);
-        localStorage.setItem('gov_monitor_token', res.token);
       }
       if (res.csrfToken) {
         localStorage.setItem('sanoc_csrf_token', res.csrfToken);
@@ -161,8 +141,6 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await authApi.verifyLoginMFA(mfaToken, code);
       if (res.token) {
         token.value = res.token;
-        localStorage.setItem('sanoc_token', res.token);
-        localStorage.setItem('gov_monitor_token', res.token);
       }
       if (res.csrfToken) {
         localStorage.setItem('sanoc_csrf_token', res.csrfToken);
@@ -207,9 +185,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     token.value = null;
+    user.value = { username: '', name: '', email: '', role: 'anggota', avatarUrl: '' };
     featurePermissions.value = {};
-    localStorage.removeItem('sanoc_token');
-    localStorage.removeItem('gov_monitor_token');
     localStorage.removeItem('sanoc_csrf_token');
   }
 
@@ -284,6 +261,7 @@ export const useAuthStore = defineStore('auth', () => {
     canManageSettings,
     canManageUsers,
     // Actions
+    init,
     fetchMe,
     login,
     verifyLoginMFA,

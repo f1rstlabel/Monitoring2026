@@ -357,12 +357,16 @@ func (h *Handler) Login(c *gin.Context) {
 		user, passwordHash, err = h.userRepo.GetWithPasswordByUsernameOrEmail(inputUser)
 	}
 
-	if err != nil || user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Username atau Email tidak ditemukan"})
-		return
+	// Prevent timing attacks by always hashing something
+	dummyHash := "$2a$10$7zB3L2T7x6L/j.aOQ.vYeeLq/GgD/1/P6XzDkS3pP/bEwGgQZ1.D2"
+	hashToCompare := dummyHash
+	if user != nil && passwordHash != "" {
+		hashToCompare = passwordHash
 	}
+	
+	errHash := bcrypt.CompareHashAndPassword([]byte(hashToCompare), []byte(inputPass))
 
-	if passwordHash == "" || bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(inputPass)) != nil {
+	if err != nil || user == nil || errHash != nil {
 		clientIP := getClientIP(c)
 		attempts := middleware.RecordFailedLoginAttempt(clientIP)
 		if attempts >= 5 {
@@ -374,7 +378,7 @@ func (h *Handler) Login(c *gin.Context) {
 		}
 		attemptsLeft := 5 - attempts
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"message":      fmt.Sprintf("Password yang Anda masukkan salah (Percobaan %d/5). Sisa %d percobaan lagi.", attempts, attemptsLeft),
+			"message":      fmt.Sprintf("Username, Email, atau Kata Sandi salah (Percobaan %d/5). Sisa %d percobaan lagi.", attempts, attemptsLeft),
 			"attempts":     attempts,
 			"attemptsLeft": attemptsLeft,
 		})

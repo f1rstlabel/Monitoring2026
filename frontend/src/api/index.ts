@@ -245,7 +245,7 @@ export const aiApi = {
     const res = await api.get('/ai/status');
     return res.data;
   },
-  getQuickPrompts: async (): Promise<{ prompts: string[] }> => {
+  getQuickPrompts: async (): Promise<{ prompts: string[]; condition?: string; message?: string }> => {
     const res = await api.get('/ai/quick-prompts');
     return res.data;
   },

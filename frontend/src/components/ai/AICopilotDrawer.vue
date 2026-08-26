@@ -1,7 +1,12 @@
 <template>
   <div>
-    <!-- Floating Copilot Trigger Button (Bottom-Right) -->
-    <div class="fixed bottom-6 right-6 z-40 select-none">
+    <!-- Floating Copilot Trigger Button (Draggable) -->
+    <div 
+      class="fixed z-40 select-none touch-none"
+      :style="triggerStyle"
+      @mousedown="startDrag"
+      @touchstart="startDrag"
+    >
       <button
         @click="toggleDrawer"
         class="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-[#18181B] to-[#202025] hover:from-[#202025] hover:to-[#2A2A32] border border-[#7B96F5]/40 text-white font-medium text-xs shadow-2xl shadow-[#7B96F5]/25 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
@@ -107,6 +112,30 @@
           </p>
         </div>
 
+        <!-- Empty State (Dynamic based on Network Condition) -->
+        <div v-if="aiStore.messages.length === 0 && aiStore.isConfigured" class="mt-8 mb-4 px-4 select-none">
+          <div
+            v-if="aiStore.networkCondition === 'critical'"
+            class="p-4 rounded-xl border bg-gradient-to-br from-red-500/10 to-transparent border-red-500/30 flex flex-col items-center text-center shadow-lg shadow-red-500/5"
+          >
+            <div class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 mb-3 animate-pulse">
+              <AlertCircle class="w-6 h-6" />
+            </div>
+            <h4 class="text-sm font-bold text-red-300 font-mono mb-1">Status Kritis Jaringan</h4>
+            <p class="text-xs text-red-200/70 leading-relaxed">{{ aiStore.networkMessage }}</p>
+          </div>
+          <div
+            v-else
+            class="p-4 rounded-xl border bg-gradient-to-br from-[#3ECF8E]/10 to-transparent border-[#3ECF8E]/30 flex flex-col items-center text-center shadow-lg shadow-[#3ECF8E]/5"
+          >
+            <div class="w-12 h-12 rounded-full bg-[#3ECF8E]/20 border border-[#3ECF8E]/40 flex items-center justify-center text-[#3ECF8E] mb-3">
+              <Sparkles class="w-6 h-6" />
+            </div>
+            <h4 class="text-sm font-bold text-[#3ECF8E] font-mono mb-1">Jaringan Terpantau Sehat</h4>
+            <p class="text-xs text-[#3ECF8E]/70 leading-relaxed">{{ aiStore.networkMessage || 'Semua perangkat beroperasi normal.' }}</p>
+          </div>
+        </div>
+
         <!-- Chat Messages -->
         <div
           v-for="msg in aiStore.messages"
@@ -208,7 +237,71 @@ const aiStore = useAIStore();
 const inputPrompt = ref('');
 const chatContainerRef = ref<HTMLDivElement | null>(null);
 
-function toggleDrawer() {
+const triggerStyle = ref({ bottom: '24px', right: '24px' });
+
+let isDragging = false;
+let dragged = false;
+let startX = 0;
+let startY = 0;
+let initialRight = 0;
+let initialBottom = 0;
+
+function startDrag(e: MouseEvent | TouchEvent) {
+  isDragging = true;
+  dragged = false;
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+  startX = clientX;
+  startY = clientY;
+  
+  const el = (e.currentTarget as HTMLElement);
+  const rect = el.getBoundingClientRect();
+  initialRight = window.innerWidth - rect.right;
+  initialBottom = window.innerHeight - rect.bottom;
+
+  window.addEventListener('mousemove', onDrag);
+  window.addEventListener('mouseup', stopDrag);
+  window.addEventListener('touchmove', onDrag, { passive: false });
+  window.addEventListener('touchend', stopDrag);
+}
+
+function onDrag(e: MouseEvent | TouchEvent) {
+  if (!isDragging) return;
+  dragged = true;
+  if(e.cancelable) e.preventDefault();
+  
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+  
+  const dx = clientX - startX;
+  const dy = clientY - startY;
+  
+  const newRight = initialRight - dx;
+  const newBottom = initialBottom - dy;
+  
+  triggerStyle.value = { 
+    right: `${Math.max(0, Math.min(newRight, window.innerWidth - 60))}px`, 
+    bottom: `${Math.max(0, Math.min(newBottom, window.innerHeight - 60))}px` 
+  };
+}
+
+function stopDrag() {
+  isDragging = false;
+  window.removeEventListener('mousemove', onDrag);
+  window.removeEventListener('mouseup', stopDrag);
+  window.removeEventListener('touchmove', onDrag);
+  window.removeEventListener('touchend', stopDrag);
+  
+  if (dragged) {
+    localStorage.setItem('sanoc_copilot_pos', JSON.stringify(triggerStyle.value));
+  }
+}
+
+function toggleDrawer(e: Event) {
+  if (dragged) {
+    e.preventDefault();
+    return;
+  }
   aiStore.isDrawerOpen = !aiStore.isDrawerOpen;
   if (aiStore.isDrawerOpen) {
     aiStore.checkStatus();
@@ -317,6 +410,13 @@ function formatMarkdown(text: string): string {
 
 onMounted(() => {
   aiStore.checkStatus();
+  const savedPos = localStorage.getItem('sanoc_copilot_pos');
+  if (savedPos) {
+    try {
+      const pos = JSON.parse(savedPos);
+      triggerStyle.value = { bottom: pos.bottom || '24px', right: pos.right || '24px' };
+    } catch (e) {}
+  }
 });
 </script>
 

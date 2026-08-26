@@ -4,7 +4,8 @@ const api = axios.create({
   baseURL: '/api/v1',
   withCredentials: true,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
   }
 });
 
@@ -27,10 +28,7 @@ if (typeof window !== 'undefined') {
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('sanoc_token') || localStorage.getItem('gov_monitor_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // The HTTPOnly cookie 'sanoc_session' is automatically sent by browser because withCredentials: true
     const csrfToken = localStorage.getItem('sanoc_csrf_token');
     if (csrfToken) {
       config.headers['X-CSRF-Token'] = csrfToken;
@@ -53,8 +51,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('sanoc_token');
-      localStorage.removeItem('gov_monitor_token');
+
       localStorage.removeItem('sanoc_csrf_token');
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
