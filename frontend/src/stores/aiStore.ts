@@ -12,6 +12,9 @@ export interface AIMessage {
 
 export const useAIStore = defineStore('aiStore', () => {
   const isDrawerOpen = ref(false);
+
+  const networkCondition = ref('healthy');
+  const networkMessage = ref('');
   const isConfigured = ref(false);
   const aiModel = ref('gemini-1.5-flash');
   const isLoading = ref(false);
@@ -40,8 +43,12 @@ export const useAIStore = defineStore('aiStore', () => {
   async function fetchQuickPrompts() {
     try {
       const res = await aiApi.getQuickPrompts();
-      if (res.prompts && res.prompts.length > 0) {
+      if (res && res.prompts) {
         quickPrompts.value = res.prompts;
+      }
+      if (res && res.condition) {
+        networkCondition.value = res.condition || 'healthy';
+        networkMessage.value = res.message || '';
       }
     } catch (e) {
       quickPrompts.value = [
@@ -149,6 +156,8 @@ export const useAIStore = defineStore('aiStore', () => {
   return {
     isDrawerOpen,
     isConfigured,
+    networkCondition,
+    networkMessage,
     aiModel,
     isLoading,
     quickPrompts,

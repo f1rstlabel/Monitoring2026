@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"sanoc/backend/internal/ai"
@@ -432,10 +436,46 @@ func main() {
 	}
 
 
-	log.Printf("[SANOC] Go Backend listening on :%s...", cfg.ServerPort)
-	if err := router.Run(":" + cfg.ServerPort); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	srv := &http.Server{
+		Addr:    ":" + cfg.ServerPort,
+		Handler: router,
 	}
+
+	go func() {
+		log.Printf("[SANOC] Go Backend listening on :%s...", cfg.ServerPort)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server with
+	// a timeout of 10 seconds.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("[SANOC] Shutting down server gracefully...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("[SANOC] Server forced to shutdown: ", err)
+	}
+
+	// Close DB, Redis, and stop Poller Engine
+	if db != nil {
+		log.Println("[SANOC] Closing database connections...")
+		db.Close()
+	}
+	if redisClient != nil {
+		log.Println("[SANOC] Closing Redis connection...")
+		redisClient.Client.Close()
+	}
+	if pollerEngine != nil {
+		log.Println("[SANOC] Stopping Poller Engine...")
+		pollerEngine.Stop()
+	}
+
+	log.Println("[SANOC] Server exiting")
 }
 
 func seedDevices() []domain.Device {

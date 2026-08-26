@@ -320,7 +320,12 @@ func (e *Engine) Start() {
 
 // Stop signals the polling loop to exit.
 func (e *Engine) Stop() {
-	close(e.stopChan)
+	select {
+	case <-e.stopChan:
+		// already closed
+	default:
+		close(e.stopChan)
+	}
 }
 
 // TriggerPollNow forces an immediate out-of-schedule ICMP polling cycle.
