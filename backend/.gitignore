@@ -44,3 +44,5 @@ logs/
 *.sw?
 .DS_Store
 Thumbs.db
+testsprite_tests/tmp/
+testsprite_tests/tmp/config.json
