@@ -17,7 +17,7 @@
 
       <!-- Ringkasan Insiden (Grid Summary Box) -->
       <div class="mb-6 border border-slate-300 rounded overflow-hidden">
-        <div class="bg-slate-800 text-white font-mono text-[11px] font-bold px-4 py-2 uppercase tracking-wide">
+        <div class="bg-slate-800 text-text-main font-mono text-[11px] font-bold px-4 py-2 uppercase tracking-wide">
           1. RINGKASAN DATA NODES &amp; EFEK INSIDEN
         </div>
         <div class="p-4 grid grid-cols-2 gap-4 bg-slate-50 text-xs">

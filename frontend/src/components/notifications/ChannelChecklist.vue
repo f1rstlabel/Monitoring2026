@@ -5,7 +5,7 @@
       <span v-if="item.status === 'delivered'" class="text-emerald-400 font-bold flex items-center gap-1">
         <CheckCircle2 class="w-3.5 h-3.5" />
         <span>{{ item.channelName }} &mdash; Delivered</span>
-        <span v-if="item.timestamp" class="text-[10px] text-gray-500">({{ item.timestamp }})</span>
+        <span v-if="item.timestamp" class="text-[10px] text-text-muted">({{ item.timestamp }})</span>
       </span>
 
       <span v-else-if="item.status === 'failed'" class="text-red-400 font-bold flex items-center gap-1">
@@ -15,10 +15,10 @@
         <span class="text-[10px] text-amber-400 font-semibold">&rarr; Fallback</span>
       </span>
 
-      <span v-else class="text-gray-500 flex items-center gap-1">
-        <SkipForward class="w-3.5 h-3.5 text-gray-600" />
+      <span v-else class="text-text-muted flex items-center gap-1">
+        <SkipForward class="w-3.5 h-3.5 text-text-muted" />
         <span>{{ item.channelName }} &mdash; Skipped</span>
-        <span class="text-[10px] text-gray-600">({{ item.note || 'Prior channel delivered' }})</span>
+        <span class="text-[10px] text-text-muted">({{ item.note || 'Prior channel delivered' }})</span>
       </span>
     </div>
   </div>

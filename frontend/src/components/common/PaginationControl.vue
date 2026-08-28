@@ -1,17 +1,17 @@
 <template>
-  <div v-if="total > 0" class="flex flex-wrap items-center justify-between gap-3 bg-[#151517] border border-[#26262A] rounded-xl px-4 py-3 text-xs font-mono text-gray-400">
+  <div v-if="total > 0" class="flex flex-wrap items-center justify-between gap-3 bg-surface border border-subtle rounded-xl px-4 py-3 text-xs font-mono text-text-secondary">
     <div class="flex items-center gap-2">
-      <span>Showing <strong class="text-white">{{ fromItem }}</strong> to <strong class="text-white">{{ toItem }}</strong> of <strong class="text-white">{{ total }}</strong> items</span>
+      <span>Showing <strong class="text-text-main">{{ fromItem }}</strong> to <strong class="text-text-main">{{ toItem }}</strong> of <strong class="text-text-main">{{ total }}</strong> items</span>
     </div>
 
     <div class="flex items-center gap-3">
       <!-- Page Size Selector -->
       <div class="flex items-center gap-1.5">
-        <span class="text-gray-500 text-[11px]">Per page:</span>
+        <span class="text-text-muted text-[11px]">Per page:</span>
         <select
           :value="pageSize"
           @change="onPageSizeChange"
-          class="bg-[#18181B] border border-[#26262A] rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-[#7B96F5]"
+          class="bg-card border border-subtle rounded px-2 py-1 text-text-main text-xs focus:outline-none focus:border-brand-periwinkle"
         >
           <option :value="5">5</option>
           <option :value="10">10</option>
@@ -25,7 +25,7 @@
         <button
           @click="changePage(currentPage - 1)"
           :disabled="currentPage <= 1"
-          class="px-2.5 py-1 rounded bg-[#18181B] border border-[#26262A] text-gray-300 hover:text-white hover:bg-[#26262A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          class="px-2.5 py-1 rounded bg-card border border-subtle text-text-secondary hover:text-text-main hover:bg-subtle disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Prev
         </button>
@@ -35,7 +35,7 @@
           :key="p"
           @click="changePage(p)"
           class="px-2.5 py-1 rounded border text-xs font-bold transition-colors"
-          :class="p === currentPage ? 'bg-[#7B96F5] border-[#7B96F5] text-white' : 'bg-[#18181B] border-[#26262A] text-gray-400 hover:text-white hover:bg-[#26262A]'"
+          :class="p === currentPage ? 'bg-brand-periwinkle border-brand-periwinkle text-white' : 'bg-card border-subtle text-text-secondary hover:text-text-main hover:bg-hover'"
         >
           {{ p }}
         </button>
@@ -43,7 +43,7 @@
         <button
           @click="changePage(currentPage + 1)"
           :disabled="currentPage >= totalPages"
-          class="px-2.5 py-1 rounded bg-[#18181B] border border-[#26262A] text-gray-300 hover:text-white hover:bg-[#26262A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          class="px-2.5 py-1 rounded bg-card border border-subtle text-text-secondary hover:text-text-main hover:bg-subtle disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Next
         </button>

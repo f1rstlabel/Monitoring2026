@@ -1,5 +1,5 @@
 <template>
-  <header class="h-16 bg-[#0D0D0F]/80 backdrop-blur border-b border-[#26262A] flex items-center justify-between px-6 sticky top-0 z-20">
+  <header class="h-16 bg-main/80 backdrop-blur border-b border-subtle flex items-center justify-between px-6 sticky top-0 z-20">
     <!-- Click Outside Backdrop for Dropdowns -->
     <div
       v-if="isNotifOpen"
@@ -10,12 +10,12 @@
     <!-- Dynamic Page Breadcrumbs & Module Title -->
     <div class="flex items-center gap-3 select-none">
       <div class="flex items-center gap-2 text-xs font-mono">
-        <span class="text-gray-500 font-semibold tracking-wider uppercase text-[10px] bg-[#151517] px-2 py-0.5 rounded border border-[#26262A]">
+        <span class="text-text-muted font-semibold tracking-wider uppercase text-[10px] bg-surface px-2 py-0.5 rounded border border-subtle">
           {{ pageMeta.category }}
         </span>
-        <span class="text-gray-600">/</span>
-        <div class="flex items-center gap-1.5 text-gray-200 font-bold">
-          <component :is="pageMeta.icon" class="w-3.5 h-3.5 text-[#7B96F5]" />
+        <span class="text-text-muted">/</span>
+        <div class="flex items-center gap-1.5 text-text-main font-bold">
+          <component :is="pageMeta.icon" class="w-3.5 h-3.5 text-brand-periwinkle" />
           <span>{{ pageMeta.title }}</span>
         </div>
       </div>
@@ -25,12 +25,12 @@
     <div class="flex items-center gap-4 relative z-40">
       <!-- Live Status Indicator & Refresh Now -->
       <div class="flex items-center gap-2">
-        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-[#151517] border border-[#26262A] text-xs">
+        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-subtle text-xs">
           <span 
             class="w-2 h-2 rounded-full inline-block"
-            :class="liveStore.isConnected ? 'bg-[#3ECF8E] pulsing-dot-green' : 'bg-amber-500'"
+            :class="liveStore.isConnected ? 'bg-status-up pulsing-dot-green' : 'bg-amber-500'"
           ></span>
-          <span class="text-gray-300 font-mono text-[11px]">
+          <span class="text-text-secondary font-mono text-[11px]">
             <template v-if="liveStore.isConnected">
               Live Feed &bull; Updated {{ liveStore.lastUpdatedAgo }}s ago
             </template>
@@ -43,7 +43,7 @@
         <button
           @click="handleManualRefresh"
           :disabled="isRefreshing"
-          class="px-2.5 py-1 rounded-full bg-[#151517] border border-[#26262A] hover:border-[#7B96F5] text-[#7B96F5] hover:text-[#95ABF7] text-[11px] font-mono font-semibold transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+          class="px-2.5 py-1 rounded-full bg-surface border border-subtle hover:border-brand-periwinkle text-brand-periwinkle hover:text-brand-periwinkle-hover text-[11px] font-mono font-semibold transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
           title="Poll Now"
         >
           <RefreshCw class="w-3 h-3" :class="isRefreshing ? 'animate-spin' : ''" />
@@ -54,7 +54,7 @@
         <button
           type="button"
           @click="isTerminalOpen = true"
-          class="px-2.5 py-1 rounded-full bg-[#151517] border border-[#26262A] hover:border-[#3ECF8E] text-[#3ECF8E] hover:text-[#56E3A4] text-[11px] font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-[#3ECF8E]/10"
+          class="px-2.5 py-1 rounded-full bg-surface border border-subtle hover:border-status-up text-status-up hover:text-status-up text-[11px] font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-status-up/10"
           title="Open Network Diagnostic Terminal (Ping & Traceroute)"
         >
           <Terminal class="w-3 h-3" />
@@ -66,7 +66,7 @@
       <router-link
         to="/profile"
         title="View & Edit Profile"
-        class="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-[#151517] text-xs font-mono font-semibold hover:ring-1 hover:ring-[#7B96F5] transition-all cursor-pointer"
+        class="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-surface text-xs font-mono font-semibold hover:ring-1 hover:ring-brand-periwinkle transition-all cursor-pointer"
         :class="roleBadgeClass"
       >
         <ShieldCheck v-if="authStore.user.role === 'admin'" class="w-3.5 h-3.5" />
@@ -75,64 +75,74 @@
         <span class="uppercase text-[10px] tracking-wider">{{ roleBadgeLabel }}</span>
       </router-link>
 
+      <!-- Theme Toggle Button -->
+      <button
+        @click="themeStore.toggleTheme"
+        class="relative p-2 rounded-lg bg-surface border border-subtle text-text-secondary hover:text-text-main hover:bg-card transition-colors cursor-pointer"
+        title="Toggle Theme"
+      >
+        <Sun v-if="themeStore.currentTheme === 'dark'" class="w-4 h-4" />
+        <Moon v-else class="w-4 h-4" />
+      </button>
+
       <!-- Notifications Bell Button & Dropdown -->
       <div class="relative">
         <button
           @click.stop="toggleNotif"
-          class="relative p-2 rounded-lg bg-[#151517] border border-[#26262A] text-gray-400 hover:text-gray-200 hover:bg-[#18181B] transition-colors cursor-pointer"
+          class="relative p-2 rounded-lg bg-surface border border-subtle text-text-secondary hover:text-text-main hover:bg-card transition-colors cursor-pointer"
           title="System Notifications"
         >
           <Bell class="w-4 h-4" />
-          <span v-if="notifStore.unreadCount > 0" class="absolute top-1.5 right-1.5 w-2 h-2 bg-[#F16565] rounded-full ring-2 ring-[#0D0D0F]"></span>
+          <span v-if="notifStore.unreadCount > 0" class="absolute top-1.5 right-1.5 w-2 h-2 bg-status-down rounded-full ring-2 ring-main"></span>
         </button>
 
         <!-- Notifications Dropdown Panel -->
         <div
           v-if="isNotifOpen"
-          class="absolute right-0 mt-2 w-80 sm:w-96 bg-[#151517] border border-[#26262A] rounded-xl shadow-2xl z-50 overflow-hidden"
+          class="absolute right-0 mt-2 w-80 sm:w-96 bg-surface border border-subtle rounded-xl shadow-2xl z-50 overflow-hidden"
         >
-          <div class="p-3 border-b border-[#26262A] flex items-center justify-between bg-[#18181B]">
+          <div class="p-3 border-b border-subtle flex items-center justify-between bg-card">
             <div class="flex items-center gap-2">
-              <Bell class="w-4 h-4 text-[#7B96F5]" />
-              <h3 class="text-xs font-bold text-white font-mono">System Notifications</h3>
-              <span v-if="notifStore.unreadCount > 0" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#F16565]/20 text-[#F16565] border border-[#F16565]/30">
+              <Bell class="w-4 h-4 text-brand-periwinkle" />
+              <h3 class="text-xs font-bold text-text-main font-mono">System Notifications</h3>
+              <span v-if="notifStore.unreadCount > 0" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-status-down/20 text-status-down border border-status-down/30">
                 {{ notifStore.unreadCount }} new
               </span>
             </div>
             <button
               v-if="notifStore.unreadCount > 0"
               @click="notifStore.markAllAsRead"
-              class="text-[11px] font-mono text-[#7B96F5] hover:underline cursor-pointer"
+              class="text-[11px] font-mono text-brand-periwinkle hover:underline cursor-pointer"
             >
               Mark all as read
             </button>
           </div>
 
-          <div class="max-h-80 overflow-y-auto divide-y divide-[#26262A]">
+          <div class="max-h-80 overflow-y-auto divide-y divide-subtle">
             <div
               v-for="item in notifStore.notifications"
               :key="item.id"
               @click="onNotifClick(item)"
-              class="p-3 hover:bg-[#18181B] cursor-pointer transition-colors flex items-start gap-3"
-              :class="item.isUnread ? 'bg-[#7B96F5]/5' : ''"
+              class="p-3 hover:bg-card cursor-pointer transition-colors flex items-start gap-3"
+              :class="item.isUnread ? 'bg-brand-periwinkle/5' : ''"
             >
-              <div class="p-2 rounded-lg bg-[#18181B] border border-[#26262A] shrink-0 mt-0.5">
-                <AlertTriangle v-if="item.type === 'INCIDENT_NEW'" class="w-3.5 h-3.5 text-[#F16565]" />
+              <div class="p-2 rounded-lg bg-card border border-subtle shrink-0 mt-0.5">
+                <AlertTriangle v-if="item.type === 'INCIDENT_NEW'" class="w-3.5 h-3.5 text-status-down" />
                 <Activity v-else-if="item.type === 'FLAP_ALERT'" class="w-3.5 h-3.5 text-amber-400" />
-                <CheckCircle2 v-else-if="item.type === 'INCIDENT_RESOLVED'" class="w-3.5 h-3.5 text-[#34D399]" />
-                <MessageSquare v-else class="w-3.5 h-3.5 text-[#7B96F5]" />
+                <CheckCircle2 v-else-if="item.type === 'INCIDENT_RESOLVED'" class="w-3.5 h-3.5 text-status-up" />
+                <MessageSquare v-else class="w-3.5 h-3.5 text-brand-periwinkle" />
               </div>
 
               <div class="flex-1 space-y-0.5">
                 <div class="flex items-center justify-between text-xs">
-                  <span class="font-bold text-gray-200" :class="item.isUnread ? 'text-white font-extrabold' : ''">{{ item.title }}</span>
-                  <span v-if="item.isUnread" class="w-1.5 h-1.5 rounded-full bg-[#7B96F5]"></span>
+                  <span class="font-bold text-text-main" :class="item.isUnread ? 'font-extrabold' : ''">{{ item.title }}</span>
+                  <span v-if="item.isUnread" class="w-1.5 h-1.5 rounded-full bg-brand-periwinkle"></span>
                 </div>
-                <p class="text-[11px] text-gray-400 leading-snug">{{ item.message }}</p>
-                <p class="text-[10px] font-mono text-gray-500 pt-1">{{ formatRelativeTime(item.timestamp) }}</p>
+                <p class="text-[11px] text-text-secondary leading-snug">{{ item.message }}</p>
+                <p class="text-[10px] font-mono text-text-muted pt-1">{{ formatRelativeTime(item.timestamp) }}</p>
               </div>
             </div>
-            <div v-if="notifStore.notifications.length === 0" class="p-8 text-center text-xs text-gray-500 font-mono">
+            <div v-if="notifStore.notifications.length === 0" class="p-8 text-center text-xs text-text-muted font-mono">
               No new notifications
             </div>
           </div>
@@ -168,12 +178,15 @@ import {
   BarChart3,
   Settings,
   Users,
-  User
+  User,
+  Sun,
+  Moon
 } from 'lucide-vue-next';
 import DiagnosticTerminalModal from '../diagnostics/DiagnosticTerminalModal.vue';
 import { useDeviceStore } from '../../stores/deviceStore';
 import { useLiveStore } from '../../stores/liveStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useThemeStore } from '../../stores/themeStore';
 import { useNotificationStore, type AppNotification } from '../../stores/notificationStore';
 import { dashboardApi } from '../../api';
 
@@ -183,6 +196,7 @@ const deviceStore = useDeviceStore();
 const liveStore = useLiveStore();
 const authStore = useAuthStore();
 const notifStore = useNotificationStore();
+const themeStore = useThemeStore();
 
 const pageMeta = computed(() => {
   const path = route.path;
@@ -277,11 +291,11 @@ const roleBadgeLabel = computed(() => {
 
 const roleBadgeClass = computed(() => {
   const map: Record<string, string> = {
-    admin: 'border-[#7B96F5]/40 text-[#7B96F5] bg-[#7B96F5]/10',
+    admin: 'border-brand-periwinkle/40 text-brand-periwinkle bg-brand-periwinkle/10',
     pimpinan: 'border-amber-500/40 text-amber-400 bg-amber-500/10',
-    anggota: 'border-[#34D399]/40 text-[#34D399] bg-[#34D399]/10'
+    anggota: 'border-status-up/40 text-status-up bg-status-up/10'
   };
-  return map[authStore.user.role] ?? 'border-gray-500/40 text-gray-400';
+  return map[authStore.user.role] ?? 'border-gray-500/40 text-text-secondary';
 });
 
 onMounted(() => {

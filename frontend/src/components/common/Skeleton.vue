@@ -1,7 +1,7 @@
 <template>
   <div
     :class="[
-      'relative overflow-hidden rounded-[10px] bg-[#1A1A1E] border border-[#26262A]',
+      'relative overflow-hidden rounded-[10px] bg-card border border-subtle',
       customClass
     ]"
     :style="{ width: width, height: height }"

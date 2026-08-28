@@ -3,13 +3,13 @@
     <template #default>
       <form v-if="user" @submit.prevent="handleSubmit" class="space-y-5 text-xs">
         <!-- User Profile Bar -->
-        <div class="flex items-center gap-3 bg-[#18181B] p-3 rounded-xl border border-[#26262A]">
-          <img :src="user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" @error="(e: Event) => (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" class="w-10 h-10 rounded-full object-cover border border-[#26262A]" />
+        <div class="flex items-center gap-3 bg-card p-3 rounded-xl border border-subtle">
+          <img :src="user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" @error="(e: Event) => (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'" class="w-10 h-10 rounded-full object-cover border border-subtle" />
           <div>
-            <h3 class="font-bold text-sm text-white">{{ form.name }}</h3>
-            <p class="text-xs font-mono text-[#7B96F5]">{{ form.email }}</p>
+            <h3 class="font-bold text-sm text-text-main">{{ form.name }}</h3>
+            <p class="text-xs font-mono text-brand-periwinkle">{{ form.email }}</p>
           </div>
-          <span class="ml-auto px-2.5 py-0.5 rounded font-mono text-[10px] font-bold uppercase bg-[#7B96F5]/15 text-[#7B96F5] border border-[#7B96F5]/30">
+          <span class="ml-auto px-2.5 py-0.5 rounded font-mono text-[10px] font-bold uppercase bg-brand-periwinkle/15 text-brand-periwinkle border border-brand-periwinkle/30">
             {{ form.role }}
           </span>
         </div>
@@ -18,59 +18,59 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Username -->
           <div class="space-y-1">
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Username *</label>
+            <label class="block font-mono uppercase text-[10px] text-text-secondary font-semibold">Username *</label>
             <input
               v-model="form.username"
               type="text"
               required
-              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+              class="w-full bg-card border border-subtle rounded-lg px-3 py-2 text-text-main focus:outline-none focus:border-brand-periwinkle"
             />
           </div>
 
           <!-- Name -->
           <div class="space-y-1">
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Full Name *</label>
+            <label class="block font-mono uppercase text-[10px] text-text-secondary font-semibold">Full Name *</label>
             <input
               v-model="form.name"
               type="text"
               required
-              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+              class="w-full bg-card border border-subtle rounded-lg px-3 py-2 text-text-main focus:outline-none focus:border-brand-periwinkle"
             />
           </div>
 
           <!-- Email -->
           <div class="space-y-1 md:col-span-2">
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Email Address *</label>
+            <label class="block font-mono uppercase text-[10px] text-text-secondary font-semibold">Email Address *</label>
             <input
               v-model="form.email"
               type="email"
               required
-              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+              class="w-full bg-card border border-subtle rounded-lg px-3 py-2 text-text-main focus:outline-none focus:border-brand-periwinkle"
             />
           </div>
 
           <!-- Role -->
           <div class="space-y-1 md:col-span-2">
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Assigned System Role *</label>
+            <label class="block font-mono uppercase text-[10px] text-text-secondary font-semibold">Assigned System Role *</label>
             <select
               v-model="form.role"
-              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+              class="w-full bg-card border border-subtle rounded-lg px-3 py-2 text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
             >
               <option value="admin">ADMIN (Full Unrestricted Access)</option>
               <option value="anggota">SANOC STAFF (Operator - Technical Actions)</option>
               <option value="pimpinan">PIMPINAN (Executive Dashboard &amp; Reports)</option>
             </select>
-            <p class="text-[10px] font-mono text-gray-500 mt-1">
+            <p class="text-[10px] font-mono text-text-muted mt-1">
               Role assignment determines user permissions. Feature access matrix per role can be configured in the Roles &amp; Permissions section below.
             </p>
           </div>
 
           <!-- Account Status -->
           <div class="space-y-1 md:col-span-2">
-            <label class="block font-mono uppercase text-[10px] text-gray-400 font-semibold">Account Status *</label>
+            <label class="block font-mono uppercase text-[10px] text-text-secondary font-semibold">Account Status *</label>
             <select
               v-model="form.status"
-              class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+              class="w-full bg-card border border-subtle rounded-lg px-3 py-2 text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
             >
               <option value="Active">Active (Permitted to Log In)</option>
               <option value="Inactive">Inactive (Disabled / Deactivated)</option>
@@ -79,8 +79,8 @@
         </div>
 
         <!-- Reset Password Direct Action -->
-        <div class="border-t border-[#26262A] pt-4 space-y-2">
-          <h4 class="font-bold text-white text-xs uppercase tracking-wider font-mono flex items-center gap-2">
+        <div class="border-t border-subtle pt-4 space-y-2">
+          <h4 class="font-bold text-text-main text-xs uppercase tracking-wider font-mono flex items-center gap-2">
             <KeyRound class="w-4 h-4 text-amber-400" />
             Direct Password Reset
           </h4>
@@ -89,7 +89,7 @@
               v-model="newPassword"
               type="password"
               placeholder="Enter new password for this user"
-              class="flex-1 bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono text-xs"
+              class="flex-1 bg-card border border-subtle rounded-lg px-3 py-2 text-text-main focus:outline-none focus:border-brand-periwinkle font-mono text-xs"
             />
             <button
               type="button"
@@ -103,7 +103,7 @@
           <p v-if="resetSuccessMsg" class="text-[11px] font-mono text-emerald-400 mt-1">{{ resetSuccessMsg }}</p>
         </div>
 
-        <div v-if="errorMsg" class="bg-[#F16565]/10 border border-[#F16565]/30 rounded-lg p-2.5 text-xs text-[#F16565] font-mono">
+        <div v-if="errorMsg" class="bg-status-down/10 border border-status-down/30 rounded-lg p-2.5 text-xs text-status-down font-mono">
           {{ errorMsg }}
         </div>
       </form>
@@ -115,7 +115,7 @@
           type="button"
           @click="handleDeactivate"
           :disabled="isSubmitting"
-          class="px-3 py-1.5 rounded-lg border border-[#F16565]/40 bg-[#F16565]/10 hover:bg-[#F16565]/20 text-[#F16565] text-xs font-mono font-medium transition-colors"
+          class="px-3 py-1.5 rounded-lg border border-status-down/40 bg-status-down/10 hover:bg-status-down/20 text-status-down text-xs font-mono font-medium transition-colors"
         >
           Deactivate User
         </button>
@@ -124,7 +124,7 @@
           <button
             type="button"
             @click="$emit('close')"
-            class="px-4 py-1.5 rounded-lg border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs"
+            class="px-4 py-1.5 rounded-lg border border-subtle text-text-secondary hover:text-text-main text-xs"
           >
             Cancel
           </button>
@@ -132,7 +132,7 @@
             type="button"
             @click="handleSubmit"
             :disabled="isSubmitting"
-            class="px-4 py-1.5 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/20 disabled:opacity-50"
+            class="px-4 py-1.5 rounded-lg bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-brand-periwinkle/20 disabled:opacity-50"
           >
             <RefreshCw v-if="isSubmitting" class="w-3.5 h-3.5 animate-spin" />
             <span>Save User Profile</span>

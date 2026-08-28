@@ -6,21 +6,16 @@
         class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         @click.self="handleClose"
       >
-        <div class="bg-[#151517] border border-[#26262A] rounded-2xl w-full max-w-3xl shadow-2xl shadow-black/50 flex flex-col max-h-[90vh] overflow-hidden">
+        <div class="bg-surface border border-subtle rounded-2xl w-full max-w-3xl shadow-2xl shadow-black/50 flex flex-col max-h-[90vh] overflow-hidden">
 
           <!-- Modal Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-[#26262A] shrink-0">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-lg bg-[#7B96F5]/15 border border-[#7B96F5]/30 flex items-center justify-center">
-                <FileSpreadsheet class="w-4 h-4 text-[#7B96F5]" />
-              </div>
-              <div>
-                <h2 class="text-sm font-bold text-white">Bulk Import Devices</h2>
-                <p class="text-[10px] text-gray-400 font-mono mt-0.5">CSV / Excel spreadsheet import wizard</p>
-              </div>
-            </div>
-            <button @click="handleClose" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#26262A] transition-colors">
-              <X class="w-4 h-4" />
+          <div class="flex items-center justify-between px-6 py-4 border-b border-subtle shrink-0 bg-card">
+            <h3 class="text-base font-bold text-text-main flex items-center gap-2">
+              <FileSpreadsheet class="w-5 h-5 text-brand-periwinkle" />
+              Bulk Import Devices
+            </h3>
+            <button @click="handleClose" class="p-1 rounded-lg text-text-secondary hover:text-text-main hover:bg-subtle transition-colors cursor-pointer">
+              <X class="w-5 h-5" />
             </button>
           </div>
 
@@ -35,20 +30,20 @@
                 <div
                   class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold font-mono transition-all"
                   :class="step > i
-                    ? 'bg-[#34D399] text-black'
+                    ? 'bg-status-up text-black'
                     : step === i
-                      ? 'bg-[#7B96F5] text-white'
-                      : 'bg-[#26262A] text-gray-500'"
+                      ? 'bg-brand-periwinkle text-white'
+                      : 'bg-subtle text-text-muted'"
                 >
                   <Check v-if="step > i" class="w-3 h-3" />
                   <span v-else>{{ i + 1 }}</span>
                 </div>
                 <span
                   class="text-[10px] font-mono uppercase tracking-wider transition-colors"
-                  :class="step === i ? 'text-gray-200' : 'text-gray-500'"
+                  :class="step === i ? 'text-text-main' : 'text-text-muted'"
                 >{{ s }}</span>
               </div>
-              <div v-if="i < steps.length - 1" class="mx-3 flex-1 h-px bg-[#26262A] w-8" />
+              <div v-if="i < steps.length - 1" class="mx-3 flex-1 h-px bg-subtle w-8" />
             </div>
           </div>
 
@@ -60,45 +55,45 @@
               <div
                 class="border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-3 transition-colors cursor-pointer"
                 :class="isDragOver
-                  ? 'border-[#7B96F5] bg-[#7B96F5]/5'
-                  : 'border-[#26262A] hover:border-[#7B96F5]/50 hover:bg-[#18181B]'"
+                  ? 'border-brand-periwinkle bg-brand-periwinkle/5'
+                  : 'border-subtle hover:border-brand-periwinkle/50 hover:bg-card'"
                 @dragover.prevent="isDragOver = true"
                 @dragleave="isDragOver = false"
                 @drop.prevent="handleDrop"
                 @click="fileInputRef?.click()"
               >
-                <div class="w-14 h-14 rounded-xl bg-[#7B96F5]/10 border border-[#7B96F5]/20 flex items-center justify-center">
-                  <Upload class="w-6 h-6 text-[#7B96F5]" />
+                <div class="w-14 h-14 rounded-xl bg-brand-periwinkle/10 border border-brand-periwinkle/20 flex items-center justify-center">
+                  <Upload class="w-6 h-6 text-brand-periwinkle" />
                 </div>
                 <div class="text-center">
-                  <p class="text-sm font-semibold text-gray-200">Drop your file here or click to browse</p>
-                  <p class="text-xs text-gray-500 mt-1">Supports <span class="font-mono text-gray-400">.csv</span> and <span class="font-mono text-gray-400">.xlsx</span> — max 10MB</p>
+                  <p class="text-sm font-semibold text-text-main">Drop your file here or click to browse</p>
+                  <p class="text-xs text-text-muted mt-1">Supports <span class="font-mono text-text-secondary">.csv</span> and <span class="font-mono text-text-secondary">.xlsx</span> — max 10MB</p>
                 </div>
                 <input ref="fileInputRef" type="file" accept=".csv,.xlsx" class="hidden" @change="handleFileSelect" />
               </div>
 
               <!-- Format hint -->
-              <div class="bg-[#0A0A0B] border border-[#26262A] rounded-xl p-4 space-y-2">
+              <div class="bg-main border border-subtle rounded-xl p-4 space-y-2">
                 <div class="flex items-center justify-between">
-                  <p class="text-[10px] font-mono uppercase tracking-widest text-gray-500">Expected CSV format</p>
-                  <button type="button" @click="downloadTemplate" class="text-[10px] text-[#7B96F5] hover:underline flex items-center gap-1 font-semibold bg-transparent border-0 cursor-pointer">
+                  <p class="text-[10px] font-mono uppercase tracking-widest text-text-muted">Expected CSV format</p>
+                  <button type="button" @click="downloadTemplate" class="text-[10px] text-brand-periwinkle hover:underline flex items-center gap-1 font-semibold bg-transparent border-0 cursor-pointer">
                     <Download class="w-3.5 h-3.5" />
                     Download CSV Template
                   </button>
                 </div>
-                <pre class="text-[10px] font-mono text-gray-300 leading-5 overflow-x-auto whitespace-pre">Device Name,Device Type,Addressing Mode,IP Address,MAC Address,Location,Rack,SNMP Polling Enabled,SNMP Community,SNMP Port,Custom Failure Threshold Override,Custom Failure Threshold Value
+                <pre class="text-[10px] font-mono text-text-secondary leading-5 overflow-x-auto whitespace-pre">Device Name,Device Type,Addressing Mode,IP Address,MAC Address,Location,Rack,SNMP Polling Enabled,SNMP Community,SNMP Port,Custom Failure Threshold Override,Custom Failure Threshold Value
 AP Biro Umum,Access Point,Static IP,10.20.1.18,00:1A:2B:3C:4D:5E,Gedung Sate,Rack A,FALSE,public,161,FALSE,3
 AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,public,161,TRUE,5</pre>
               </div>
 
               <!-- Selected file info -->
-              <div v-if="selectedFile" class="flex items-center gap-3 bg-[#18181B] border border-[#34D399]/30 rounded-xl p-3">
-                <FileCheck class="w-4 h-4 text-[#34D399] shrink-0" />
+              <div v-if="selectedFile" class="flex items-center gap-3 bg-card border border-status-up/30 rounded-xl p-3">
+                <FileCheck class="w-4 h-4 text-status-up shrink-0" />
                 <div class="flex-1 min-w-0">
-                  <p class="text-xs font-semibold text-white truncate">{{ selectedFile.name }}</p>
-                  <p class="text-[10px] text-gray-500 font-mono">{{ (selectedFile.size / 1024).toFixed(1) }} KB</p>
+                  <p class="text-xs font-semibold text-text-main truncate">{{ selectedFile.name }}</p>
+                  <p class="text-[10px] text-text-muted font-mono">{{ (selectedFile.size / 1024).toFixed(1) }} KB</p>
                 </div>
-                <button @click.stop="clearFile" class="text-gray-400 hover:text-gray-200">
+                <button @click.stop="clearFile" class="text-text-secondary hover:text-text-main">
                   <X class="w-4 h-4" />
                 </button>
               </div>
@@ -106,7 +101,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
 
             <!-- ── Step 1: Column Mapping ────────────────────────────────── -->
             <div v-else-if="step === 1" class="space-y-4">
-              <p class="text-xs text-gray-400">
+              <p class="text-xs text-text-secondary">
                 Map each column from your file to the corresponding SANOC field.
                 Unrecognized columns can be skipped.
               </p>
@@ -114,18 +109,18 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
                 <div
                   v-for="(mapping, i) in columnMappings"
                   :key="i"
-                  class="flex items-center gap-4 bg-[#18181B] border border-[#26262A] rounded-xl px-4 py-3"
+                  class="flex items-center gap-4 bg-card border border-subtle rounded-xl px-4 py-3"
                 >
                   <div class="flex-1 min-w-0">
-                    <p class="text-[10px] font-mono text-gray-500 uppercase tracking-wider mb-0.5">Source Column</p>
-                    <p class="text-xs font-semibold text-gray-200 truncate">{{ mapping.sourceColumn }}</p>
+                    <p class="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-0.5">Source Column</p>
+                    <p class="text-xs font-semibold text-text-main truncate">{{ mapping.sourceColumn }}</p>
                   </div>
-                  <ArrowRight class="w-4 h-4 text-gray-600 shrink-0" />
+                  <ArrowRight class="w-4 h-4 text-text-muted shrink-0" />
                   <div class="flex-1">
-                    <p class="text-[10px] font-mono text-gray-500 uppercase tracking-wider mb-0.5">Map To</p>
+                    <p class="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-0.5">Map To</p>
                     <select
                       v-model="mapping.targetField"
-                      class="w-full bg-[#0A0A0B] border border-[#26262A] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+                      class="w-full bg-main border border-subtle rounded-lg px-2 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
                     >
                       <option value="">— Skip this column —</option>
                       <option value="name">Device Name</option>
@@ -149,26 +144,26 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
             <!-- ── Step 2: Preview & Validate ──────────────────────────── -->
             <div v-else-if="step === 2" class="space-y-3">
               <div class="flex items-center justify-between">
-                <p class="text-xs text-gray-400">
-                  <span class="text-white font-semibold">{{ parsedRows.length }}</span> rows parsed.
+                <p class="text-xs text-text-secondary">
+                  <span class="text-text-main font-semibold">{{ parsedRows.length }}</span> rows parsed.
                   Review validation results before importing.
                 </p>
                 <div class="flex items-center gap-2 text-[10px] font-mono">
-                  <span class="px-2 py-0.5 rounded-full bg-[#34D399]/15 text-[#34D399] border border-[#34D399]/30">
+                  <span class="px-2 py-0.5 rounded-full bg-status-up/15 text-status-up border border-status-up/30">
                     {{ validCount }} valid
                   </span>
                   <span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
                     {{ dupCount }} duplicate
                   </span>
-                  <span class="px-2 py-0.5 rounded-full bg-[#F16565]/15 text-[#F16565] border border-[#F16565]/30">
+                  <span class="px-2 py-0.5 rounded-full bg-status-down/15 text-status-down border border-status-down/30">
                     {{ errorCount }} error
                   </span>
                 </div>
               </div>
 
-              <div class="bg-[#18181B] border border-[#26262A] rounded-xl overflow-hidden">
-                <table class="w-full text-xs text-gray-300">
-                  <thead class="bg-[#0A0A0B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-500">
+              <div class="bg-card border border-subtle rounded-xl overflow-hidden">
+                <table class="w-full text-xs text-text-secondary">
+                  <thead class="bg-main border-b border-subtle font-mono text-[10px] uppercase text-text-muted">
                     <tr>
                       <th class="py-2.5 px-3">#</th>
                       <th class="py-2.5 px-3">Name</th>
@@ -178,13 +173,13 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
                       <th class="py-2.5 px-3">Status</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-[#26262A]">
-                    <tr v-for="row in parsedRows" :key="row.rowIndex" class="hover:bg-[#1A1A1E]">
-                      <td class="py-2 px-3 font-mono text-gray-600">{{ row.rowIndex + 1 }}</td>
-                      <td class="py-2 px-3 font-semibold text-white">{{ row.mapped.name || '—' }}</td>
-                      <td class="py-2 px-3 font-mono text-gray-400 text-[11px]">{{ row.mapped.mac || '—' }}</td>
-                      <td class="py-2 px-3 font-mono text-gray-400">{{ row.mapped.ip || '—' }}</td>
-                      <td class="py-2 px-3 text-gray-400">{{ row.mapped.model || '—' }}</td>
+                  <tbody class="divide-y divide-subtle">
+                    <tr v-for="row in parsedRows" :key="row.rowIndex" class="hover:bg-card">
+                      <td class="py-2 px-3 font-mono text-text-muted">{{ row.rowIndex + 1 }}</td>
+                      <td class="py-2 px-3 font-semibold text-text-main">{{ row.mapped.name || '—' }}</td>
+                      <td class="py-2 px-3 font-mono text-text-secondary text-[11px]">{{ row.mapped.mac || '—' }}</td>
+                      <td class="py-2 px-3 font-mono text-text-secondary">{{ row.mapped.ip || '—' }}</td>
+                      <td class="py-2 px-3 text-text-secondary">{{ row.mapped.model || '—' }}</td>
                       <td class="py-2 px-3">
                         <span
                           class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border"
@@ -205,51 +200,51 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
                 <div
                   class="w-16 h-16 rounded-full mx-auto flex items-center justify-center border-2 mb-4"
                   :class="importSummary.failed === 0
-                    ? 'bg-[#34D399]/15 border-[#34D399]/40'
+                    ? 'bg-status-up/15 border-status-up/40'
                     : 'bg-amber-500/15 border-amber-500/40'"
                 >
-                  <CheckCircle v-if="importSummary.failed === 0" class="w-7 h-7 text-[#34D399]" />
+                  <CheckCircle v-if="importSummary.failed === 0" class="w-7 h-7 text-status-up" />
                   <AlertCircle v-else class="w-7 h-7 text-amber-400" />
                 </div>
-                <p class="text-base font-bold text-white">Import Complete</p>
-                <p class="text-xs text-gray-400 mt-1">Results for your CSV import</p>
+                <p class="text-base font-bold text-text-main">Import Complete</p>
+                <p class="text-xs text-text-secondary mt-1">Results for your CSV import</p>
               </div>
 
               <div class="grid grid-cols-3 gap-3">
-                <div class="bg-[#0A0A0B] border border-[#34D399]/20 rounded-xl p-4 text-center">
-                  <p class="text-2xl font-extrabold text-[#34D399] font-mono">{{ importSummary.imported }}</p>
-                  <p class="text-[10px] text-gray-400 uppercase font-mono mt-1">Imported</p>
+                <div class="bg-main border border-status-up/20 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-extrabold text-status-up font-mono">{{ importSummary.imported }}</p>
+                  <p class="text-[10px] text-text-secondary uppercase font-mono mt-1">Imported</p>
                 </div>
-                <div class="bg-[#0A0A0B] border border-amber-500/20 rounded-xl p-4 text-center">
+                <div class="bg-main border border-amber-500/20 rounded-xl p-4 text-center">
                   <p class="text-2xl font-extrabold text-amber-400 font-mono">{{ importSummary.skipped }}</p>
-                  <p class="text-[10px] text-gray-400 uppercase font-mono mt-1">Skipped</p>
+                  <p class="text-[10px] text-text-secondary uppercase font-mono mt-1">Skipped</p>
                 </div>
-                <div class="bg-[#0A0A0B] border border-[#F16565]/20 rounded-xl p-4 text-center">
-                  <p class="text-2xl font-extrabold text-[#F16565] font-mono">{{ importSummary.failed }}</p>
-                  <p class="text-[10px] text-gray-400 uppercase font-mono mt-1">Failed</p>
+                <div class="bg-main border border-status-down/20 rounded-xl p-4 text-center">
+                  <p class="text-2xl font-extrabold text-status-down font-mono">{{ importSummary.failed }}</p>
+                  <p class="text-[10px] text-text-secondary uppercase font-mono mt-1">Failed</p>
                 </div>
               </div>
 
               <!-- Location Processing Summary -->
-              <div v-if="newlyCreatedLocations.length > 0 || matchedLocations.length > 0" class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-3">
-                <p class="text-[10px] font-mono uppercase text-gray-500">Location Processing Summary</p>
+              <div v-if="newlyCreatedLocations.length > 0 || matchedLocations.length > 0" class="bg-card border border-subtle rounded-xl p-4 space-y-3">
+                <p class="text-[10px] font-mono uppercase text-text-muted">Location Processing Summary</p>
                 <div v-if="newlyCreatedLocations.length > 0" class="space-y-1">
                   <p class="text-xs font-semibold text-emerald-400">Newly Created Locations ({{ newlyCreatedLocations.length }}):</p>
-                  <p class="text-[11px] text-gray-300 pl-2 leading-relaxed">{{ newlyCreatedLocations.join(', ') }}</p>
+                  <p class="text-[11px] text-text-secondary pl-2 leading-relaxed">{{ newlyCreatedLocations.join(', ') }}</p>
                 </div>
                 <div v-if="matchedLocations.length > 0" class="space-y-1">
                   <p class="text-xs font-semibold text-sky-400">Matched Existing Locations ({{ matchedLocations.length }}):</p>
-                  <p class="text-[11px] text-gray-400 pl-2 leading-relaxed">{{ matchedLocations.join(', ') }}</p>
+                  <p class="text-[11px] text-text-secondary pl-2 leading-relaxed">{{ matchedLocations.join(', ') }}</p>
                 </div>
               </div>
 
-              <div v-if="importSummary.failed > 0" class="bg-[#18181B] border border-[#26262A] rounded-xl p-4 space-y-2">
-                <p class="text-[10px] font-mono uppercase text-gray-500">Failed rows</p>
+              <div v-if="importSummary.failed > 0" class="bg-card border border-subtle rounded-xl p-4 space-y-2">
+                <p class="text-[10px] font-mono uppercase text-text-muted">Failed rows</p>
                 <div v-for="r in importSummary.results.filter((x: any) => x.status === 'failed')" :key="r.rowIndex" class="flex items-center gap-3">
-                  <span class="text-[10px] font-mono text-gray-600">Row {{ r.rowIndex + 1 }}</span>
-                  <span class="text-xs text-[#F16565]">{{ r.reason }}</span>
+                  <span class="text-[10px] font-mono text-text-muted">Row {{ r.rowIndex + 1 }}</span>
+                  <span class="text-xs text-status-down">{{ r.reason }}</span>
                 </div>
-                <button @click="downloadErrorLog" class="mt-2 text-xs text-[#7B96F5] hover:underline flex items-center gap-1 bg-transparent border-0 cursor-pointer">
+                <button @click="downloadErrorLog" class="mt-2 text-xs text-brand-periwinkle hover:underline flex items-center gap-1 bg-transparent border-0 cursor-pointer">
                   <Download class="w-3.5 h-3.5" />
                   Download error log
                 </button>
@@ -258,24 +253,22 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
           </div>
 
           <!-- Footer Actions -->
-          <div class="flex items-center justify-between px-6 py-4 border-t border-[#26262A] shrink-0 bg-[#0D0D0F]">
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-subtle shrink-0 bg-card">
             <button
               v-if="step > 0 && step < 3"
               @click="step--"
-              class="px-4 py-2 rounded-lg border border-[#26262A] text-gray-400 hover:text-gray-200 hover:bg-[#26262A] transition-colors text-xs font-medium flex items-center gap-1.5"
+              class="px-4 py-2 rounded-lg border border-subtle text-text-secondary hover:text-text-main hover:bg-subtle transition-colors text-xs font-medium flex items-center gap-2 cursor-pointer"
             >
               <ChevronLeft class="w-4 h-4" />
               Back
             </button>
-            <div v-else />
 
             <!-- Step 0: Next requires file -->
             <button
               v-if="step === 0"
               :disabled="!selectedFile"
               @click="proceedFromUpload"
-              class="px-5 py-2 rounded-lg text-white font-semibold text-xs transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              :class="selectedFile ? 'bg-[#7B96F5] hover:bg-[#95ABF7] shadow-md shadow-[#7B96F5]/20' : 'bg-[#26262A]'"
+              class="px-5 py-2 rounded-lg bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-semibold text-xs shadow-md shadow-brand-periwinkle/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               Next: Map Columns
               <ChevronRight class="w-4 h-4" />
@@ -285,7 +278,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
             <button
               v-else-if="step === 1"
               @click="proceedFromMapping"
-              class="px-5 py-2 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 transition-all flex items-center gap-1.5"
+              class="px-5 py-2 rounded-lg bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-semibold text-xs shadow-md shadow-brand-periwinkle/20 transition-all flex items-center gap-2 cursor-pointer"
             >
               Next: Preview
               <ChevronRight class="w-4 h-4" />
@@ -296,8 +289,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
               v-else-if="step === 2"
               :disabled="validCount === 0"
               @click="executeImport"
-              class="px-5 py-2 rounded-lg text-white font-semibold text-xs transition-all flex items-center gap-1.5 disabled:opacity-40"
-              :class="validCount > 0 ? 'bg-[#34D399] hover:bg-emerald-400 shadow-md shadow-[#34D399]/20' : 'bg-[#26262A]'"
+              class="px-5 py-2 rounded-lg bg-status-up hover:bg-emerald-400 text-text-main font-semibold text-xs shadow-md shadow-status-up/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <Upload class="w-4 h-4" />
               Import {{ validCount }} Device{{ validCount !== 1 ? 's' : '' }}
@@ -307,7 +299,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
             <button
               v-else-if="step === 3"
               @click="handleClose"
-              class="px-5 py-2 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 transition-all"
+              class="px-5 py-2 rounded-lg bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-semibold text-xs shadow-md shadow-brand-periwinkle/20 transition-all cursor-pointer"
             >
               Close
             </button>
@@ -664,9 +656,9 @@ function downloadTemplate() {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function rowStatusClass(status: string) {
   switch (status) {
-    case 'valid': return 'bg-[#34D399]/15 text-[#34D399] border-[#34D399]/30';
+    case 'valid': return 'bg-status-up/15 text-status-up border-status-up/30';
     case 'duplicate_mac': return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
-    default: return 'bg-[#F16565]/15 text-[#F16565] border-[#F16565]/30';
+    default: return 'bg-status-down/15 text-status-down border-status-down/30';
   }
 }
 

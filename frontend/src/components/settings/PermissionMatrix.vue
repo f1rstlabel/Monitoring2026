@@ -1,13 +1,13 @@
 <template>
-  <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-5 shadow-xl">
+  <div class="bg-surface border border-subtle rounded-xl p-5 space-y-5 shadow-xl">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
+    <div class="flex items-center justify-between border-b border-subtle pb-4">
       <div>
-        <h2 class="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2">
-          <ShieldAlert class="w-4 h-4 text-[#7B96F5]" />
+        <h2 class="text-xs font-bold uppercase tracking-wider text-text-main font-mono flex items-center gap-2">
+          <ShieldAlert class="w-4 h-4 text-brand-periwinkle" />
           Role Permission Access Control Matrix
         </h2>
-        <p class="text-xs text-gray-400 mt-1">
+        <p class="text-xs text-text-secondary mt-1">
           Configure explicit feature permission matrix per role using radio controls. Admin bypasses all checks.
         </p>
       </div>
@@ -15,7 +15,7 @@
       <button
         @click="savePermissions"
         :disabled="isSaving || isLoading"
-        class="px-4 py-2 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 transition-all flex items-center gap-2 disabled:opacity-50"
+        class="px-4 py-2 rounded-lg bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-semibold text-xs shadow-md shadow-brand-periwinkle/20 transition-all flex items-center gap-2 disabled:opacity-50"
       >
         <Save class="w-4 h-4" />
         {{ isSaveSuccess ? 'Permissions Saved!' : isSaving ? 'Saving Matrix...' : 'Save Matrix' }}
@@ -23,42 +23,42 @@
     </div>
 
     <!-- Role-Wide Notice Banner -->
-    <div class="bg-[#7B96F5]/10 border border-[#7B96F5]/30 rounded-lg p-3 text-xs font-mono text-gray-200 flex items-center gap-2.5">
-      <ShieldCheck class="w-4 h-4 text-[#7B96F5] flex-shrink-0" />
+    <div class="bg-brand-periwinkle/10 border border-brand-periwinkle/30 rounded-lg p-3 text-xs font-mono text-text-main flex items-center gap-2.5">
+      <ShieldCheck class="w-4 h-4 text-brand-periwinkle flex-shrink-0" />
       <div>
-        <span class="font-bold text-[#7B96F5]">Role-Based Access Control:</span>
-        <span class="text-gray-300">
+        <span class="font-bold text-brand-periwinkle">Role-Based Access Control:</span>
+        <span class="text-text-secondary">
           Feature access rules are configured per role. Editing permissions for <strong>Anggota SANOC</strong> or <strong>Pimpinan</strong> immediately updates feature capabilities for <strong>all users</strong> assigned that role.
         </span>
       </div>
     </div>
 
     <!-- Feedback Banner -->
-    <div v-if="saveMessage" class="p-3 rounded-lg text-xs font-mono border" :class="saveSuccess ? 'bg-[#3ECF8E]/10 border-[#3ECF8E]/30 text-[#3ECF8E]' : 'bg-red-500/10 border-red-500/30 text-red-400'">
+    <div v-if="saveMessage" class="p-3 rounded-lg text-xs font-mono border" :class="saveSuccess ? 'bg-status-up/10 border-status-up/30 text-status-up' : 'bg-red-500/10 border-red-500/30 text-red-400'">
       {{ saveMessage }}
     </div>
 
     <!-- Matrix Table -->
     <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs text-gray-300">
-        <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-400 border-b border-[#26262A]">
+      <table class="w-full text-left text-xs text-text-secondary">
+        <thead class="bg-card font-mono text-[10px] uppercase text-text-secondary border-b border-subtle">
           <tr>
             <th class="py-3 px-4">Feature Module &amp; Action</th>
             <th class="py-3 px-4 text-center w-48">
               <div>Pimpinan</div>
-              <div class="text-[9px] text-[#7B96F5] font-semibold lowercase">({{ pimpinanCount }} user{{ pimpinanCount === 1 ? '' : 's' }})</div>
+              <div class="text-[9px] text-brand-periwinkle font-semibold lowercase">({{ pimpinanCount }} user{{ pimpinanCount === 1 ? '' : 's' }})</div>
             </th>
             <th class="py-3 px-4 text-center w-48">
               <div>Anggota SANOC</div>
-              <div class="text-[9px] text-[#7B96F5] font-semibold lowercase">({{ anggotaCount }} user{{ anggotaCount === 1 ? '' : 's' }})</div>
+              <div class="text-[9px] text-brand-periwinkle font-semibold lowercase">({{ anggotaCount }} user{{ anggotaCount === 1 ? '' : 's' }})</div>
             </th>
             <th class="py-3 px-4 text-center w-36">
               <div>Admin</div>
-              <div class="text-[9px] text-[#3ECF8E] font-semibold lowercase">({{ adminCount }} user{{ adminCount === 1 ? '' : 's' }})</div>
+              <div class="text-[9px] text-status-up font-semibold lowercase">({{ adminCount }} user{{ adminCount === 1 ? '' : 's' }})</div>
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[#26262A]">
+        <tbody class="divide-y divide-subtle">
           <tr v-if="isLoading">
             <td colspan="4" class="p-0 border-0">
               <SkeletonTable :rows="6" :cols="4" />
@@ -66,37 +66,37 @@
           </tr>
           <template v-else v-for="group in featureGroups" :key="group.category">
             <!-- Category Header Row -->
-            <tr class="bg-[#18181B]/60 text-[#7B96F5] font-mono text-[11px] font-bold">
-              <td colspan="4" class="py-2.5 px-4 uppercase tracking-wider bg-[#18181B]">
+            <tr class="bg-card/60 text-brand-periwinkle font-mono text-[11px] font-bold">
+              <td colspan="4" class="py-2.5 px-4 uppercase tracking-wider bg-card">
                 {{ group.category }}
               </td>
             </tr>
 
             <!-- Feature Row -->
-            <tr v-for="feat in group.features" :key="feat.key" class="hover:bg-[#18181B] transition-colors">
+            <tr v-for="feat in group.features" :key="feat.key" class="hover:bg-card transition-colors">
               <td class="py-3 px-4">
                 <div>
-                  <p class="font-bold text-white">{{ feat.label }}</p>
-                  <p class="text-[10px] font-mono text-gray-500">{{ feat.key }} &bull; {{ feat.description }}</p>
+                  <p class="font-bold text-text-main">{{ feat.label }}</p>
+                  <p class="text-[10px] font-mono text-text-muted">{{ feat.key }} &bull; {{ feat.description }}</p>
                 </div>
               </td>
 
               <!-- Pimpinan ON / OFF Switch Controls -->
               <td class="py-3 px-4 text-center">
-                <div class="inline-flex p-0.5 rounded-lg bg-[#0A0A0B] border border-[#26262A]">
+                <div class="inline-flex p-0.5 rounded-lg bg-main border border-subtle">
                   <button
                     type="button"
                     @click="setPermission('pimpinan', feat.key, true)"
-                    :class="getPermission('pimpinan', feat.key) === true ? 'bg-[#3ECF8E]/20 text-[#3ECF8E] border-[#3ECF8E]/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    :class="getPermission('pimpinan', feat.key) === true ? 'bg-status-up/20 text-status-up border-status-up/40 font-bold shadow-sm' : 'text-text-muted hover:text-text-secondary border-transparent'"
                     class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
                   >
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('pimpinan', feat.key) === true ? 'bg-[#3ECF8E] pulsing-dot-green' : 'bg-gray-600'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('pimpinan', feat.key) === true ? 'bg-status-up pulsing-dot-green' : 'bg-gray-600'"></span>
                     ON
                   </button>
                   <button
                     type="button"
                     @click="setPermission('pimpinan', feat.key, false)"
-                    :class="getPermission('pimpinan', feat.key) === false ? 'bg-red-500/20 text-red-400 border-red-500/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    :class="getPermission('pimpinan', feat.key) === false ? 'bg-red-500/20 text-red-400 border-red-500/40 font-bold shadow-sm' : 'text-text-muted hover:text-text-secondary border-transparent'"
                     class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
                   >
                     <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('pimpinan', feat.key) === false ? 'bg-red-400' : 'bg-gray-600'"></span>
@@ -107,20 +107,20 @@
 
               <!-- Anggota ON / OFF Switch Controls -->
               <td class="py-3 px-4 text-center">
-                <div class="inline-flex p-0.5 rounded-lg bg-[#0A0A0B] border border-[#26262A]">
+                <div class="inline-flex p-0.5 rounded-lg bg-main border border-subtle">
                   <button
                     type="button"
                     @click="setPermission('anggota', feat.key, true)"
-                    :class="getPermission('anggota', feat.key) === true ? 'bg-[#3ECF8E]/20 text-[#3ECF8E] border-[#3ECF8E]/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    :class="getPermission('anggota', feat.key) === true ? 'bg-status-up/20 text-status-up border-status-up/40 font-bold shadow-sm' : 'text-text-muted hover:text-text-secondary border-transparent'"
                     class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
                   >
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('anggota', feat.key) === true ? 'bg-[#3ECF8E] pulsing-dot-green' : 'bg-gray-600'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('anggota', feat.key) === true ? 'bg-status-up pulsing-dot-green' : 'bg-gray-600'"></span>
                     ON
                   </button>
                   <button
                     type="button"
                     @click="setPermission('anggota', feat.key, false)"
-                    :class="getPermission('anggota', feat.key) === false ? 'bg-red-500/20 text-red-400 border-red-500/40 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                    :class="getPermission('anggota', feat.key) === false ? 'bg-red-500/20 text-red-400 border-red-500/40 font-bold shadow-sm' : 'text-text-muted hover:text-text-secondary border-transparent'"
                     class="px-2.5 py-1 text-[11px] font-mono rounded-md border transition-all flex items-center gap-1.5"
                   >
                     <span class="w-1.5 h-1.5 rounded-full" :class="getPermission('anggota', feat.key) === false ? 'bg-red-400' : 'bg-gray-600'"></span>
@@ -131,7 +131,7 @@
 
               <!-- Admin (Locked Full Access) -->
               <td class="py-3 px-4 text-center">
-                <span class="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#3ECF8E] bg-[#3ECF8E]/10 px-2 py-1 rounded border border-[#3ECF8E]/30">
+                <span class="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-status-up bg-status-up/10 px-2 py-1 rounded border border-status-up/30">
                   <Check class="w-3 h-3" /> ADMIN (FULL)
                 </span>
               </td>

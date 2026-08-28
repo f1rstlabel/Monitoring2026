@@ -1,31 +1,31 @@
 <template>
-  <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4 shadow-xl">
+  <div class="bg-surface border border-subtle rounded-xl p-5 space-y-4 shadow-xl">
     <!-- Header with Metric Tabs, Presentation Views & Range Selector -->
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#26262A] pb-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-subtle pb-3">
       <div class="flex items-center gap-3">
         <div>
-          <h3 class="text-xs font-bold text-gray-200 uppercase font-mono tracking-wider flex items-center gap-2">
-            <Activity class="w-4 h-4 text-[#7B96F5]" />
+          <h3 class="text-xs font-bold text-text-main uppercase font-mono tracking-wider flex items-center gap-2">
+            <Activity class="w-4 h-4 text-brand-periwinkle" />
             Telemetry &amp; Performance Analytics
           </h3>
-          <p class="text-[11px] text-gray-400 font-mono mt-0.5">Real-time ICMP &amp; SNMP Telemetry Time-Series</p>
+          <p class="text-[11px] text-text-secondary font-mono mt-0.5">Real-time ICMP &amp; SNMP Telemetry Time-Series</p>
         </div>
         <!-- Realtime Live Stream Badge -->
         <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#3ECF8E] pulsing-dot-green"></span>
+          <span class="w-1.5 h-1.5 rounded-full bg-status-up pulsing-dot-green"></span>
           <span class="font-semibold uppercase tracking-wider">Live Poller</span>
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
         <!-- Metric Type Selector (Latency, CPU, Memory, All) -->
-        <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5 text-xs font-mono">
+        <div class="flex items-center bg-card border border-subtle rounded-lg p-0.5 text-xs font-mono">
           <button
             v-for="mode in metricOptions"
             :key="mode.id"
             @click="switchMetric(mode.id)"
             class="px-2.5 py-1 rounded transition-all uppercase font-semibold text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="activeMetric === mode.id ? 'bg-[#7B96F5] text-white shadow-sm' : 'text-gray-400 hover:text-white'"
+            :class="activeMetric === mode.id ? 'bg-brand-periwinkle text-white shadow-sm' : 'text-text-secondary hover:text-text-main'"
           >
             <component :is="mode.icon" class="w-3 h-3" />
             <span>{{ mode.label }}</span>
@@ -33,13 +33,13 @@
         </div>
 
         <!-- Presentation View Mode Toggle (Area, Step, Bar, Donut, Gauge) — Available for ALL metrics including Combined! -->
-        <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5 text-xs font-mono">
+        <div class="flex items-center bg-card border border-subtle rounded-lg p-0.5 text-xs font-mono">
           <!-- Area Chart -->
           <button
             @click="viewMode = 'area'"
             title="Area Time-Series Chart"
             class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'area' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+            :class="viewMode === 'area' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
           >
             <Activity class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">Area</span>
@@ -50,7 +50,7 @@
             @click="viewMode = 'stepline'"
             title="Stepline Chart"
             class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'stepline' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+            :class="viewMode === 'stepline' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
           >
             <TrendingUp class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">Step</span>
@@ -61,7 +61,7 @@
             @click="viewMode = 'bar'"
             title="Bar / Column Chart"
             class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'bar' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+            :class="viewMode === 'bar' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
           >
             <BarChart3 class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">Bar</span>
@@ -72,7 +72,7 @@
             @click="viewMode = 'donut'"
             title="Proportion Breakdown (Selected Range)"
             class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'donut' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+            :class="viewMode === 'donut' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
           >
             <PieChart class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">Donut</span>
@@ -83,7 +83,7 @@
             @click="viewMode = 'gauge'"
             title="Current Snapshot Gauge"
             class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'gauge' ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+            :class="viewMode === 'gauge' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
           >
             <Gauge class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">Gauge</span>
@@ -91,13 +91,13 @@
         </div>
 
         <!-- Time Range Selector -->
-        <div v-if="viewMode !== 'gauge'" class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5 text-xs font-mono">
+        <div v-if="viewMode !== 'gauge'" class="flex items-center bg-card border border-subtle rounded-lg p-0.5 text-xs font-mono">
           <button
             v-for="range in (['1h', '24h', '7d', '30d', 'custom'] as const)"
             :key="range"
             @click="selectRange(range)"
             class="px-2 py-1 rounded transition-colors text-[11px] cursor-pointer"
-            :class="activeRange === range ? 'bg-[#26262A] text-white font-bold' : 'text-gray-400 hover:text-white'"
+            :class="activeRange === range ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
           >
             {{ range }}
           </button>
@@ -106,44 +106,44 @@
     </div>
 
     <!-- Custom Date Range Picker -->
-    <div v-if="activeRange === 'custom' && viewMode !== 'gauge'" class="flex flex-wrap items-center gap-3 bg-[#18181B] border border-[#26262A] rounded-lg p-2.5 text-xs font-mono">
+    <div v-if="activeRange === 'custom' && viewMode !== 'gauge'" class="flex flex-wrap items-center gap-3 bg-card border border-subtle rounded-lg p-2.5 text-xs font-mono">
       <div class="flex items-center gap-2">
-        <span class="text-gray-400">From:</span>
-        <input type="date" v-model="customFrom" @change="fetchAndRender" class="bg-[#0A0A0B] border border-[#26262A] rounded px-2 py-1 text-white text-xs" />
+        <span class="text-text-secondary">From:</span>
+        <input type="date" v-model="customFrom" @change="fetchAndRender" class="bg-main border border-subtle rounded px-2 py-1 text-text-main text-xs" />
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-gray-400">To:</span>
-        <input type="date" v-model="customTo" @change="fetchAndRender" class="bg-[#0A0A0B] border border-[#26262A] rounded px-2 py-1 text-white text-xs" />
+        <span class="text-text-secondary">To:</span>
+        <input type="date" v-model="customTo" @change="fetchAndRender" class="bg-main border border-subtle rounded px-2 py-1 text-text-main text-xs" />
       </div>
-      <button @click="fetchAndRender" class="px-3 py-1 bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-bold rounded text-xs cursor-pointer">
+      <button @click="fetchAndRender" class="px-3 py-1 bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-bold rounded text-xs cursor-pointer">
         Apply Range
       </button>
     </div>
 
     <!-- Quick Stats Telemetry Strip (Current, Average, Peak, Min) -->
     <div v-if="!isEmpty && activeMetric !== 'all'" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2">
-        <span class="text-[10px] uppercase font-mono text-gray-400 block font-semibold">Current Live</span>
-        <span class="text-sm font-bold font-mono text-white flex items-center gap-1.5 mt-0.5">
+      <div class="bg-card border border-subtle rounded-lg px-3 py-2">
+        <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold">Current Live</span>
+        <span class="text-sm font-bold font-mono text-text-main flex items-center gap-1.5 mt-0.5">
           <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: accentColor }"></span>
           {{ latestValue.toFixed(1) }} {{ metricUnit }}
         </span>
       </div>
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2">
-        <span class="text-[10px] uppercase font-mono text-gray-400 block font-semibold">Average</span>
-        <span class="text-sm font-bold font-mono text-gray-200 mt-0.5 block">
+      <div class="bg-card border border-subtle rounded-lg px-3 py-2">
+        <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold">Average</span>
+        <span class="text-sm font-bold font-mono text-text-main mt-0.5 block">
           {{ avgMetricVal.toFixed(1) }} {{ metricUnit }}
         </span>
       </div>
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2">
-        <span class="text-[10px] uppercase font-mono text-gray-400 block font-semibold">Peak (Max)</span>
+      <div class="bg-card border border-subtle rounded-lg px-3 py-2">
+        <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold">Peak (Max)</span>
         <span class="text-sm font-bold font-mono text-red-400 mt-0.5 block">
           {{ maxMetricVal.toFixed(1) }} {{ metricUnit }}
         </span>
       </div>
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2">
-        <span class="text-[10px] uppercase font-mono text-gray-400 block font-semibold">Minimum</span>
-        <span class="text-sm font-bold font-mono text-[#10B981] mt-0.5 block">
+      <div class="bg-card border border-subtle rounded-lg px-3 py-2">
+        <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold">Minimum</span>
+        <span class="text-sm font-bold font-mono text-status-up mt-0.5 block">
           {{ minMetricVal.toFixed(1) }} {{ metricUnit }}
         </span>
       </div>
@@ -151,36 +151,36 @@
 
     <!-- Combined Mode Telemetry KPI Strip -->
     <div v-if="!isEmpty && activeMetric === 'all'" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg p-3 flex items-center justify-between">
+      <div class="bg-card border border-subtle rounded-lg p-3 flex items-center justify-between">
         <div>
-          <span class="text-[10px] uppercase font-mono text-gray-400 block font-semibold flex items-center gap-1">
-            <Zap class="w-3 h-3 text-[#10B981]" />
+          <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold flex items-center gap-1">
+            <Zap class="w-3 h-3 text-status-up" />
             ICMP Latency
           </span>
-          <span class="text-sm font-bold font-mono text-[#10B981] mt-0.5 block">
-            {{ latestLatency.toFixed(1) }} ms <span class="text-[10px] text-gray-500 font-normal">(Avg: {{ avgLatency.toFixed(1) }} ms)</span>
+          <span class="text-sm font-bold font-mono text-status-up mt-0.5 block">
+            {{ latestLatency.toFixed(1) }} ms <span class="text-[10px] text-text-muted font-normal">(Avg: {{ avgLatency.toFixed(1) }} ms)</span>
           </span>
         </div>
       </div>
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg p-3 flex items-center justify-between">
+      <div class="bg-card border border-subtle rounded-lg p-3 flex items-center justify-between">
         <div>
-          <span class="text-[10px] uppercase font-mono text-gray-400 block font-semibold flex items-center gap-1">
-            <Cpu class="w-3 h-3 text-[#7B96F5]" />
+          <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold flex items-center gap-1">
+            <Cpu class="w-3 h-3 text-brand-periwinkle" />
             SNMP CPU Load
           </span>
-          <span class="text-sm font-bold font-mono text-[#7B96F5] mt-0.5 block">
-            {{ latestCpu.toFixed(1) }}% <span class="text-[10px] text-gray-500 font-normal">(Avg: {{ avgCpu.toFixed(1) }}%)</span>
+          <span class="text-sm font-bold font-mono text-brand-periwinkle mt-0.5 block">
+            {{ latestCpu.toFixed(1) }}% <span class="text-[10px] text-text-muted font-normal">(Avg: {{ avgCpu.toFixed(1) }}%)</span>
           </span>
         </div>
       </div>
-      <div class="bg-[#18181B] border border-[#26262A] rounded-lg p-3 flex items-center justify-between">
+      <div class="bg-card border border-subtle rounded-lg p-3 flex items-center justify-between">
         <div>
-          <span class="text-[10px] uppercase font-mono text-gray-400 block font-semibold flex items-center gap-1">
-            <Server class="w-3 h-3 text-[#F59E0B]" />
+          <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold flex items-center gap-1">
+            <Server class="w-3 h-3 text-status-warning" />
             SNMP RAM Usage
           </span>
-          <span class="text-sm font-bold font-mono text-[#F59E0B] mt-0.5 block">
-            {{ latestMem.toFixed(1) }}% <span class="text-[10px] text-gray-500 font-normal">(Avg: {{ avgMem.toFixed(1) }}%)</span>
+          <span class="text-sm font-bold font-mono text-status-warning mt-0.5 block">
+            {{ latestMem.toFixed(1) }}% <span class="text-[10px] text-text-muted font-normal">(Avg: {{ avgMem.toFixed(1) }}%)</span>
           </span>
         </div>
       </div>
@@ -199,86 +199,86 @@
       />
 
       <!-- Clean No-Dummy-Data Empty State -->
-      <div v-else class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-[#151517] border border-[#26262A]/60 rounded-xl space-y-2">
-        <div class="w-10 h-10 rounded-full bg-[#18181B] border border-[#26262A] flex items-center justify-center text-gray-500">
+      <div v-else class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-surface border border-subtle/60 rounded-xl space-y-2">
+        <div class="w-10 h-10 rounded-full bg-card border border-subtle flex items-center justify-center text-text-muted">
           <component :is="activeMetricIcon" class="w-5 h-5" />
         </div>
-        <h4 class="text-xs font-mono font-bold text-gray-300 uppercase tracking-wider">
+        <h4 class="text-xs font-mono font-bold text-text-secondary uppercase tracking-wider">
           No Realtime {{ activeMetricLabel }} Recorded
         </h4>
-        <p class="text-[11px] font-mono text-gray-500 max-w-sm leading-relaxed">
+        <p class="text-[11px] font-mono text-text-muted max-w-sm leading-relaxed">
           {{ emptyStateDescription }}
         </p>
       </div>
     </div>
 
     <!-- Donut Range-Aware Legend -->
-    <div v-if="viewMode === 'donut' && !isEmpty" class="flex flex-wrap items-center justify-center gap-6 text-xs font-mono text-gray-400 pt-1">
+    <div v-if="viewMode === 'donut' && !isEmpty" class="flex flex-wrap items-center justify-center gap-6 text-xs font-mono text-text-secondary pt-1">
       <template v-if="activeMetric === 'all'">
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#10B981] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-status-up inline-block"></span>
           Avg Ping: {{ avgLatency.toFixed(1) }} ms
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#7B96F5] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-brand-periwinkle inline-block"></span>
           Avg CPU: {{ avgCpu.toFixed(1) }}%
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-status-warning inline-block"></span>
           Avg RAM: {{ avgMem.toFixed(1) }}%
         </span>
       </template>
       <template v-else-if="activeMetric === 'status'">
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#10B981] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-status-up inline-block"></span>
           UP (Reachable) — {{ upPct }}%
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#EF4444] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-status-down inline-block"></span>
           DOWN (0 ms) — {{ downPct }}%
         </span>
       </template>
       <template v-else>
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#10B981] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-status-up inline-block"></span>
           Normal &lt;50% ({{ lowResourceCount }})
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-status-warning inline-block"></span>
           Moderate 50-80% ({{ medResourceCount }})
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#EF4444] inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-status-down inline-block"></span>
           High &gt;80% ({{ highResourceCount }})
         </span>
       </template>
-      <span class="text-[10px] text-gray-600">Range: {{ activeRange !== 'custom' ? activeRange : `${customFrom} → ${customTo}` }}</span>
+      <span class="text-[10px] text-text-muted">Range: {{ activeRange !== 'custom' ? activeRange : `${customFrom} → ${customTo}` }}</span>
     </div>
 
     <!-- Line/Area Legend -->
-    <div v-if="activeMetric === 'status' && (viewMode === 'area' || viewMode === 'stepline') && !isEmpty" class="flex items-center justify-center gap-6 text-[10px] font-mono text-gray-400 pt-1 border-t border-[#26262A]/40 mt-1">
-      <span class="flex items-center gap-1.5 text-gray-300 font-semibold">
-        <span class="w-3.5 h-1 bg-[#10B981] inline-block rounded"></span>
+    <div v-if="activeMetric === 'status' && (viewMode === 'area' || viewMode === 'stepline') && !isEmpty" class="flex items-center justify-center gap-6 text-[10px] font-mono text-text-secondary pt-1 border-t border-subtle/40 mt-1">
+      <span class="flex items-center gap-1.5 text-text-secondary font-semibold">
+        <span class="w-3.5 h-1 bg-status-up inline-block rounded"></span>
         Solid Green Line = ICMP Ping Latency
       </span>
       <span v-if="downPeriods.length > 0" class="flex items-center gap-1.5 text-red-400 font-semibold">
-        <span class="w-3 h-3 bg-[#F16565]/20 border border-[#F16565]/50 inline-block rounded-sm"></span>
+        <span class="w-3 h-3 bg-status-down/20 border border-status-down/50 inline-block rounded-sm"></span>
         Red Band = Downtime Period
       </span>
     </div>
 
     <!-- Combined Mode Area/Step Legend -->
-    <div v-if="activeMetric === 'all' && (viewMode === 'area' || viewMode === 'stepline' || viewMode === 'bar') && !isEmpty" class="flex items-center justify-center gap-6 text-[10px] font-mono text-gray-400 pt-1 border-t border-[#26262A]/40 mt-1">
-      <span class="flex items-center gap-1.5 text-[#00E396] font-semibold">
-        <span class="w-3 h-3 rounded-full bg-[#00E396]/20 border border-[#00E396] inline-block"></span>
+    <div v-if="activeMetric === 'all' && (viewMode === 'area' || viewMode === 'stepline' || viewMode === 'bar') && !isEmpty" class="flex items-center justify-center gap-6 text-[10px] font-mono text-text-secondary pt-1 border-t border-subtle/40 mt-1">
+      <span class="flex items-center gap-1.5 text-status-up font-semibold">
+        <span class="w-3 h-3 rounded-full bg-status-up/20 border border-status-up inline-block"></span>
         Ping Latency (ms)
       </span>
-      <span class="flex items-center gap-1.5 text-[#38BDF8] font-semibold">
-        <span class="w-3 h-3 rounded-full bg-[#38BDF8]/20 border border-[#38BDF8] inline-block"></span>
+      <span class="flex items-center gap-1.5 text-brand-periwinkle font-semibold">
+        <span class="w-3 h-3 rounded-full bg-brand-periwinkle/20 border border-brand-periwinkle inline-block"></span>
         CPU Load (%)
       </span>
-      <span class="flex items-center gap-1.5 text-[#FBBF24] font-semibold">
-        <span class="w-3 h-3 rounded-full bg-[#FBBF24]/20 border border-[#FBBF24] inline-block"></span>
+      <span class="flex items-center gap-1.5 text-status-warning font-semibold">
+        <span class="w-3 h-3 rounded-full bg-status-warning/20 border border-status-warning inline-block"></span>
         RAM Usage (%)
       </span>
     </div>
@@ -290,6 +290,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
 import api from '../../api/client';
 import { wsClient } from '../../ws/websocket';
+import { useThemeStore } from '../../stores/themeStore';
 import {
   Activity,
   BarChart3,
@@ -307,6 +308,13 @@ const apexchart = VueApexCharts;
 const props = defineProps<{
   deviceId?: string;
 }>();
+
+const themeStore = useThemeStore();
+
+function themeColor(variable: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(variable).trim() || fallback;
+}
 
 type MetricMode = 'status' | 'cpu' | 'memory' | 'all';
 type ViewMode = 'area' | 'bar' | 'stepline' | 'gauge' | 'donut';
@@ -545,10 +553,10 @@ const apexChartType = computed((): 'area' | 'bar' | 'radialBar' | 'donut' => {
 });
 
 const accentColor = computed(() => {
-  if (activeMetric.value === 'cpu') return '#38BDF8';
-  if (activeMetric.value === 'memory') return '#FBBF24';
-  if (activeMetric.value === 'all') return '#38BDF8';
-  return '#00E396';
+  themeStore.currentTheme;
+  if (activeMetric.value === 'cpu' || activeMetric.value === 'all') return themeColor('--accent-blue', '#657BE8');
+  if (activeMetric.value === 'memory') return themeColor('--status-warning', '#B46A13');
+  return themeColor('--status-up', '#12805C');
 });
 
 const apexSeries = computed((): any => {
@@ -609,18 +617,27 @@ const apexSeries = computed((): any => {
 });
 
 const apexOptions = computed((): any => {
+  // Keep ApexCharts in sync with the CSS theme tokens when the user toggles mode.
+  themeStore.currentTheme;
+  const chartText = themeColor('--chart-label', '#64748B');
+  const chartGrid = themeColor('--chart-grid', '#D5DDE7');
+  const cardBackground = themeColor('--bg-card', '#FFFFFF');
+  const statusUp = themeColor('--status-up', '#12805C');
+  const statusDown = themeColor('--status-down', '#C73F4A');
+  const warning = themeColor('--status-warning', '#B46A13');
+  const accent = themeColor('--accent-blue', '#657BE8');
   const metricLabel = activeMetric.value.toUpperCase();
 
   if (viewMode.value === 'gauge') {
     const isMulti = activeMetric.value === 'all';
-    const gaugeColors = isMulti ? ['#10B981', '#7B96F5', '#F59E0B'] : [accentColor.value];
+    const gaugeColors = isMulti ? [statusUp, accent, warning] : [accentColor.value];
     const gaugeLabels = isMulti ? ['Ping (ms)', 'CPU (%)', 'RAM (%)'] : [metricLabel];
 
     return {
       chart: {
         type: 'radialBar',
         background: 'transparent',
-        foreColor: '#9CA3AF',
+        foreColor: chartText,
         sparkline: { enabled: false }
       },
       plotOptions: {
@@ -630,24 +647,24 @@ const apexOptions = computed((): any => {
           hollow: {
             margin: 0,
             size: isMulti ? '40%' : '68%',
-            background: '#151517'
+            background: cardBackground
           },
           track: {
-            background: '#26262A',
+            background: chartGrid,
             strokeWidth: '100%'
           },
           dataLabels: {
             show: true,
             name: {
               offsetY: -8,
-              color: '#9CA3AF',
+              color: chartText,
               fontSize: '11px',
               fontWeight: '600',
               fontFamily: 'JetBrains Mono, monospace'
             },
             value: {
               offsetY: 6,
-              color: '#FFFFFF',
+              color: themeColor('--text-primary', '#182231'),
               fontSize: isMulti ? '16px' : '24px',
               fontWeight: 'bold',
               fontFamily: 'JetBrains Mono, monospace',
@@ -656,7 +673,7 @@ const apexOptions = computed((): any => {
             total: {
               show: isMulti,
               label: 'Avg Load',
-              color: '#9CA3AF',
+              color: chartText,
               fontFamily: 'JetBrains Mono, monospace',
               fontSize: '10px',
               formatter: () => `${Math.round((avgCpu.value + avgMem.value) / 2)}%`
@@ -674,10 +691,10 @@ const apexOptions = computed((): any => {
     const isStatus = activeMetric.value === 'status';
 
     const colors = isMulti
-      ? ['#10B981', '#7B96F5', '#F59E0B']
+      ? [statusUp, accent, warning]
       : isStatus
-      ? ['#10B981', '#EF4444']
-      : ['#10B981', '#F59E0B', '#EF4444'];
+      ? [statusUp, statusDown]
+      : [statusUp, warning, statusDown];
 
     const labels = isMulti
       ? [
@@ -700,7 +717,7 @@ const apexOptions = computed((): any => {
       chart: {
         type: 'donut',
         background: 'transparent',
-        foreColor: '#9CA3AF'
+        foreColor: chartText
       },
       colors,
       labels,
@@ -725,7 +742,7 @@ const apexOptions = computed((): any => {
                 show: true,
                 fontSize: '11px',
                 fontFamily: 'JetBrains Mono, monospace',
-                color: '#9CA3AF',
+                color: chartText,
                 offsetY: -8
               },
               value: {
@@ -733,7 +750,7 @@ const apexOptions = computed((): any => {
                 fontSize: '20px',
                 fontFamily: 'JetBrains Mono, monospace',
                 fontWeight: 'bold',
-                color: '#FFFFFF',
+                color: themeColor('--text-primary', '#182231'),
                 offsetY: 4,
                 formatter: (val: string) => `${Math.round(Number(val))}%`
               },
@@ -743,7 +760,7 @@ const apexOptions = computed((): any => {
                 label: isMulti ? 'Combined' : isStatus ? 'Uptime' : `Avg ${activeMetric.value.toUpperCase()}`,
                 fontSize: '10px',
                 fontFamily: 'JetBrains Mono, monospace',
-                color: '#9CA3AF',
+                color: chartText,
                 formatter: () =>
                   isMulti
                     ? `${avgCpu.value.toFixed(0)}%`
@@ -755,16 +772,16 @@ const apexOptions = computed((): any => {
           }
         }
       },
-      stroke: { width: 2, colors: ['#151517'] },
+      stroke: { width: 2, colors: [cardBackground] },
       tooltip: {
-        theme: 'dark'
+        theme: themeStore.currentTheme
       }
     };
   }
 
   // Area / Bar / Stepline Options
   const isMulti = activeMetric.value === 'all';
-  const colors = isMulti ? ['#00E396', '#38BDF8', '#FBBF24'] : [accentColor.value];
+  const colors = isMulti ? [statusUp, accent, warning] : [accentColor.value];
 
   return {
     chart: {
@@ -772,7 +789,7 @@ const apexOptions = computed((): any => {
       background: 'transparent',
       toolbar: { show: false },
       zoom: { enabled: true },
-      foreColor: '#9CA3AF',
+      foreColor: chartText,
       fontFamily: 'JetBrains Mono, monospace'
     },
     // Lightweight DOWN Period shading (Fast & Smooth)
@@ -780,16 +797,16 @@ const apexOptions = computed((): any => {
       xaxis: downPeriods.value.map(p => ({
         x: p.x,
         x2: p.x2,
-        fillColor: '#EF4444',
+        fillColor: statusDown,
         opacity: 0.2,
         strokeDashArray: 0,
-        borderColor: '#EF4444',
+        borderColor: statusDown,
         borderWidth: 1,
         label: {
-          borderColor: '#EF4444',
+          borderColor: statusDown,
           style: {
             color: '#FFFFFF',
-            background: '#EF4444',
+            background: statusDown,
             fontSize: '9px',
             fontFamily: 'JetBrains Mono, monospace',
             fontWeight: 'bold'
@@ -807,7 +824,7 @@ const apexOptions = computed((): any => {
     markers: {
       size: viewMode.value === 'bar' ? 0 : (viewMode.value === 'stepline' ? (currentActiveList.value.length < 80 ? 4 : 2) : (currentActiveList.value.length < 50 ? 4 : 0)),
       strokeWidth: 2,
-      strokeColors: '#151517',
+      strokeColors: cardBackground,
       hover: { size: 6.5 }
     },
     plotOptions: {
@@ -833,19 +850,19 @@ const apexOptions = computed((): any => {
       labels: {
         datetimeUTC: false
       },
-      axisBorder: { color: '#26262A' },
-      axisTicks: { color: '#26262A' }
+      axisBorder: { color: chartGrid },
+      axisTicks: { color: chartGrid }
     },
     yaxis: isMulti
       ? [
           {
-            title: { text: 'Ping (ms)', style: { color: '#00E396', fontSize: '10px' } },
-            labels: { formatter: (v: number) => `${v.toFixed(0)} ms`, style: { colors: '#00E396' } }
+            title: { text: 'Ping (ms)', style: { color: statusUp, fontSize: '10px' } },
+            labels: { formatter: (v: number) => `${v.toFixed(0)} ms`, style: { colors: statusUp } }
           },
           {
             opposite: true,
-            title: { text: 'SNMP %', style: { color: '#38BDF8', fontSize: '10px' } },
-            labels: { formatter: (v: number) => `${v.toFixed(0)}%`, style: { colors: '#38BDF8' } },
+            title: { text: 'SNMP %', style: { color: accent, fontSize: '10px' } },
+            labels: { formatter: (v: number) => `${v.toFixed(0)}%`, style: { colors: accent } },
             min: 0,
             max: 100
           }
@@ -858,9 +875,9 @@ const apexOptions = computed((): any => {
           min: activeMetric.value === 'status' ? undefined : 0,
           max: activeMetric.value === 'status' ? undefined : 100
         },
-    grid: { borderColor: '#26262A', strokeDashArray: 3 },
+    grid: { borderColor: chartGrid, strokeDashArray: 3 },
     tooltip: {
-      theme: 'dark',
+      theme: themeStore.currentTheme,
       x: { format: 'dd MMM HH:mm:ss' }
     }
   };

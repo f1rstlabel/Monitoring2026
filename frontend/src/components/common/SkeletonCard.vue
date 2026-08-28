@@ -1,6 +1,6 @@
 <template>
   <!-- Matches exact stat-card dimensions to prevent layout shift -->
-  <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-3" aria-hidden="true">
+  <div class="bg-surface border border-subtle rounded-xl p-5 space-y-3" aria-hidden="true">
     <!-- Icon + label row -->
     <div class="flex items-center justify-between">
       <Skeleton width="7rem" height="0.75rem" />

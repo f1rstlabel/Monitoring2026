@@ -1,7 +1,7 @@
 <template>
   <Modal :is-open="isOpen" title="WhatsApp Session QR Connect" @close="$emit('close')">
     <template #icon>
-      <QrCode class="w-5 h-5 text-[#34D399]" />
+      <QrCode class="w-5 h-5 text-status-up" />
     </template>
 
     <div class="flex flex-col items-center justify-center p-4 space-y-5 text-center">
@@ -12,37 +12,37 @@
       </div>
 
       <!-- QR Code Container -->
-      <div class="relative bg-white p-4 rounded-xl border border-[#26262A] shadow-xl w-56 h-56 flex items-center justify-center overflow-hidden">
+      <div class="relative bg-white p-4 rounded-xl border border-subtle shadow-xl w-56 h-56 flex items-center justify-center overflow-hidden">
         <!-- Connected Overlay -->
-        <div v-if="status === 'connected'" class="absolute inset-0 bg-[#151517]/95 backdrop-blur rounded-xl flex flex-col items-center justify-center p-4 space-y-2 z-10">
-          <CheckCircle2 class="w-12 h-12 text-[#34D399] animate-bounce" />
-          <p class="text-xs font-bold text-white">Session Connected!</p>
-          <p class="text-[10px] font-mono text-[#34D399]">{{ linkedNumber }}</p>
+        <div v-if="status === 'connected'" class="absolute inset-0 bg-surface/95 backdrop-blur rounded-xl flex flex-col items-center justify-center p-4 space-y-2 z-10">
+          <CheckCircle2 class="w-12 h-12 text-status-up animate-bounce" />
+          <p class="text-xs font-bold text-text-main">Session Connected!</p>
+          <p class="text-[10px] font-mono text-status-up">{{ linkedNumber }}</p>
         </div>
 
         <!-- Expired Overlay -->
-        <div v-else-if="status === 'expired'" class="absolute inset-0 bg-[#151517]/90 backdrop-blur rounded-xl flex flex-col items-center justify-center p-4 space-y-2 z-10">
+        <div v-else-if="status === 'expired'" class="absolute inset-0 bg-surface/90 backdrop-blur rounded-xl flex flex-col items-center justify-center p-4 space-y-2 z-10">
           <RefreshCw class="w-8 h-8 text-amber-400 animate-spin" />
-          <p class="text-xs font-semibold text-gray-200">QR Code Expired</p>
-          <button @click="refreshQR" class="text-[11px] text-[#7B96F5] hover:underline">Click to refresh</button>
+          <p class="text-xs font-semibold text-text-main">QR Code Expired</p>
+          <button @click="refreshQR" class="text-[11px] text-brand-periwinkle hover:underline">Click to refresh</button>
         </div>
 
         <!-- Rendered QR Code Image -->
         <img v-if="qrDataUrl && status !== 'offline'" :src="qrDataUrl" class="w-full h-full object-contain" alt="WhatsApp QR Code" />
         <div v-else-if="status === 'offline'" class="flex flex-col items-center gap-2 text-center p-2">
           <span class="text-2xl">⚠️</span>
-          <span class="text-[10px] font-mono text-[#F16565]">Sidecar offline</span>
-          <span class="text-[9px] text-gray-500 leading-tight">{{ errorMsg }}</span>
+          <span class="text-[10px] font-mono text-status-down">Sidecar offline</span>
+          <span class="text-[9px] text-text-muted leading-tight">{{ errorMsg }}</span>
         </div>
-        <div v-else class="flex flex-col items-center gap-2 text-gray-400">
-          <RefreshCw class="w-6 h-6 animate-spin text-[#7B96F5]" />
+        <div v-else class="flex flex-col items-center gap-2 text-text-secondary">
+          <RefreshCw class="w-6 h-6 animate-spin text-brand-periwinkle" />
           <span class="text-[10px] font-mono">Generating Live QR...</span>
         </div>
       </div>
 
       <!-- Instructions -->
-      <div class="space-y-1 text-xs text-gray-400 max-w-sm">
-        <p class="font-semibold text-gray-200">How to connect WhatsApp Gateway:</p>
+      <div class="space-y-1 text-xs text-text-secondary max-w-sm">
+        <p class="font-semibold text-text-main">How to connect WhatsApp Gateway:</p>
         <p>1. Open WhatsApp on your phone &rarr; Linked Devices</p>
         <p>2. Tap "Link a Device" and point camera at this QR code</p>
       </div>
@@ -50,10 +50,10 @@
 
     <template #footer>
       <div class="flex items-center justify-between w-full text-xs">
-        <span class="text-gray-500 font-mono text-[10px]">Baileys Node.js HTTP Sidecar v2.6.0</span>
+        <span class="text-text-muted font-mono text-[10px]">Baileys Node.js HTTP Sidecar v2.6.0</span>
         <button
           @click="$emit('close')"
-          class="px-4 py-2 rounded-lg border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs font-medium transition-colors"
+          class="px-4 py-2 rounded-lg border border-subtle text-text-secondary hover:text-text-main text-xs font-medium transition-colors"
         >
           Cancel
         </button>
@@ -91,19 +91,19 @@ const statusText = computed(() => {
 
 const statusBadgeClass = computed(() => {
   switch (status.value) {
-    case 'connected': return 'bg-[#34D399]/15 text-[#34D399] border-[#34D399]/30';
+    case 'connected': return 'bg-status-up/15 text-status-up border-status-up/30';
     case 'expired': return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
-    case 'offline': return 'bg-[#F16565]/15 text-[#F16565] border-[#F16565]/30';
-    default: return 'bg-[#7B96F5]/15 text-[#7B96F5] border-[#7B96F5]/30';
+    case 'offline': return 'bg-status-down/15 text-status-down border-status-down/30';
+    default: return 'bg-brand-periwinkle/15 text-brand-periwinkle border-brand-periwinkle/30';
   }
 });
 
 const statusDotClass = computed(() => {
   switch (status.value) {
-    case 'connected': return 'bg-[#34D399]';
+    case 'connected': return 'bg-status-up';
     case 'expired': return 'bg-amber-400';
-    case 'offline': return 'bg-[#F16565]';
-    default: return 'bg-[#7B96F5] animate-ping';
+    case 'offline': return 'bg-status-down';
+    default: return 'bg-brand-periwinkle animate-ping';
   }
 });
 

@@ -3,19 +3,19 @@
     class="rounded-xl border p-5 transition-all duration-150"
     :class="[
       isAlert 
-        ? (clickable ? 'bg-red-950/20 border-red-500/40 text-red-200 shadow-lg shadow-red-500/5 hover:border-red-500/70 hover:bg-red-950/30 cursor-pointer hover:scale-[1.01]' : 'bg-red-950/20 border-red-500/40 text-red-200 shadow-lg shadow-red-500/5') 
-        : (clickable ? 'bg-[#151517] border-[#26262A] hover:border-[#7B96F5]/50 hover:bg-[#1A1A1E] hover:shadow-lg hover:shadow-[#7B96F5]/5 cursor-pointer hover:scale-[1.01]' : 'bg-[#151517] border-[#26262A]')
+        ? (clickable ? 'bg-status-down/10 border-status-down/40 text-status-down shadow-lg shadow-status-down/5 hover:border-status-down/70 hover:bg-status-down/20 cursor-pointer hover:scale-[1.01]' : 'bg-status-down/10 border-status-down/40 text-status-down shadow-lg shadow-status-down/5') 
+        : (clickable ? 'bg-card border-subtle hover:border-brand-periwinkle/50 hover:bg-card hover:shadow-lg hover:shadow-brand-periwinkle/5 cursor-pointer hover:scale-[1.01] shadow-sm' : 'bg-card border-subtle shadow-sm')
     ]"
     @click="clickable && $emit('click')"
   >
     <div class="flex items-start justify-between">
       <div>
-        <p class="text-[11px] font-mono tracking-wider uppercase text-gray-400 font-medium">{{ title }}</p>
+        <p class="text-[11px] font-mono tracking-wider uppercase text-text-secondary font-medium">{{ title }}</p>
         <div class="flex items-baseline gap-2 mt-2">
           <h2 
             class="text-3xl font-extrabold tracking-tight font-mono"
             :class="[
-              isAlert ? 'text-red-400' : 'text-white'
+              isAlert ? 'text-status-down' : 'text-text-main'
             ]"
           >
             {{ value }}
@@ -24,23 +24,23 @@
             v-if="change"
             class="text-xs font-semibold px-1.5 py-0.5 rounded"
             :class="[
-              changeType === 'increase-good' ? 'bg-[#3ECF8E]/15 text-[#3ECF8E]' :
-              changeType === 'increase-bad' ? 'bg-red-500/15 text-red-400 border border-red-500/20' :
-              'bg-amber-500/15 text-amber-400'
+              changeType === 'increase-good' ? 'bg-status-up/15 text-status-up' :
+              changeType === 'increase-bad' ? 'bg-status-down/15 text-status-down border border-status-down/20' :
+              'bg-amber-500/15 text-amber-500 dark:text-amber-400'
             ]"
           >
             {{ change }}
           </span>
         </div>
-        <p v-if="subtitle" class="text-xs text-gray-500 mt-1">{{ subtitle }}</p>
+        <p v-if="subtitle" class="text-xs text-text-muted mt-1">{{ subtitle }}</p>
       </div>
 
       <div 
         class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
         :class="[
           isAlert 
-            ? 'bg-red-500/15 text-red-400 border border-red-500/30' 
-            : 'bg-[#18181B] border border-[#26262A] text-[#7B96F5]'
+            ? 'bg-status-down/15 text-status-down border border-status-down/30' 
+            : 'bg-card border border-subtle text-brand-periwinkle'
         ]"
       >
         <component :is="icon" class="w-5 h-5" />
