@@ -30,8 +30,8 @@ type DeviceRepository interface {
 
 	// UpdateLastKnownIP updates the last_known_ip and logs an IPChangeEvent.
 	UpdateLastKnownIP(deviceID, newIP string) error
-	// GetIPChangeLogs returns the recent IP changes recorded.
-	GetIPChangeLogs(limit int) ([]domain.IPChangeEvent, error)
+	// GetIPChangeLogs returns the recent IP changes recorded with pagination (returns items, totalCount, error).
+	GetIPChangeLogs(page, limit int) ([]domain.IPChangeEvent, int, error)
 
 	// UpdateStatus updates a device's status field.
 	UpdateStatus(deviceID string, status domain.DeviceStatus) error

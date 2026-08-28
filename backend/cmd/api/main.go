@@ -394,7 +394,7 @@ func main() {
 		settings.PUT("/rate-limit", middleware.RequirePermission(permRepo, "settings.notifications", "admin"), h.UpdateRateLimit)
 		settings.PUT("/branding", middleware.RequirePermission(permRepo, "settings.branding", "admin"), h.UpdateBranding)
 		settings.POST("/branding/upload", middleware.RequirePermission(permRepo, "settings.branding", "admin"), h.UploadBrandingAsset)
-		settings.GET("/dhcp/logs", middleware.RequirePermission(permRepo, "settings.polling", "admin"), h.GetDHCPLogs)
+		settings.GET("/dhcp/logs", middleware.RequirePermission(permRepo, "settings.dhcp_sync", "admin"), h.GetDHCPLogs)
 	}
 
 	// Diagnostics
