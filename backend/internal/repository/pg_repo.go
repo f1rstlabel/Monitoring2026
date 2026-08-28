@@ -259,6 +259,40 @@ func (r *PostgresDeviceRepository) UpdateLastKnownIP(deviceID, newIP string) err
 	return err
 }
 
+func (r *PostgresDeviceRepository) GetIPChangeLogs(limit int) ([]domain.IPChangeEvent, error) {
+	query := `
+		SELECT i.id, i.device_id, d.name as device_name, i.old_ip, i.new_ip, i.created_at
+		FROM ip_change_log i
+		LEFT JOIN devices d ON i.device_id = d.id
+		ORDER BY i.created_at DESC
+		LIMIT $1
+	`
+	rows, err := r.db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []domain.IPChangeEvent
+	for rows.Next() {
+		var l domain.IPChangeEvent
+		var deviceName sql.NullString
+		if err := rows.Scan(&l.ID, &l.DeviceID, &deviceName, &l.OldIP, &l.NewIP, &l.Timestamp); err != nil {
+			return nil, err
+		}
+		if deviceName.Valid {
+			l.DeviceName = deviceName.String
+		} else {
+			l.DeviceName = "Unknown Device"
+		}
+		logs = append(logs, l)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return logs, nil
+}
+
 func (r *PostgresDeviceRepository) UpdateStatus(deviceID string, status domain.DeviceStatus) error {
 	query := `UPDATE devices SET status=$1, last_checked=$2, checked_seconds_ago=0, updated_at=CURRENT_TIMESTAMP WHERE id=$3`
 	nowStr := time.Now().Format("15:04:05 WIB")
@@ -1103,10 +1137,10 @@ func (r *PostgresIncidentRepository) scanIncidentRows(rows *sql.Rows) ([]domain.
 			tVal := resolvedAt.Time
 			inc.ResolvedAtRaw = &tVal
 			dur := resolvedAt.Time.Sub(startedAt)
-			inc.Duration = fmt.Sprintf("%dm %ds", int(dur.Minutes()), int(dur.Seconds())%60)
+			inc.Duration = formatDetailedDuration(dur)
 		} else {
 			dur := time.Since(startedAt)
-			inc.Duration = fmt.Sprintf("%dm %ds (ongoing)", int(dur.Minutes()), int(dur.Seconds())%60)
+			inc.Duration = formatDetailedDuration(dur) + " (ongoing)"
 		}
 		inc.Timeline = []domain.EventTimelineItem{}
 		inc.NotificationLog = []domain.NotificationLogRow{}
@@ -1721,4 +1755,26 @@ func (r *PostgresPermissionRepository) UpdatePermissions(permissions []domain.Ro
 	return tx.Commit()
 }
 
+func formatDetailedDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	days := int(d.Hours() / 24)
+	hours := int(d.Hours()) % 24
+	minutes := int(d.Minutes()) % 60
+	seconds := int(d.Seconds()) % 60
 
+	parts := []string{}
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%dd", days))
+	}
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%dh", hours))
+	}
+	if minutes > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	if seconds > 0 || len(parts) == 0 {
+		parts = append(parts, fmt.Sprintf("%ds", seconds))
+	}
+
+	return strings.Join(parts, " ")
+}

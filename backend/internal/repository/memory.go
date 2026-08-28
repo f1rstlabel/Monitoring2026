@@ -120,6 +120,10 @@ func (r *MemoryDeviceRepository) UpdateLastKnownIP(deviceID, newIP string) error
 	return fmt.Errorf("device %s not found", deviceID)
 }
 
+func (r *MemoryDeviceRepository) GetIPChangeLogs(limit int) ([]domain.IPChangeEvent, error) {
+	return []domain.IPChangeEvent{}, nil
+}
+
 func (r *MemoryDeviceRepository) UpdateStatus(deviceID string, status domain.DeviceStatus) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

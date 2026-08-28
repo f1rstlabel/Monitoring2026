@@ -20,6 +20,7 @@ import (
 	"sanoc/backend/internal/notifier"
 	"sanoc/backend/internal/poller"
 	"sanoc/backend/internal/repository"
+	"sanoc/backend/internal/scheduler"
 	"sanoc/backend/internal/ws"
 
 	"github.com/gin-contrib/cors"
@@ -242,6 +243,11 @@ func main() {
 	pollerEngine.Start()
 	defer pollerEngine.Stop()
 
+	// ─── DHCP Auto-Sync Engine ──────────────────────────────────────────────────
+	dhcpSyncWorker := poller.NewDHCPSyncWorker(cfg, deviceRepo)
+	dhcpSyncWorker.Start()
+	defer dhcpSyncWorker.Stop()
+
 
 	log.Printf("[Settings] Loaded startup configuration:")
 	log.Printf("[Settings]   • Polling Interval: %ds", pollCfg.IntervalSeconds)
@@ -270,6 +276,10 @@ func main() {
 	} else {
 		log.Printf("[SANOC] Gemini AI Copilot: GEMINI_API_KEY not configured in .env (Copilot ready on key provision)")
 	}
+	
+	// ─── Flap Report Job (Weekly Scheduler) ──────────────────────────────────
+	flapReportJob := scheduler.NewFlapReportJob(statusRepo, deviceRepo, pipeline, aiService)
+	flapReportJob.RunWeekly()
 
 	importH := handler.NewImportHandler(deviceRepo, locationRepo)
 
@@ -384,6 +394,7 @@ func main() {
 		settings.PUT("/rate-limit", middleware.RequirePermission(permRepo, "settings.notifications", "admin"), h.UpdateRateLimit)
 		settings.PUT("/branding", middleware.RequirePermission(permRepo, "settings.branding", "admin"), h.UpdateBranding)
 		settings.POST("/branding/upload", middleware.RequirePermission(permRepo, "settings.branding", "admin"), h.UploadBrandingAsset)
+		settings.GET("/dhcp/logs", middleware.RequirePermission(permRepo, "settings.polling", "admin"), h.GetDHCPLogs)
 	}
 
 	// Diagnostics
@@ -473,6 +484,10 @@ func main() {
 	if pollerEngine != nil {
 		log.Println("[SANOC] Stopping Poller Engine...")
 		pollerEngine.Stop()
+	}
+	if dhcpSyncWorker != nil {
+		log.Println("[SANOC] Stopping DHCP Sync Engine...")
+		dhcpSyncWorker.Stop()
 	}
 
 	log.Println("[SANOC] Server exiting")
