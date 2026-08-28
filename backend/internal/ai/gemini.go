@@ -325,3 +325,30 @@ func formatEvents(events []domain.IncidentEvent) string {
 	}
 	return sb.String()
 }
+
+// AnalyzeFlapReport generates a smart AI summary for the weekly recurring issues report
+func (s *Service) AnalyzeFlapReport(ctx context.Context, reports []domain.FlapReport) (string, error) {
+	if !s.IsConfigured() {
+		return "", fmt.Errorf("GEMINI_API_KEY is not configured in backend .env")
+	}
+
+	var sb strings.Builder
+	sb.WriteString("Berikut adalah daftar perangkat yang paling sering mengalami DOWN dalam 7 hari terakhir:\n\n")
+	for i, r := range reports {
+		sb.WriteString(fmt.Sprintf("%d. %s (IP: %s, Tipe: %s)\n", i+1, r.DeviceName, r.IP, r.DeviceType))
+		sb.WriteString(fmt.Sprintf("   Lokasi: %s\n", r.Location))
+		sb.WriteString(fmt.Sprintf("   Jumlah DOWN: %d kali (Total downtime: %d menit)\n\n", r.DownCount7d, r.TotalDowntimeMinutes))
+	}
+
+	prompt := fmt.Sprintf(`Lakukan analisis diagnostik pintar sebagai SANOC Infrastructure Specialist berdasarkan laporan "Flapping Devices" (Perangkat Sering Mati/Down) dalam 7 hari terakhir ini.
+
+[DATA FLAPPING DEVICES]:
+%s
+
+Berikan output terstruktur dalam format Markdown (tanpa awalan panjang lebar) yang mencakup:
+1. 💡 **Insight & Pola Kerusakan**: Apakah ada pola dari perangkat-perangkat ini? (Misal: lokasi yang sama, tipe perangkat yang sama, atau dugaan power issue/looping).
+2. 🛠️ **Rekomendasi Tindakan (Action Plan)**: Langkah teknis atau prioritas pemeriksaan fisik/jaringan apa yang harus segera dilakukan oleh teknisi di lapangan minggu ini untuk perangkat-perangkat tersebut.
+Gunakan bahasa Indonesia yang profesional dan ramah khas teknisi SANOC.`, sb.String())
+
+	return s.Chat(ctx, prompt, nil)
+}
