@@ -1,10 +1,10 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#26262A] pb-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-subtle pb-4">
       <div>
-        <h1 class="text-xl font-extrabold text-white tracking-tight">Network Control Center & Monitoring</h1>
-        <p class="text-xs text-gray-400 mt-1">Real-time IT infrastructure & network health telemetry</p>
+        <h1 class="text-xl font-extrabold text-text-main tracking-tight">Network Control Center & Monitoring</h1>
+        <p class="text-xs text-text-secondary mt-1">Real-time IT infrastructure & network health telemetry</p>
       </div>
 
     </div>
@@ -65,23 +65,23 @@
       <!-- Left 2-Columns: Filter Toolbar & Device Grid/List -->
       <div class="lg:col-span-2 space-y-4">
         <!-- Toolbar & Filter Bar -->
-        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="bg-surface border border-subtle rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
           <!-- Left Controls: Filter Search & Dropdowns -->
           <div class="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
             <div class="relative flex-1 min-w-[180px]">
-              <Search class="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search class="w-3.5 h-3.5 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 v-model="deviceStore.searchQuery"
                 type="text"
                 placeholder="Search by name, IP, or location..."
-                class="w-full bg-[#18181B] border border-[#26262A] rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+                class="w-full bg-card border border-subtle rounded-lg pl-8 pr-3 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle"
               />
             </div>
 
             <!-- Type Filter Dropdown -->
             <select
               v-model="deviceStore.selectedTypeFilter"
-              class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+              class="bg-card border border-subtle rounded-lg px-3 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
             >
               <option value="All">All Types</option>
               <option value="Access Point">Access Point</option>
@@ -95,7 +95,7 @@
             <!-- Status Filter Dropdown -->
             <select
               v-model="deviceStore.selectedStatusFilter"
-              class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+              class="bg-card border border-subtle rounded-lg px-3 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
             >
               <option value="All">All Statuses</option>
               <option value="UP">UP Only</option>
@@ -105,11 +105,11 @@
 
           <!-- Right Controls: View Mode Toggle -->
           <div class="flex items-center gap-2">
-            <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5">
+            <div class="flex items-center bg-card border border-subtle rounded-lg p-0.5">
               <button
                 @click="deviceStore.viewMode = 'grid'"
                 class="p-1.5 rounded text-xs transition-colors cursor-pointer"
-                :class="deviceStore.viewMode === 'grid' ? 'bg-[#26262A] text-white' : 'text-gray-400 hover:text-gray-200'"
+                :class="deviceStore.viewMode === 'grid' ? 'bg-subtle text-text-main' : 'text-text-secondary hover:text-text-main'"
                 title="Grid View"
               >
                 <LayoutGrid class="w-3.5 h-3.5" />
@@ -117,7 +117,7 @@
               <button
                 @click="deviceStore.viewMode = 'list'"
                 class="p-1.5 rounded text-xs transition-colors cursor-pointer"
-                :class="deviceStore.viewMode === 'list' ? 'bg-[#26262A] text-white' : 'text-gray-400 hover:text-gray-200'"
+                :class="deviceStore.viewMode === 'list' ? 'bg-subtle text-text-main' : 'text-text-secondary hover:text-text-main'"
                 title="List View"
               >
                 <List class="w-3.5 h-3.5" />
@@ -130,7 +130,7 @@
         <template v-if="deviceStore.viewMode === 'grid'">
           <!-- Skeleton grid while loading -->
           <div v-if="deviceStore.isLoading && deviceStore.devices.length === 0" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div v-for="i in 6" :key="i" class="bg-[#151517] border border-[#26262A] rounded-xl p-4 space-y-3">
+            <div v-for="i in 6" :key="i" class="bg-surface border border-subtle rounded-xl p-4 space-y-3">
               <div class="flex items-center justify-between">
                 <Skeleton width="55%" height="0.85rem" />
                 <Skeleton width="2.5rem" height="1.25rem" customClass="rounded-full" />
@@ -149,44 +149,44 @@
               v-for="device in paginatedDevices"
               :key="device.id"
               @click="router.push(`/devices/${device.id}`)"
-              class="bg-[#151517] border rounded-xl p-4 space-y-3 cursor-pointer hover:border-[#7B96F5] transition-all group"
+              class="bg-card border rounded-xl p-4 space-y-3 cursor-pointer hover:border-brand-periwinkle transition-all group shadow-sm"
               :class="[
                 device.status === 'DOWN'
-                  ? 'border-[#F16565]/50 bg-red-500/5 shadow-lg shadow-red-500/5'
-                  : 'border-[#26262A]'
+                  ? 'border-status-down/50 bg-red-500/5 shadow-lg shadow-red-500/5'
+                  : 'border-subtle shadow-sm'
               ]"
             >
               <div class="flex items-center justify-between gap-2">
-                <h4 class="font-bold text-xs text-white truncate group-hover:text-[#7B96F5] transition-colors">
+                <h4 class="font-bold text-xs text-text-main truncate group-hover:text-brand-periwinkle transition-colors">
                   {{ device.name }}
                 </h4>
                 <StatusPill :status="device.status" />
               </div>
 
-              <div class="text-[11px] font-mono text-gray-400 space-y-1">
+              <div class="text-[11px] font-mono text-text-secondary space-y-1">
                 <p class="flex items-center justify-between">
                   <span>IP:</span>
-                  <span class="text-gray-200 font-semibold">{{ device.ip }}</span>
+                  <span class="text-text-main font-semibold">{{ device.ip }}</span>
                 </p>
                 <p class="flex items-center justify-between">
                   <span>Type:</span>
-                  <span class="text-gray-300">{{ device.type }}</span>
+                  <span class="text-text-secondary">{{ device.type }}</span>
                 </p>
                 <p class="flex items-center justify-between truncate">
                   <span>Location:</span>
-                  <span class="text-gray-400 truncate max-w-[140px]">{{ device.location }}</span>
+                  <span class="text-text-secondary truncate max-w-[140px]">{{ device.location }}</span>
                 </p>
               </div>
 
-              <div class="pt-2 border-t border-[#26262A] flex items-center justify-between text-[10px] font-mono text-gray-500">
+              <div class="pt-2 border-t border-subtle flex items-center justify-between text-[10px] font-mono text-text-muted">
                 <span>Checked {{ device.checkedSecondsAgo }}s ago</span>
-                <span class="text-[#7B96F5]">30d Uptime: {{ device.uptime30d }}%</span>
+                <span class="text-brand-periwinkle">30d Uptime: {{ device.uptime30d }}%</span>
               </div>
             </div>
           </div>
 
           <!-- Empty state -->
-          <div v-else class="p-12 text-center bg-[#151517] border border-[#26262A] rounded-xl text-gray-400 font-mono text-xs">
+          <div v-else class="p-12 text-center bg-surface border border-subtle rounded-xl text-text-secondary font-mono text-xs">
             No devices matching filter criteria
           </div>
         </template>
@@ -194,9 +194,9 @@
         <!-- List View -->
         <template v-else-if="deviceStore.viewMode === 'list'">
           <SkeletonTable v-if="deviceStore.isLoading && deviceStore.devices.length === 0" :rows="6" :cols="6" />
-          <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden shadow-xl">
-            <table class="w-full text-left text-xs text-gray-300">
-              <thead class="bg-[#18181B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-400">
+          <div v-else class="bg-surface border border-subtle rounded-xl overflow-hidden shadow-xl">
+            <table class="w-full text-left text-xs text-text-secondary">
+              <thead class="bg-card border-b border-subtle font-mono text-[10px] uppercase text-text-secondary">
                 <tr>
                   <th class="py-3 px-4">Device Name</th>
                   <th class="py-3 px-4">Type</th>
@@ -206,25 +206,25 @@
                   <th class="py-3 px-4 text-right">Checked</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-[#26262A]">
+              <tbody class="divide-y divide-subtle">
                 <template v-if="paginatedDevices.length > 0">
                   <tr
                     v-for="device in paginatedDevices"
                     :key="device.id"
                     @click="router.push(`/devices/${device.id}`)"
-                    class="hover:bg-[#18181B] cursor-pointer transition-colors"
-                    :class="{ 'bg-[#F16565]/5': device.status === 'DOWN' }"
+                    class="hover:bg-card cursor-pointer transition-colors"
+                    :class="{ 'bg-status-down/5': device.status === 'DOWN' }"
                   >
-                    <td class="py-3 px-4 font-semibold text-white">{{ device.name }}</td>
-                    <td class="py-3 px-4 font-mono text-gray-400">{{ device.type }}</td>
-                    <td class="py-3 px-4 font-mono text-gray-300">{{ device.ip }}</td>
-                    <td class="py-3 px-4 text-gray-400">{{ device.location }}</td>
+                    <td class="py-3 px-4 font-semibold text-text-main">{{ device.name }}</td>
+                    <td class="py-3 px-4 font-mono text-text-secondary">{{ device.type }}</td>
+                    <td class="py-3 px-4 font-mono text-text-secondary">{{ device.ip }}</td>
+                    <td class="py-3 px-4 text-text-secondary">{{ device.location }}</td>
                     <td class="py-3 px-4"><StatusPill :status="device.status" /></td>
-                    <td class="py-3 px-4 text-right font-mono text-gray-500">{{ device.checkedSecondsAgo }}s ago</td>
+                    <td class="py-3 px-4 text-right font-mono text-text-muted">{{ device.checkedSecondsAgo }}s ago</td>
                   </tr>
                 </template>
                 <tr v-else>
-                  <td colspan="6" class="py-12 text-center text-gray-500 font-mono text-xs">
+                  <td colspan="6" class="py-12 text-center text-text-muted font-mono text-xs">
                     No devices matching filter criteria
                   </td>
                 </tr>

@@ -1,10 +1,10 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
+    <div class="flex items-center justify-between border-b border-subtle pb-4">
       <div>
-        <h1 class="text-xl font-extrabold text-white tracking-tight">Outage List & Incident Tickets</h1>
-        <p class="text-xs text-gray-400 mt-1">Downtime history, notification escalation logs, and recovery metrics</p>
+        <h1 class="text-xl font-extrabold text-text-main tracking-tight">Outage List & Incident Tickets</h1>
+        <p class="text-xs text-text-secondary mt-1">Downtime history, notification escalation logs, and recovery metrics</p>
       </div>
 
       <div class="flex items-center gap-3">
@@ -16,7 +16,7 @@
         <div v-if="authStore.hasPermission('reports.export')" class="relative">
           <button
             @click="showExportDropdown = !showExportDropdown"
-            class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+            class="px-3.5 py-1.5 rounded-lg border border-subtle bg-surface hover:bg-hover text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
             title="Export Incidents to Excel / CSV"
           >
             <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-400" />
@@ -28,29 +28,29 @@
           <div
             v-if="showExportDropdown"
             @click="showExportDropdown = false"
-            class="absolute right-0 mt-1.5 w-52 bg-[#1A1A1E] border border-[#26262A] rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+            class="absolute right-0 mt-1.5 w-52 bg-card border border-subtle rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
           >
-            <div class="px-3 py-1.5 border-b border-[#26262A]/60 font-mono text-[10px] uppercase font-bold text-gray-400">
+            <div class="px-3 py-1.5 border-b border-subtle/60 font-mono text-[10px] uppercase font-bold text-text-secondary">
               Select Export Format
             </div>
             <button
               @click="exportIncidentsData('xls')"
-              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-text-main hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
               <FileSpreadsheet class="w-4 h-4 text-emerald-400 shrink-0" />
               <div>
                 <div class="font-bold">Excel Spreadsheet (.xls)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Structured Excel workbook</div>
+                <div class="text-[10px] text-text-secondary font-sans">Structured Excel workbook</div>
               </div>
             </button>
             <button
               @click="exportIncidentsData('csv')"
-              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-text-main hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
               <FileText class="w-4 h-4 text-sky-400 shrink-0" />
               <div>
                 <div class="font-bold">CSV File (.csv)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Standard UTF-8 CSV document</div>
+                <div class="text-[10px] text-text-secondary font-sans">Standard UTF-8 CSV document</div>
               </div>
             </button>
           </div>
@@ -58,7 +58,7 @@
 
         <button
           @click="exportIncidentsPDF"
-          class="px-3 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-sky-400 font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+          class="px-3 py-1.5 rounded-lg border border-subtle bg-surface hover:bg-hover text-sky-400 font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
           title="Print / Save Incidents as PDF"
         >
           <Printer class="w-3.5 h-3.5 text-sky-400" />
@@ -68,20 +68,20 @@
     </div>
 
     <!-- Filter Bar -->
-    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+    <div class="bg-surface border border-subtle rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3 flex-1 min-w-[320px]">
         <div class="relative flex-1">
-          <Search class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search class="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             v-model="searchQuery"
             type="text"
             placeholder="Search by device name or IP address..."
-            class="w-full bg-[#18181B] border border-[#26262A] rounded-lg pl-9 pr-4 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+            class="w-full bg-card border border-subtle rounded-lg pl-9 pr-4 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle"
           />
         </div>
         <select
           v-model="statusFilter"
-          class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+          class="bg-card border border-subtle rounded-lg px-3 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
         >
           <option value="ALL">All Statuses</option>
           <option value="ACTIVE">Active (Open)</option>
@@ -89,7 +89,7 @@
         </select>
         <select
           v-model="groupingMode"
-          class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+          class="bg-card border border-subtle rounded-lg px-3 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
         >
           <option value="none">No Grouping / Flat List</option>
           <option value="location">Group by Location</option>
@@ -98,16 +98,16 @@
         </select>
       </div>
 
-      <span class="text-xs font-mono text-gray-400">
-        Showing <span class="text-white font-bold">{{ filteredIncidents.length }}</span> of {{ incidentStore.totalCount || incidentStore.incidents.length }} incidents
+      <span class="text-xs font-mono text-text-secondary">
+        Showing <span class="text-text-main font-bold">{{ filteredIncidents.length }}</span> of {{ incidentStore.totalCount || incidentStore.incidents.length }} incidents
       </span>
     </div>
 
     <!-- Skeleton while loading -->
     <template v-if="incidentStore.isLoading">
       <div v-if="groupingMode !== 'none'" class="space-y-4">
-        <div v-for="g in 3" :key="g" class="bg-[#151517] border border-[#26262A] rounded-xl p-4 space-y-3">
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+        <div v-for="g in 3" :key="g" class="bg-surface border border-subtle rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-subtle pb-3">
             <Skeleton width="35%" height="1.1rem" />
             <Skeleton width="15%" height="0.8rem" />
           </div>
@@ -119,20 +119,20 @@
 
     <!-- Grouped Accordion List (by Location, Device, Status) -->
     <div v-else-if="groupingMode !== 'none'" class="space-y-4">
-      <div v-if="paginatedGroupedIncidents.length === 0" class="bg-[#151517] border border-[#26262A] rounded-xl p-12 text-center">
-        <p class="text-sm font-semibold text-gray-300 font-mono">No incidents match your filters</p>
+      <div v-if="paginatedGroupedIncidents.length === 0" class="bg-surface border border-subtle rounded-xl p-12 text-center">
+        <p class="text-sm font-semibold text-text-secondary font-mono">No incidents match your filters</p>
       </div>
 
       <div
         v-for="group in paginatedGroupedIncidents"
         :key="group.name"
-        class="bg-[#151517] border rounded-xl overflow-hidden shadow-xl transition-all"
-        :class="group.activeCount > 0 ? 'border-red-500/30' : 'border-[#26262A]'"
+        class="bg-surface border rounded-xl overflow-hidden shadow-xl transition-all"
+        :class="group.activeCount > 0 ? 'border-red-500/30' : 'border-subtle'"
       >
         <!-- Group Header -->
         <div
           @click="toggleGroupExpand(group.name)"
-          class="flex items-center justify-between p-4 cursor-pointer hover:bg-[#1C1C20] transition-colors"
+          class="flex items-center justify-between p-4 cursor-pointer hover:bg-hover transition-colors"
         >
           <div class="flex items-center gap-3">
             <span
@@ -140,13 +140,13 @@
               :class="group.activeCount > 0 ? 'bg-red-500 pulsing-dot-red' : 'bg-emerald-500'"
             ></span>
             <div>
-              <h3 class="text-sm font-bold text-gray-100 flex items-center gap-2">
+              <h3 class="text-sm font-bold text-text-main flex items-center gap-2">
                 {{ group.name }}
-                <span class="text-xs font-mono font-normal text-gray-500">
+                <span class="text-xs font-mono font-normal text-text-muted">
                   ({{ group.items.length }} Incidents)
                 </span>
               </h3>
-              <p class="text-[10px] font-mono text-gray-500 mt-0.5">
+              <p class="text-[10px] font-mono text-text-muted mt-0.5">
                 {{ group.activeCount }} ACTIVE OUTAGE(S) &bull; {{ group.resolvedCount }} RESOLVED
               </p>
             </div>
@@ -160,16 +160,16 @@
               {{ group.activeCount > 0 ? `${group.activeCount} OUTAGE` : 'RESOLVED' }}
             </span>
             <ChevronRight
-              class="w-4 h-4 text-gray-400 transition-transform duration-200"
+              class="w-4 h-4 text-text-secondary transition-transform duration-200"
               :class="expandedGroups[group.name] !== false ? 'rotate-180' : ''"
             />
           </div>
         </div>
 
         <!-- Group Table Content -->
-        <div v-if="expandedGroups[group.name] !== false" class="overflow-x-auto border-t border-[#26262A]">
-          <table class="w-full text-left text-xs text-gray-300">
-            <thead class="bg-[#18181B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-400">
+        <div v-if="expandedGroups[group.name] !== false" class="overflow-x-auto border-t border-subtle">
+          <table class="w-full text-left text-xs text-text-secondary">
+            <thead class="bg-card border-b border-subtle font-mono text-[10px] uppercase text-text-secondary">
               <tr>
                 <th class="py-3.5 px-4">Ticket ID</th>
                 <th class="py-3.5 px-4">Device Name</th>
@@ -181,22 +181,22 @@
                 <th class="py-3.5 px-4 text-right">Action</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-[#26262A]">
+            <tbody class="divide-y divide-subtle">
               <tr
                 v-for="inc in group.items"
                 :key="inc.id"
                 @click="router.push(`/incidents/${inc.id}`)"
-                class="hover:bg-[#18181B] transition-colors cursor-pointer group"
+                class="hover:bg-card transition-colors cursor-pointer group"
                 :class="{
                   'border-l-2 border-l-[#F16565] bg-red-500/5': inc.status === 'ACTIVE'
                 }"
               >
-                <td class="py-3.5 px-4 font-mono font-bold text-[#7B96F5] group-hover:underline">
+                <td class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
                   {{ inc.id }}
                 </td>
-                <td class="py-3.5 px-4 font-bold text-white">{{ inc.deviceName }}</td>
-                <td class="py-3.5 px-4 font-mono text-gray-400">{{ inc.deviceType }}</td>
-                <td class="py-3.5 px-4 font-mono text-gray-300">{{ inc.deviceIp }}</td>
+                <td class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
+                <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceType }}</td>
+                <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
                 <td class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
                 <td class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
                 <td class="py-3.5 px-4">
@@ -204,7 +204,7 @@
                     class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border"
                     :class="inc.status === 'ACTIVE'
                       ? 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse'
-                      : 'bg-[#3ECF8E]/15 text-[#3ECF8E] border-[#3ECF8E]/30'"
+                      : 'bg-status-up/15 text-status-up border-status-up/30'"
                   >
                     {{ inc.status }}
                   </span>
@@ -213,7 +213,7 @@
                   <div class="flex items-center justify-end gap-1">
                     <button
                       @click.stop="router.push(`/incidents/${inc.id}`)"
-                      class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#26262A] transition-colors"
+                      class="p-1.5 rounded-lg text-text-secondary hover:text-text-main hover:bg-subtle transition-colors"
                     >
                       <ChevronRight class="w-4 h-4" />
                     </button>
@@ -227,9 +227,9 @@
     </div>
 
     <!-- Incident List Table (Flat View) -->
-    <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden shadow-xl">
-      <table class="w-full text-left text-xs text-gray-300">
-        <thead class="bg-[#18181B] border-b border-[#26262A] font-mono text-[10px] uppercase text-gray-400">
+    <div v-else class="bg-surface border border-subtle rounded-xl overflow-hidden shadow-xl">
+      <table class="w-full text-left text-xs text-text-secondary">
+        <thead class="bg-card border-b border-subtle font-mono text-[10px] uppercase text-text-secondary">
           <tr>
             <th class="py-3.5 px-4">Ticket ID</th>
             <th class="py-3.5 px-4">Device Name</th>
@@ -241,7 +241,7 @@
             <th class="py-3.5 px-4 text-right">Action</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[#26262A]">
+        <tbody class="divide-y divide-subtle">
           <tr v-if="incidentStore.isLoading">
             <td colspan="8" class="p-0 border-0">
               <SkeletonTable :rows="6" :cols="8" />
@@ -252,17 +252,17 @@
               v-for="inc in filteredIncidents"
               :key="inc.id"
               @click="router.push(`/incidents/${inc.id}`)"
-              class="hover:bg-[#18181B] transition-colors cursor-pointer group"
+              class="hover:bg-card transition-colors cursor-pointer group"
               :class="{
                 'border-l-2 border-l-[#F16565] bg-red-500/5': inc.status === 'ACTIVE'
               }"
             >
-              <td class="py-3.5 px-4 font-mono font-bold text-[#7B96F5] group-hover:underline">
+              <td class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
                 {{ inc.id }}
               </td>
-              <td class="py-3.5 px-4 font-bold text-white">{{ inc.deviceName }}</td>
-              <td class="py-3.5 px-4 font-mono text-gray-400">{{ inc.deviceType }}</td>
-              <td class="py-3.5 px-4 font-mono text-gray-300">{{ inc.deviceIp }}</td>
+              <td class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
+              <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceType }}</td>
+              <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
               <td class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
               <td class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
               <td class="py-3.5 px-4">
@@ -270,7 +270,7 @@
                   class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border"
                   :class="inc.status === 'ACTIVE'
                     ? 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse'
-                    : 'bg-[#3ECF8E]/15 text-[#3ECF8E] border-[#3ECF8E]/30'"
+                    : 'bg-status-up/15 text-status-up border-status-up/30'"
                 >
                   {{ inc.status }}
                 </span>
@@ -279,7 +279,7 @@
                 <div class="flex items-center justify-end gap-1">
                   <button
                     @click.stop="router.push(`/incidents/${inc.id}`)"
-                    class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#26262A] transition-colors"
+                    class="p-1.5 rounded-lg text-text-secondary hover:text-text-main hover:bg-subtle transition-colors"
                   >
                     <ChevronRight class="w-4 h-4" />
                   </button>
@@ -289,7 +289,7 @@
           </template>
           <tr v-else>
             <td colspan="8" class="py-14 text-center">
-              <div class="flex flex-col items-center gap-3 text-gray-600">
+              <div class="flex flex-col items-center gap-3 text-text-muted">
                 <CheckCircle class="w-8 h-8" />
                 <p class="text-sm font-semibold">All Clear — No Active Incidents</p>
                 <p class="text-xs">All monitored nodes are operating normally</p>

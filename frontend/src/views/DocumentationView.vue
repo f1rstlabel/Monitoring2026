@@ -1,21 +1,21 @@
 <template>
-  <div class="space-y-6 max-w-7xl mx-auto pb-16 font-sans text-gray-200">
+  <div class="space-y-6 max-w-7xl mx-auto pb-16 font-sans text-text-main">
     <!-- Header Hero Banner -->
-    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#151517] via-[#18181B] to-[#121214] border border-[#26262A] p-6 sm:p-8 shadow-2xl">
-      <div class="absolute -right-16 -top-16 w-80 h-80 bg-[#7B96F5]/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-surface via-card to-main border border-subtle p-6 sm:p-8 shadow-2xl">
+      <div class="absolute -right-16 -top-16 w-80 h-80 bg-brand-periwinkle/10 rounded-full blur-3xl pointer-events-none"></div>
       
       <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div class="space-y-3 max-w-2xl">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono font-semibold uppercase bg-[#7B96F5]/15 text-[#7B96F5] border border-[#7B96F5]/30">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono font-semibold uppercase bg-brand-periwinkle/15 text-brand-periwinkle border border-brand-periwinkle/30">
             <HelpCircle class="w-3.5 h-3.5" />
             <span>{{ t.badge }}</span>
           </div>
           
-          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-text-main tracking-tight leading-tight">
             {{ t.title }}
           </h1>
           
-          <p class="text-xs sm:text-sm text-gray-400 leading-relaxed font-sans">
+          <p class="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans">
             {{ t.subtitle }}
           </p>
         </div>
@@ -23,17 +23,17 @@
         <!-- Search Bar & Dedicated Language Switcher -->
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto shrink-0">
           <div class="relative w-full sm:w-72">
-            <Search class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search class="w-4 h-4 text-text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               v-model="searchQuery"
               type="text"
               :placeholder="t.searchPlaceholder"
-              class="w-full bg-[#18181B] border border-[#26262A] rounded-xl pl-10 pr-9 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] placeholder-gray-500 font-mono shadow-inner transition-colors"
+              class="w-full bg-card border border-subtle rounded-xl pl-10 pr-9 py-2.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle placeholder-text-muted font-mono shadow-inner transition-colors"
             />
             <button
               v-if="searchQuery"
               @click="searchQuery = ''"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 cursor-pointer p-0.5 rounded"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary cursor-pointer p-0.5 rounded"
               title="Clear search"
             >
               <X class="w-3.5 h-3.5" />
@@ -41,11 +41,11 @@
           </div>
 
           <!-- Pusat Bantuan Language Switcher -->
-          <div class="flex items-center self-end sm:self-auto bg-[#18181B] border border-[#26262A] rounded-xl p-1 shadow-sm shrink-0">
+          <div class="flex items-center self-end sm:self-auto bg-card border border-subtle rounded-xl p-1 shadow-sm shrink-0">
             <button
               @click="langStore.setLang('id')"
               class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-              :class="langStore.currentLang === 'id' ? 'bg-[#7B96F5] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+              :class="langStore.currentLang === 'id' ? 'bg-brand-periwinkle text-white shadow-sm' : 'text-text-secondary hover:text-text-main'"
               title="Bahasa Indonesia"
             >
               <span>🇮🇩</span>
@@ -54,7 +54,7 @@
             <button
               @click="langStore.setLang('en')"
               class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-              :class="langStore.currentLang === 'en' ? 'bg-[#7B96F5] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+              :class="langStore.currentLang === 'en' ? 'bg-brand-periwinkle text-white shadow-sm' : 'text-text-secondary hover:text-text-main'"
               title="English"
             >
               <span>🇬🇧</span>
@@ -68,9 +68,9 @@
     <!-- Main Layout: 2-Column Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
       <!-- Left Sub-Sidebar Navigation -->
-      <aside class="lg:col-span-1 bg-[#151517] border border-[#26262A] rounded-2xl p-3 space-y-1.5 shadow-xl sticky top-20">
-        <div class="px-3 py-2 border-b border-[#26262A]/60 mb-2">
-          <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-gray-400">{{ t.navHeader }}</span>
+      <aside class="lg:col-span-1 bg-surface border border-subtle rounded-2xl p-3 space-y-1.5 shadow-xl sticky top-20">
+        <div class="px-3 py-2 border-b border-subtle/60 mb-2">
+          <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-text-secondary">{{ t.navHeader }}</span>
         </div>
 
         <nav class="space-y-1" aria-label="Documentation Sections">
@@ -81,40 +81,40 @@
             class="w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 group relative cursor-pointer"
             :class="[
               activeSection === cat.id
-                ? 'bg-[#7B96F5]/10 border border-[#7B96F5]/30 text-white shadow-sm shadow-[#7B96F5]/10'
-                : 'border border-transparent text-gray-400 hover:text-gray-200 hover:bg-[#18181B] hover:border-[#26262A]'
+                ? 'bg-brand-periwinkle/10 border border-brand-periwinkle/30 text-text-main shadow-sm shadow-brand-periwinkle/10'
+                : 'border border-transparent text-text-secondary hover:text-text-main hover:bg-card hover:border-subtle'
             ]"
           >
             <component
               :is="cat.icon"
               class="w-4 h-4 shrink-0 mt-0.5 transition-colors"
-              :class="activeSection === cat.id ? 'text-[#7B96F5]' : 'text-gray-400 group-hover:text-gray-200'"
+              :class="activeSection === cat.id ? 'text-brand-periwinkle' : 'text-text-secondary group-hover:text-text-main'"
             />
             <div class="flex-1 min-w-0">
-              <span class="text-xs font-bold font-mono tracking-tight block truncate" :class="activeSection === cat.id ? 'text-white' : 'text-gray-300'">
+              <span class="text-xs font-bold font-mono tracking-tight block truncate" :class="activeSection === cat.id ? 'text-text-main' : 'text-text-secondary'">
                 {{ cat.label[lang] }}
               </span>
-              <p class="text-[10px] text-gray-500 truncate mt-0.5 font-sans">{{ cat.description[lang] }}</p>
+              <p class="text-[10px] text-text-muted truncate mt-0.5 font-sans">{{ cat.description[lang] }}</p>
             </div>
             <span
               v-if="activeSection === cat.id"
-              class="w-1.5 h-1.5 rounded-full bg-[#7B96F5] absolute right-2.5 top-1/2 -translate-y-1/2"
+              class="w-1.5 h-1.5 rounded-full bg-brand-periwinkle absolute right-2.5 top-1/2 -translate-y-1/2"
             ></span>
           </button>
         </nav>
 
         <!-- Quick Helpdesk Widget -->
-        <div class="mt-4 p-3.5 bg-[#18181B] border border-[#26262A] rounded-xl space-y-2 text-xs">
-          <div class="flex items-center gap-2 text-gray-200 font-mono font-bold text-[11px]">
-            <Headphones class="w-3.5 h-3.5 text-[#7B96F5]" />
+        <div class="mt-4 p-3.5 bg-card border border-subtle rounded-xl space-y-2 text-xs">
+          <div class="flex items-center gap-2 text-text-main font-mono font-bold text-[11px]">
+            <Headphones class="w-3.5 h-3.5 text-brand-periwinkle" />
             <span>{{ t.quickHelpTitle }}</span>
           </div>
-          <p class="text-[10px] text-gray-400 leading-relaxed font-sans">
+          <p class="text-[10px] text-text-secondary leading-relaxed font-sans">
             {{ t.quickHelpDesc }}
           </p>
-          <div class="pt-2 border-t border-[#26262A] text-[10px] font-mono text-[#7B96F5] space-y-0.5">
+          <div class="pt-2 border-t border-subtle text-[10px] font-mono text-brand-periwinkle space-y-0.5">
             <div class="select-all font-semibold">noc.alerts@jabarprov.go.id</div>
-            <div class="text-gray-400">Ext: 4401 / 4402 (Hotline)</div>
+            <div class="text-text-secondary">Ext: 4401 / 4402 (Hotline)</div>
           </div>
         </div>
       </aside>
@@ -126,115 +126,115 @@
              SECTION 1: User Guides (Panduan Pengguna)
              ══════════════════════════════════════════════════════════════════════ -->
         <section v-if="activeSection === 'guides'" class="space-y-6 animate-fadeIn">
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+          <div class="flex items-center justify-between border-b border-subtle pb-3">
             <div>
-              <h2 class="text-sm font-extrabold text-white font-mono flex items-center gap-2">
-                <BookOpen class="w-4 h-4 text-[#7B96F5]" />
+              <h2 class="text-sm font-extrabold text-text-main font-mono flex items-center gap-2">
+                <BookOpen class="w-4 h-4 text-brand-periwinkle" />
                 {{ t.guidesHeader }}
               </h2>
-              <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.guidesSubheader }}</p>
+              <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.guidesSubheader }}</p>
             </div>
           </div>
 
           <!-- Guide Card 1: Dashboard Monitoring -->
-          <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-6 space-y-4 shadow-xl">
+          <div class="bg-surface border border-subtle rounded-2xl p-6 space-y-4 shadow-xl">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-[#7B96F5]/15 border border-[#7B96F5]/30 flex items-center justify-center text-[#7B96F5]">
+              <div class="w-10 h-10 rounded-xl bg-brand-periwinkle/15 border border-brand-periwinkle/30 flex items-center justify-center text-brand-periwinkle">
                 <LayoutGrid class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="text-sm font-bold text-white font-mono">1. {{ t.guide1Title }}</h3>
-                <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.guide1Sub }}</p>
+                <h3 class="text-sm font-bold text-text-main font-mono">1. {{ t.guide1Title }}</h3>
+                <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.guide1Sub }}</p>
               </div>
             </div>
 
-            <div class="space-y-3 text-xs text-gray-300 leading-relaxed font-sans pt-2 border-t border-[#26262A]">
+            <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide1Desc }}</p>
-              <ul class="list-disc list-inside space-y-1.5 pl-2 text-gray-400 font-sans text-xs">
-                <li><strong class="text-white font-mono">Summary Metrics:</strong> {{ t.guide1Bullet1 }}</li>
-                <li><strong class="text-white font-mono">Live Activity Feed:</strong> {{ t.guide1Bullet2 }}</li>
-                <li><strong class="text-white font-mono">Top Flapping Devices:</strong> {{ t.guide1Bullet3 }}</li>
-                <li><strong class="text-white font-mono">Refresh Now:</strong> {{ t.guide1Bullet4 }}</li>
+              <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
+                <li><strong class="text-text-main font-mono">Summary Metrics:</strong> {{ t.guide1Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">Live Activity Feed:</strong> {{ t.guide1Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">Top Flapping Devices:</strong> {{ t.guide1Bullet3 }}</li>
+                <li><strong class="text-text-main font-mono">Refresh Now:</strong> {{ t.guide1Bullet4 }}</li>
               </ul>
             </div>
           </div>
 
           <!-- Guide Card 2: Devices Management & Bulk Mode -->
-          <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-6 space-y-4 shadow-xl">
+          <div class="bg-surface border border-subtle rounded-2xl p-6 space-y-4 shadow-xl">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                 <Server class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="text-sm font-bold text-white font-mono">2. {{ t.guide2Title }}</h3>
-                <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.guide2Sub }}</p>
+                <h3 class="text-sm font-bold text-text-main font-mono">2. {{ t.guide2Title }}</h3>
+                <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.guide2Sub }}</p>
               </div>
             </div>
 
-            <div class="space-y-3 text-xs text-gray-300 leading-relaxed font-sans pt-2 border-t border-[#26262A]">
+            <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide2Desc }}</p>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-1.5">
-                  <span class="text-[10px] font-mono font-bold text-[#7B96F5] uppercase tracking-wider">{{ t.guide2Card1Title }}</span>
-                  <p class="text-xs text-gray-400 font-sans leading-relaxed">{{ t.guide2Card1Desc }}</p>
+                <div class="p-4 bg-card border border-subtle rounded-xl space-y-1.5">
+                  <span class="text-[10px] font-mono font-bold text-brand-periwinkle uppercase tracking-wider">{{ t.guide2Card1Title }}</span>
+                  <p class="text-xs text-text-secondary font-sans leading-relaxed">{{ t.guide2Card1Desc }}</p>
                 </div>
-                <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-1.5">
+                <div class="p-4 bg-card border border-subtle rounded-xl space-y-1.5">
                   <span class="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">{{ t.guide2Card2Title }}</span>
-                  <p class="text-xs text-gray-400 font-sans leading-relaxed">{{ t.guide2Card2Desc }}</p>
+                  <p class="text-xs text-text-secondary font-sans leading-relaxed">{{ t.guide2Card2Desc }}</p>
                 </div>
-                <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-1.5">
+                <div class="p-4 bg-card border border-subtle rounded-xl space-y-1.5">
                   <span class="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider">{{ t.guide2Card3Title }}</span>
-                  <p class="text-xs text-gray-400 font-sans leading-relaxed">{{ t.guide2Card3Desc }}</p>
+                  <p class="text-xs text-text-secondary font-sans leading-relaxed">{{ t.guide2Card3Desc }}</p>
                 </div>
-                <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-1.5">
+                <div class="p-4 bg-card border border-subtle rounded-xl space-y-1.5">
                   <span class="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-wider">{{ t.guide2Card4Title }}</span>
-                  <p class="text-xs text-gray-400 font-sans leading-relaxed">{{ t.guide2Card4Desc }}</p>
+                  <p class="text-xs text-text-secondary font-sans leading-relaxed">{{ t.guide2Card4Desc }}</p>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Guide Card 3: Incidents & Flap Reuse -->
-          <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-6 space-y-4 shadow-xl">
+          <div class="bg-surface border border-subtle rounded-2xl p-6 space-y-4 shadow-xl">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
                 <AlertTriangle class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="text-sm font-bold text-white font-mono">3. {{ t.guide3Title }}</h3>
-                <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.guide3Sub }}</p>
+                <h3 class="text-sm font-bold text-text-main font-mono">3. {{ t.guide3Title }}</h3>
+                <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.guide3Sub }}</p>
               </div>
             </div>
 
-            <div class="space-y-3 text-xs text-gray-300 leading-relaxed font-sans pt-2 border-t border-[#26262A]">
+            <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide3Desc }}</p>
-              <ul class="list-disc list-inside space-y-1.5 pl-2 text-gray-400 font-sans text-xs">
-                <li><strong class="text-white font-mono">DOWN Confirmation:</strong> {{ t.guide3Bullet1 }}</li>
-                <li><strong class="text-white font-mono">Auto-Resolution (UP):</strong> {{ t.guide3Bullet2 }}</li>
-                <li><strong class="text-white font-mono">Flap Reuse Window:</strong> {{ t.guide3Bullet3 }}</li>
-                <li><strong class="text-white font-mono">Audit Log &amp; Fallback:</strong> {{ t.guide3Bullet4 }}</li>
+              <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
+                <li><strong class="text-text-main font-mono">DOWN Confirmation:</strong> {{ t.guide3Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">Auto-Resolution (UP):</strong> {{ t.guide3Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">Flap Reuse Window:</strong> {{ t.guide3Bullet3 }}</li>
+                <li><strong class="text-text-main font-mono">Audit Log &amp; Fallback:</strong> {{ t.guide3Bullet4 }}</li>
               </ul>
             </div>
           </div>
 
           <!-- Guide Card 4: Gateways & 2FA Security -->
-          <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-6 space-y-4 shadow-xl">
+          <div class="bg-surface border border-subtle rounded-2xl p-6 space-y-4 shadow-xl">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <Sliders class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="text-sm font-bold text-white font-mono">4. {{ t.guide4Title }}</h3>
-                <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.guide4Sub }}</p>
+                <h3 class="text-sm font-bold text-text-main font-mono">4. {{ t.guide4Title }}</h3>
+                <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.guide4Sub }}</p>
               </div>
             </div>
 
-            <div class="space-y-3 text-xs text-gray-300 leading-relaxed font-sans pt-2 border-t border-[#26262A]">
+            <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide4Desc }}</p>
-              <ul class="list-disc list-inside space-y-1.5 pl-2 text-gray-400 font-sans text-xs">
-                <li><strong class="text-white font-mono">WhatsApp QR Gateway:</strong> {{ t.guide4Bullet1 }}</li>
-                <li><strong class="text-white font-mono">Telegram Fallback Bot:</strong> {{ t.guide4Bullet2 }}</li>
-                <li><strong class="text-white font-mono">Two-Factor Authentication:</strong> {{ t.guide4Bullet3 }}</li>
+              <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
+                <li><strong class="text-text-main font-mono">WhatsApp QR Gateway:</strong> {{ t.guide4Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">Telegram Fallback Bot:</strong> {{ t.guide4Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">Two-Factor Authentication:</strong> {{ t.guide4Bullet3 }}</li>
               </ul>
             </div>
           </div>
@@ -245,15 +245,15 @@
              ══════════════════════════════════════════════════════════════════════ -->
         <section v-else-if="activeSection === 'faq'" class="space-y-6 animate-fadeIn">
           <!-- Section Header -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#26262A] pb-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-subtle pb-3">
             <div>
-              <h2 class="text-sm font-extrabold text-white font-mono flex items-center gap-2">
-                <HelpCircle class="w-4 h-4 text-[#7B96F5]" />
+              <h2 class="text-sm font-extrabold text-text-main font-mono flex items-center gap-2">
+                <HelpCircle class="w-4 h-4 text-brand-periwinkle" />
                 {{ t.faqHeader }}
               </h2>
-              <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.faqSubheader }}</p>
+              <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.faqSubheader }}</p>
             </div>
-            <span class="text-xs font-mono text-[#7B96F5] font-semibold bg-[#7B96F5]/10 border border-[#7B96F5]/20 px-2.5 py-1 rounded-full self-start sm:self-auto">
+            <span class="text-xs font-mono text-brand-periwinkle font-semibold bg-brand-periwinkle/10 border border-brand-periwinkle/20 px-2.5 py-1 rounded-full self-start sm:self-auto">
               {{ filteredFaqs.length }} {{ t.faqCounterLabel }}
             </span>
           </div>
@@ -264,8 +264,8 @@
               @click="selectedFaqTag = 'all'"
               class="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer border"
               :class="selectedFaqTag === 'all'
-                ? 'bg-[#7B96F5] border-[#7B96F5] text-white shadow-md shadow-[#7B96F5]/20'
-                : 'bg-[#151517] border-[#26262A] text-gray-400 hover:text-gray-200 hover:bg-[#18181B]'"
+                ? 'bg-brand-periwinkle border-brand-periwinkle text-white shadow-md shadow-brand-periwinkle/20'
+                : 'bg-surface border-subtle text-text-secondary hover:text-text-main hover:bg-card'"
             >
               {{ t.allCategories }}
             </button>
@@ -275,8 +275,8 @@
               @click="selectedFaqTag = tag.key"
               class="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer border"
               :class="selectedFaqTag === tag.key
-                ? 'bg-[#7B96F5] border-[#7B96F5] text-white shadow-md shadow-[#7B96F5]/20'
-                : 'bg-[#151517] border-[#26262A] text-gray-400 hover:text-gray-200 hover:bg-[#18181B]'"
+                ? 'bg-brand-periwinkle border-brand-periwinkle text-white shadow-md shadow-brand-periwinkle/20'
+                : 'bg-surface border-subtle text-text-secondary hover:text-text-main hover:bg-card'"
             >
               {{ tag.label[lang] }}
             </button>
@@ -287,29 +287,29 @@
             <div
               v-for="(faq, idx) in filteredFaqs"
               :key="idx"
-              class="bg-[#151517] border rounded-2xl overflow-hidden transition-all shadow-xl"
-              :class="openedFaqs.includes(idx) ? 'border-[#7B96F5]/40 bg-[#161619]' : 'border-[#26262A] hover:border-[#38383E]'"
+              class="bg-surface border rounded-2xl overflow-hidden transition-all shadow-xl"
+              :class="openedFaqs.includes(idx) ? 'border-brand-periwinkle/40 bg-surface' : 'border-subtle hover:border-subtle'"
             >
               <!-- Question Header Row -->
               <button
                 @click="toggleFaq(idx)"
-                class="w-full p-5 text-left flex items-start justify-between gap-4 cursor-pointer hover:bg-[#18181B]/70 transition-colors"
+                class="w-full p-5 text-left flex items-start justify-between gap-4 cursor-pointer hover:bg-card/70 transition-colors"
               >
                 <div class="flex items-start gap-3.5 flex-1 min-w-0">
                   <span
                     class="w-7 h-7 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 transition-colors mt-0.5 border"
                     :class="openedFaqs.includes(idx)
-                      ? 'bg-[#7B96F5] border-[#7B96F5] text-white shadow-md shadow-[#7B96F5]/25'
-                      : 'bg-[#18181B] border-[#26262A] text-[#7B96F5]'"
+                      ? 'bg-brand-periwinkle border-brand-periwinkle text-white shadow-md shadow-brand-periwinkle/25'
+                      : 'bg-card border-subtle text-brand-periwinkle'"
                   >
                     Q
                   </span>
                   <div class="space-y-1.5 flex-1">
-                    <h3 class="text-xs sm:text-sm font-bold text-white font-sans leading-snug tracking-tight">
+                    <h3 class="text-xs sm:text-sm font-bold text-text-main font-sans leading-snug tracking-tight">
                       {{ faq.question[lang] }}
                     </h3>
                     <div class="flex items-center gap-2">
-                      <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#1F1F23] border border-[#2E2E34] text-gray-400">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-card border border-subtle text-text-secondary">
                         {{ faq.tag[lang] }}
                       </span>
                     </div>
@@ -317,8 +317,8 @@
                 </div>
 
                 <div
-                  class="w-7 h-7 rounded-lg bg-[#18181B] border border-[#26262A] flex items-center justify-center text-gray-400 shrink-0 mt-0.5 transition-transform duration-200"
-                  :class="openedFaqs.includes(idx) ? 'rotate-180 text-[#7B96F5] border-[#7B96F5]/30' : ''"
+                  class="w-7 h-7 rounded-lg bg-card border border-subtle flex items-center justify-center text-text-secondary shrink-0 mt-0.5 transition-transform duration-200"
+                  :class="openedFaqs.includes(idx) ? 'rotate-180 text-brand-periwinkle border-brand-periwinkle/30' : ''"
                 >
                   <ChevronDown class="w-4 h-4" />
                 </div>
@@ -327,13 +327,13 @@
               <!-- Answer Body Panel -->
               <div
                 v-if="openedFaqs.includes(idx)"
-                class="px-5 pb-5 pt-1 border-t border-[#26262A]/70 animate-fadeIn"
+                class="px-5 pb-5 pt-1 border-t border-subtle/70 animate-fadeIn"
               >
-                <div class="p-4 rounded-xl bg-[#121214] border border-[#26262A]/60 flex items-start gap-3.5">
+                <div class="p-4 rounded-xl bg-main border border-subtle/60 flex items-start gap-3.5">
                   <span class="w-6 h-6 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold font-mono flex items-center justify-center shrink-0 mt-0.5">
                     A
                   </span>
-                  <div class="text-xs text-gray-300 font-sans leading-relaxed space-y-2.5 flex-1">
+                  <div class="text-xs text-text-secondary font-sans leading-relaxed space-y-2.5 flex-1">
                     <div v-html="faq.answer[lang]" class="faq-content"></div>
                   </div>
                 </div>
@@ -341,15 +341,15 @@
             </div>
 
             <!-- Empty Search State -->
-            <div v-if="filteredFaqs.length === 0" class="p-12 text-center bg-[#151517] border border-[#26262A] rounded-2xl space-y-3">
-              <div class="w-12 h-12 rounded-2xl bg-[#18181B] border border-[#26262A] flex items-center justify-center text-gray-500 mx-auto">
+            <div v-if="filteredFaqs.length === 0" class="p-12 text-center bg-surface border border-subtle rounded-2xl space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-card border border-subtle flex items-center justify-center text-text-muted mx-auto">
                 <Search class="w-6 h-6" />
               </div>
-              <h4 class="text-sm font-bold text-white font-mono">{{ t.noResultTitle }}</h4>
-              <p class="text-xs text-gray-500 max-w-sm mx-auto font-sans">{{ t.noResultDesc }}</p>
+              <h4 class="text-sm font-bold text-text-main font-mono">{{ t.noResultTitle }}</h4>
+              <p class="text-xs text-text-muted max-w-sm mx-auto font-sans">{{ t.noResultDesc }}</p>
               <button
                 @click="searchQuery = ''; selectedFaqTag = 'all'"
-                class="px-4 py-2 rounded-xl bg-[#7B96F5]/10 border border-[#7B96F5]/30 text-[#7B96F5] text-xs font-mono font-semibold hover:bg-[#7B96F5]/20 cursor-pointer"
+                class="px-4 py-2 rounded-xl bg-brand-periwinkle/10 border border-brand-periwinkle/30 text-brand-periwinkle text-xs font-mono font-semibold hover:bg-brand-periwinkle/20 cursor-pointer"
               >
                 Reset Filter Pencarian
               </button>
@@ -361,46 +361,46 @@
              SECTION 3: Architecture & Topologies (Arsitektur Sistem)
              ══════════════════════════════════════════════════════════════════════ -->
         <section v-else-if="activeSection === 'architecture'" class="space-y-6 animate-fadeIn">
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+          <div class="flex items-center justify-between border-b border-subtle pb-3">
             <div>
-              <h2 class="text-sm font-extrabold text-white font-mono flex items-center gap-2">
-                <Network class="w-4 h-4 text-[#7B96F5]" />
+              <h2 class="text-sm font-extrabold text-text-main font-mono flex items-center gap-2">
+                <Network class="w-4 h-4 text-brand-periwinkle" />
                 {{ t.archHeader }}
               </h2>
-              <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.archSubheader }}</p>
+              <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.archSubheader }}</p>
             </div>
           </div>
 
-          <div class="bg-[#151517] border border-[#26262A] rounded-2xl p-6 space-y-5 shadow-xl">
-            <h3 class="text-xs font-bold text-white font-mono uppercase tracking-wider">{{ t.archFlowTitle }}</h3>
+          <div class="bg-surface border border-subtle rounded-2xl p-6 space-y-5 shadow-xl">
+            <h3 class="text-xs font-bold text-text-main font-mono uppercase tracking-wider">{{ t.archFlowTitle }}</h3>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
-              <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-2">
-                <div class="flex items-center gap-2 text-[#7B96F5] font-bold">
+              <div class="p-4 bg-card border border-subtle rounded-xl space-y-2">
+                <div class="flex items-center gap-2 text-brand-periwinkle font-bold">
                   <Activity class="w-4 h-4" />
                   <span>1. {{ t.archStep1Title }}</span>
                 </div>
-                <p class="text-xs text-gray-400 font-sans leading-relaxed">
+                <p class="text-xs text-text-secondary font-sans leading-relaxed">
                   {{ t.archStep1Desc }}
                 </p>
               </div>
 
-              <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-2">
+              <div class="p-4 bg-card border border-subtle rounded-xl space-y-2">
                 <div class="flex items-center gap-2 text-amber-400 font-bold">
                   <ShieldCheck class="w-4 h-4" />
                   <span>2. {{ t.archStep2Title }}</span>
                 </div>
-                <p class="text-xs text-gray-400 font-sans leading-relaxed">
+                <p class="text-xs text-text-secondary font-sans leading-relaxed">
                   {{ t.archStep2Desc }}
                 </p>
               </div>
 
-              <div class="p-4 bg-[#18181B] border border-[#26262A] rounded-xl space-y-2">
+              <div class="p-4 bg-card border border-subtle rounded-xl space-y-2">
                 <div class="flex items-center gap-2 text-emerald-400 font-bold">
                   <Send class="w-4 h-4" />
                   <span>3. {{ t.archStep3Title }}</span>
                 </div>
-                <p class="text-xs text-gray-400 font-sans leading-relaxed">
+                <p class="text-xs text-text-secondary font-sans leading-relaxed">
                   {{ t.archStep3Desc }}
                 </p>
               </div>
@@ -408,39 +408,39 @@
 
             <!-- Architecture Details Table -->
             <div class="overflow-x-auto pt-2">
-              <table class="w-full text-left text-xs text-gray-300">
-                <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-400">
+              <table class="w-full text-left text-xs text-text-secondary">
+                <thead class="bg-card font-mono text-[10px] uppercase text-text-secondary">
                   <tr>
                     <th class="py-2.5 px-3">{{ t.thComponent }}</th>
                     <th class="py-2.5 px-3">{{ t.thTech }}</th>
                     <th class="py-2.5 px-3">{{ t.thResponsibility }}</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-[#26262A] font-sans text-xs">
+                <tbody class="divide-y divide-subtle font-sans text-xs">
                   <tr>
-                    <td class="py-3 px-3 font-bold text-white font-mono">Frontend Web</td>
-                    <td class="py-3 px-3 text-[#7B96F5] font-mono">Vue 3 + Vite + Tailwind</td>
-                    <td class="py-3 px-3 text-gray-400 leading-relaxed">{{ t.archRow1 }}</td>
+                    <td class="py-3 px-3 font-bold text-text-main font-mono">Frontend Web</td>
+                    <td class="py-3 px-3 text-brand-periwinkle font-mono">Vue 3 + Vite + Tailwind</td>
+                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow1 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-white font-mono">Backend Engine</td>
+                    <td class="py-3 px-3 font-bold text-text-main font-mono">Backend Engine</td>
                     <td class="py-3 px-3 text-emerald-400 font-mono">Golang (Gin Framework)</td>
-                    <td class="py-3 px-3 text-gray-400 leading-relaxed">{{ t.archRow2 }}</td>
+                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow2 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-white font-mono">Database</td>
+                    <td class="py-3 px-3 font-bold text-text-main font-mono">Database</td>
                     <td class="py-3 px-3 text-sky-400 font-mono">PostgreSQL</td>
-                    <td class="py-3 px-3 text-gray-400 leading-relaxed">{{ t.archRow3 }}</td>
+                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow3 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-white font-mono">WhatsApp Gateway</td>
-                    <td class="py-3 px-3 text-[#3ECF8E] font-mono">Node.js (Baileys)</td>
-                    <td class="py-3 px-3 text-gray-400 leading-relaxed">{{ t.archRow4 }}</td>
+                    <td class="py-3 px-3 font-bold text-text-main font-mono">WhatsApp Gateway</td>
+                    <td class="py-3 px-3 text-status-up font-mono">Node.js (Baileys)</td>
+                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow4 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-white font-mono">Queue &amp; Rate-Limiter</td>
+                    <td class="py-3 px-3 font-bold text-text-main font-mono">Queue &amp; Rate-Limiter</td>
                     <td class="py-3 px-3 text-red-400 font-mono">Redis (Asynq)</td>
-                    <td class="py-3 px-3 text-gray-400 leading-relaxed">{{ t.archRow5 }}</td>
+                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow5 }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -452,58 +452,58 @@
              SECTION 4: Troubleshooting & Diagnostics (Penanganan Masalah)
              ══════════════════════════════════════════════════════════════════════ -->
         <section v-else-if="activeSection === 'troubleshooting'" class="space-y-6 animate-fadeIn">
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+          <div class="flex items-center justify-between border-b border-subtle pb-3">
             <div>
-              <h2 class="text-sm font-extrabold text-white font-mono flex items-center gap-2">
-                <Wrench class="w-4 h-4 text-[#7B96F5]" />
+              <h2 class="text-sm font-extrabold text-text-main font-mono flex items-center gap-2">
+                <Wrench class="w-4 h-4 text-brand-periwinkle" />
                 {{ t.troubleHeader }}
               </h2>
-              <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.troubleSubheader }}</p>
+              <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.troubleSubheader }}</p>
             </div>
           </div>
 
           <div class="space-y-4">
-            <div class="p-5 bg-[#151517] border border-[#26262A] rounded-2xl space-y-3 shadow-xl">
+            <div class="p-5 bg-surface border border-subtle rounded-2xl space-y-3 shadow-xl">
               <div class="flex items-center gap-2 font-mono font-bold text-amber-400 text-xs">
                 <AlertTriangle class="w-4 h-4" />
                 <span>1. {{ t.trouble1Title }}</span>
               </div>
-              <p class="text-xs text-gray-300 leading-relaxed font-sans">
+              <p class="text-xs text-text-secondary leading-relaxed font-sans">
                 <strong>{{ t.causeLabel }}:</strong> {{ t.trouble1Cause }}<br>
                 <strong>{{ t.solutionLabel }}:</strong>
               </p>
-              <ul class="list-disc list-inside space-y-1.5 pl-2 text-xs font-sans text-gray-400 leading-relaxed">
+              <ul class="list-disc list-inside space-y-1.5 pl-2 text-xs font-sans text-text-secondary leading-relaxed">
                 <li>{{ t.trouble1Sol1 }}</li>
                 <li>{{ t.trouble1Sol2 }}</li>
                 <li>{{ t.trouble1Sol3 }}</li>
               </ul>
             </div>
 
-            <div class="p-5 bg-[#151517] border border-[#26262A] rounded-2xl space-y-3 shadow-xl">
+            <div class="p-5 bg-surface border border-subtle rounded-2xl space-y-3 shadow-xl">
               <div class="flex items-center gap-2 font-mono font-bold text-red-400 text-xs">
                 <AlertCircle class="w-4 h-4" />
                 <span>2. {{ t.trouble2Title }}</span>
               </div>
-              <p class="text-xs text-gray-300 leading-relaxed font-sans">
+              <p class="text-xs text-text-secondary leading-relaxed font-sans">
                 <strong>{{ t.causeLabel }}:</strong> {{ t.trouble2Cause }}<br>
                 <strong>{{ t.solutionLabel }}:</strong>
               </p>
-              <ul class="list-disc list-inside space-y-1.5 pl-2 text-xs font-sans text-gray-400 leading-relaxed">
+              <ul class="list-disc list-inside space-y-1.5 pl-2 text-xs font-sans text-text-secondary leading-relaxed">
                 <li>{{ t.trouble2Sol1 }}</li>
                 <li>{{ t.trouble2Sol2 }}</li>
               </ul>
             </div>
 
-            <div class="p-5 bg-[#151517] border border-[#26262A] rounded-2xl space-y-3 shadow-xl">
-              <div class="flex items-center gap-2 font-mono font-bold text-[#7B96F5] text-xs">
+            <div class="p-5 bg-surface border border-subtle rounded-2xl space-y-3 shadow-xl">
+              <div class="flex items-center gap-2 font-mono font-bold text-brand-periwinkle text-xs">
                 <Sliders class="w-4 h-4" />
                 <span>3. {{ t.trouble3Title }}</span>
               </div>
-              <p class="text-xs text-gray-300 leading-relaxed font-sans">
+              <p class="text-xs text-text-secondary leading-relaxed font-sans">
                 <strong>{{ t.causeLabel }}:</strong> {{ t.trouble3Cause }}<br>
                 <strong>{{ t.solutionLabel }}:</strong>
               </p>
-              <ul class="list-disc list-inside space-y-1.5 pl-2 text-xs font-sans text-gray-400 leading-relaxed">
+              <ul class="list-disc list-inside space-y-1.5 pl-2 text-xs font-sans text-text-secondary leading-relaxed">
                 <li>{{ t.trouble3Sol1 }}</li>
                 <li>{{ t.trouble3Sol2 }}</li>
                 <li>{{ t.trouble3Sol3 }}</li>
@@ -516,35 +516,35 @@
              SECTION 5: Support & Contact (Kontak Bantuan)
              ══════════════════════════════════════════════════════════════════════ -->
         <section v-else-if="activeSection === 'contact'" class="space-y-6 animate-fadeIn">
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
+          <div class="flex items-center justify-between border-b border-subtle pb-3">
             <div>
-              <h2 class="text-sm font-extrabold text-white font-mono flex items-center gap-2">
-                <Headphones class="w-4 h-4 text-[#7B96F5]" />
+              <h2 class="text-sm font-extrabold text-text-main font-mono flex items-center gap-2">
+                <Headphones class="w-4 h-4 text-brand-periwinkle" />
                 {{ t.contactHeader }}
               </h2>
-              <p class="text-xs text-gray-400 mt-0.5 font-sans">{{ t.contactSubheader }}</p>
+              <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.contactSubheader }}</p>
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="p-6 bg-[#151517] border border-[#26262A] rounded-2xl space-y-3 shadow-xl">
-              <div class="w-10 h-10 rounded-xl bg-[#7B96F5]/15 border border-[#7B96F5]/30 flex items-center justify-center text-[#7B96F5]">
+            <div class="p-6 bg-surface border border-subtle rounded-2xl space-y-3 shadow-xl">
+              <div class="w-10 h-10 rounded-xl bg-brand-periwinkle/15 border border-brand-periwinkle/30 flex items-center justify-center text-brand-periwinkle">
                 <Send class="w-5 h-5" />
               </div>
-              <h3 class="text-sm font-bold text-white font-mono">{{ t.contact1Title }}</h3>
-              <p class="text-xs font-mono text-[#7B96F5] select-all font-bold">noc.alerts@jabarprov.go.id</p>
-              <p class="text-xs text-gray-400 leading-relaxed font-sans">
+              <h3 class="text-sm font-bold text-text-main font-mono">{{ t.contact1Title }}</h3>
+              <p class="text-xs font-mono text-brand-periwinkle select-all font-bold">noc.alerts@jabarprov.go.id</p>
+              <p class="text-xs text-text-secondary leading-relaxed font-sans">
                 {{ t.contact1Desc }}
               </p>
             </div>
 
-            <div class="p-6 bg-[#151517] border border-[#26262A] rounded-2xl space-y-3 shadow-xl">
+            <div class="p-6 bg-surface border border-subtle rounded-2xl space-y-3 shadow-xl">
               <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                 <Headphones class="w-5 h-5" />
               </div>
-              <h3 class="text-sm font-bold text-white font-mono">{{ t.contact2Title }}</h3>
+              <h3 class="text-sm font-bold text-text-main font-mono">{{ t.contact2Title }}</h3>
               <p class="text-xs font-mono text-emerald-400 font-bold">Ext: 4401 / 4402 (24/7)</p>
-              <p class="text-xs text-gray-400 leading-relaxed font-sans">
+              <p class="text-xs text-text-secondary leading-relaxed font-sans">
                 {{ t.contact2Desc }}
               </p>
             </div>
@@ -842,16 +842,16 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Sistem SANOC menerapkan arsitektur notifikasi <strong>Primary &amp; Fallback</strong> yang cerdas:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Sistem SANOC menerapkan arsitektur notifikasi <strong>Primary &amp; Fallback</strong> yang cerdas:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>WhatsApp (Primer):</strong> Jalur utama pengiriman broadcast peringatan gangguan.</li>
           <li><strong>Telegram (Cadangan):</strong> Berfungsi sebagai failover otomatis jika transmisi WhatsApp gagal atau server Baileys terputus.</li>
           <li><strong>Status "Skipped":</strong> Jika WhatsApp berhasil mengirimkan pesan 100%, sistem sengaja melewati pengiriman ke Telegram agar tidak terjadi duplikasi alarm (spam) bagi operator NOC.</li>
         </ul>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">SANOC employs an intelligent <strong>Primary &amp; Fallback</strong> alert architecture:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">SANOC employs an intelligent <strong>Primary &amp; Fallback</strong> alert architecture:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>WhatsApp (Primary):</strong> The primary dispatch channel for outage alerts.</li>
           <li><strong>Telegram (Fallback):</strong> Operates as an automated contingency channel if WhatsApp fails or disconnects.</li>
           <li><strong>"Skipped" Status:</strong> When WhatsApp dispatches successfully, Telegram is deliberately skipped to prevent duplicate alarm noise.</li>
@@ -869,16 +869,16 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Sesi login akun SANOC telah ditingkatkan menjadi <strong>24 Jam Penuh</strong>:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Sesi login akun SANOC telah ditingkatkan menjadi <strong>24 Jam Penuh</strong>:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>JWT Token Lifetime:</strong> Berlaku selama 86.400 detik (24 jam) sejak waktu login berhasil.</li>
           <li><strong>HttpOnly Cookie:</strong> Menggunakan perlindungan cookie HttpOnly yang aman dari serangan XSS.</li>
           <li><strong>Operator Continuity:</strong> Memastikan staf NOC tidak ter-logout secara mendadak di tengah shift pemantauan operasional.</li>
         </ul>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">SANOC authentication sessions are configured for <strong>24 Full Hours</strong>:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">SANOC authentication sessions are configured for <strong>24 Full Hours</strong>:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>JWT Token Lifetime:</strong> Valid for 86,400 seconds (24 hours) from successful login.</li>
           <li><strong>HttpOnly Cookie:</strong> Protected against XSS exploitation via secure HttpOnly cookie encapsulation.</li>
           <li><strong>Shift Continuity:</strong> Prevents sudden session expiries during continuous operational monitoring shifts.</li>
@@ -896,16 +896,16 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Mekanisme anti-flapping mencegah timbulnya ratusan tiket palsu saat koneksi perangkat tidak stabil:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Mekanisme anti-flapping mencegah timbulnya ratusan tiket palsu saat koneksi perangkat tidak stabil:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>Kondisi Flapping:</strong> Terjadi ketika kabel longgar atau daya intermiten menyebabkan perangkat UP &rarr; DOWN &rarr; UP berulang kali.</li>
           <li><strong>Reuse Window (Default 10 Menit):</strong> Jika perangkat yang baru saja pulih kembali DOWN dalam kurun waktu 10 menit, sistem tidak membuat tiket baru melainkan <strong>melanjutkan tiket insiden yang sama</strong>.</li>
           <li><strong>Audit Timeline Utuh:</strong> Seluruh kronologis gangguan terekam dalam satu riwayat terpadu pada halaman detail insiden.</li>
         </ul>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">Anti-flapping logic prevents ticket flooding caused by unstable intermittent links:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Anti-flapping logic prevents ticket flooding caused by unstable intermittent links:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>Flapping Condition:</strong> Occurs when loose physical cabling or power oscillations toggle nodes UP/DOWN repeatedly.</li>
           <li><strong>Reuse Window (Default 10 Min):</strong> If a recently resolved node drops DOWN again within 10 minutes, SANOC reopens and appends to the original incident ticket.</li>
           <li><strong>Unified Timeline:</strong> Preserves full chronological troubleshooting context in a single incident record.</li>
@@ -923,8 +923,8 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Langkah aktivasi keamanan 2FA pada akun Anda:</p>
-        <ol class="list-decimal list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Langkah aktivasi keamanan 2FA pada akun Anda:</p>
+        <ol class="list-decimal list-inside space-y-1 text-text-secondary">
           <li>Klik foto profil/nama akun Anda di pojok kiri bawah untuk membuka halaman <strong>Profil Pengguna</strong>.</li>
           <li>Pada bagian <em>Two-Factor Authentication</em>, klik tombol <strong>Enable 2FA</strong>.</li>
           <li>Buka aplikasi autentikator (Google Authenticator, Microsoft Authenticator, atau Authy) di smartphone Anda.</li>
@@ -932,8 +932,8 @@ const faqList: FAQItem[] = [
         </ol>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">Follow these steps to activate 2FA on your account:</p>
-        <ol class="list-decimal list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Follow these steps to activate 2FA on your account:</p>
+        <ol class="list-decimal list-inside space-y-1 text-text-secondary">
           <li>Click your profile name/avatar in the bottom-left corner to open <strong>User Profile</strong>.</li>
           <li>Under the <em>Two-Factor Authentication</em> section, click <strong>Enable 2FA</strong>.</li>
           <li>Open your mobile authenticator app (Google Authenticator, Microsoft Authenticator, or Authy).</li>
@@ -952,8 +952,8 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Fitur Kelola Massal mempermudah pengelolaan ratusan node sekaligus:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Fitur Kelola Massal mempermudah pengelolaan ratusan node sekaligus:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>Aktivasi Mode:</strong> Pada menu <strong>Devices</strong>, klik tombol <strong>Kelola Massal (Bulk)</strong> di bilah atas.</li>
           <li><strong>Pilih Perangkat:</strong> Centang kotak checkbox di sebelah kiri perangkat yang ingin dikonfigurasi.</li>
           <li><strong>Slide-Over Right Drawer:</strong> Klik tombol melayang <em>Buka Panel Konfigurasi Massal</em> di bagian bawah.</li>
@@ -961,8 +961,8 @@ const faqList: FAQItem[] = [
         </ul>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">Bulk Operations enables efficient management of multiple nodes simultaneously:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Bulk Operations enables efficient management of multiple nodes simultaneously:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>Activate Mode:</strong> On the <strong>Devices</strong> page, toggle the <strong>Bulk Operations</strong> button in the top toolbar.</li>
           <li><strong>Select Devices:</strong> Select checkboxes beside target devices.</li>
           <li><strong>Slide-Over Drawer:</strong> Click the floating action bar button at the bottom to open the side configuration panel.</li>
@@ -981,8 +981,8 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Penyusunan laporan ketersediaan jaringan SLA:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Penyusunan laporan ketersediaan jaringan SLA:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li>Buka menu <strong>Reports</strong> pada sidebar navigasi kiri.</li>
           <li>Tentukan rentang tanggal pelaporan (<em>Harian, Mingguan, Bulanan, atau Custom Date Range</em>).</li>
           <li>Tinjau diagram distribusi downtime, persentase MTTR (Mean Time To Recovery), dan ketersediaan SLA per lokasi.</li>
@@ -990,8 +990,8 @@ const faqList: FAQItem[] = [
         </ul>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">Generating formal SLA availability audit reports:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Generating formal SLA availability audit reports:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li>Navigate to the <strong>Reports</strong> tab in the sidebar.</li>
           <li>Select the audit date range (<em>Daily, Weekly, Monthly, or Custom Range</em>).</li>
           <li>Inspect MTTR metrics, downtime distribution charts, and per-location SLA availability.</li>
@@ -1010,8 +1010,8 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Prosedur penautan ulang sesi WhatsApp Baileys:</p>
-        <ol class="list-decimal list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Prosedur penautan ulang sesi WhatsApp Baileys:</p>
+        <ol class="list-decimal list-inside space-y-1 text-text-secondary">
           <li>Buka menu <strong>Settings</strong> &rarr; pilih tab <strong>Gateways &amp; Alerts</strong>.</li>
           <li>Klik tombol <strong>QR Reconnect</strong> pada kartu WhatsApp Gateway.</li>
           <li>Buka aplikasi WhatsApp di smartphone operator, masuk ke menu <strong>Perangkat Tertaut (Linked Devices)</strong>.</li>
@@ -1019,8 +1019,8 @@ const faqList: FAQItem[] = [
         </ol>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">Re-authenticating the Baileys WhatsApp Gateway session:</p>
-        <ol class="list-decimal list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Re-authenticating the Baileys WhatsApp Gateway session:</p>
+        <ol class="list-decimal list-inside space-y-1 text-text-secondary">
           <li>Open <strong>Settings</strong> &rarr; select the <strong>Gateways &amp; Alerts</strong> tab.</li>
           <li>Click <strong>QR Reconnect</strong> on the WhatsApp Gateway card.</li>
           <li>Open WhatsApp on your phone and go to <strong>Linked Devices</strong>.</li>
@@ -1039,16 +1039,16 @@ const faqList: FAQItem[] = [
     },
     answer: {
       id: `
-        <p class="font-medium text-white mb-1.5">Menu Settings dikontrol ketat oleh <strong>Role-Based Access Control (RBAC)</strong>:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">Menu Settings dikontrol ketat oleh <strong>Role-Based Access Control (RBAC)</strong>:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>Akses Granular:</strong> Setiap kategori Settings (Notifikasi, Polling, Jaringan, Retensi, Lokasi, Manajemen User, dan Audit Log) memiliki izin independen.</li>
           <li><strong>Perlindungan 403:</strong> Jika role akun Anda (misal: <em>Anggota</em> atau <em>Pimpinan</em>) belum diizinkan oleh Super Admin, tab tersebut disembunyikan sepenuhnya dari antarmuka.</li>
           <li><strong>Eskalasi:</strong> Hubungi Administrator untuk memperbarui izin akun Anda melalui matriks <em>Access Control Matrix</em>.</li>
         </ul>
       `,
       en: `
-        <p class="font-medium text-white mb-1.5">The Settings interface enforces strict <strong>Role-Based Access Control (RBAC)</strong>:</p>
-        <ul class="list-disc list-inside space-y-1 text-gray-300">
+        <p class="font-medium text-text-main mb-1.5">The Settings interface enforces strict <strong>Role-Based Access Control (RBAC)</strong>:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
           <li><strong>Granular Permissions:</strong> Each category (Notifications, Polling, Network, Retention, Locations, Users, Audit) operates with an independent permission key.</li>
           <li><strong>403 Access Guard:</strong> If your role (e.g. <em>Staff</em> or <em>Executive</em>) lacks permission, the tab is securely hidden.</li>
           <li><strong>Request Access:</strong> Contact your Super Admin to update your role permissions in the <em>Access Control Matrix</em>.</li>
@@ -1088,12 +1088,12 @@ function toggleFaq(idx: number) {
 
 <style scoped>
 .faq-content :deep(strong) {
-  color: #ffffff;
+  color: var(--text-primary);
   font-weight: 600;
 }
 .faq-content :deep(code) {
-  background-color: #26262a;
-  color: #fbbf24;
+  background-color: var(--bg-hover);
+  color: var(--status-warning);
   padding: 0.15rem 0.35rem;
   border-radius: 0.375rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
