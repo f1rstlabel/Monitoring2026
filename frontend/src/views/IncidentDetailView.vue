@@ -1,29 +1,29 @@
 <template>
   <div v-if="pageState === 'ready' && incident" class="space-y-6">
     <!-- Breadcrumb -->
-    <nav class="flex items-center gap-2 text-xs font-mono text-gray-400">
-      <router-link to="/incidents" class="hover:text-[#7B96F5] transition-colors">Incidents</router-link>
-      <ChevronRight class="w-3.5 h-3.5 text-gray-600" />
-      <span class="text-gray-200 font-semibold">{{ incident.id }}</span>
+    <nav class="flex items-center gap-2 text-xs font-mono text-text-secondary">
+      <router-link to="/incidents" class="hover:text-brand-periwinkle transition-colors">Incidents</router-link>
+      <ChevronRight class="w-3.5 h-3.5 text-text-muted" />
+      <span class="text-text-main font-semibold">{{ incident.id }}</span>
     </nav>
 
     <!-- Header Section -->
-    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-6 flex flex-wrap items-center justify-between gap-4">
+    <div class="bg-surface border border-subtle rounded-xl p-6 flex flex-wrap items-center justify-between gap-4">
       <div class="space-y-2">
         <div class="flex items-center gap-3">
-          <h1 class="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
-            <span class="font-mono" :class="incident.status === 'RESOLVED' ? 'text-[#3ECF8E]' : 'text-red-400'">{{ incident.deviceName }}</span> is {{ incident.status === 'RESOLVED' ? 'RESOLVED (UP)' : 'DOWN' }}
+          <h1 class="text-xl font-extrabold text-text-main tracking-tight flex items-center gap-2">
+            <span class="font-mono" :class="incident.status === 'RESOLVED' ? 'text-status-up' : 'text-red-400'">{{ incident.deviceName }}</span> is {{ incident.status === 'RESOLVED' ? 'RESOLVED (UP)' : 'DOWN' }}
           </h1>
           <StatusPill :status="incident.status === 'RESOLVED' ? 'UP' : 'DOWN'" />
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold" :class="incident.status === 'RESOLVED' ? 'bg-[#3ECF8E]/15 border border-[#3ECF8E]/30 text-[#3ECF8E]' : 'bg-red-500/15 border border-red-500/30 text-red-400'">
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold" :class="incident.status === 'RESOLVED' ? 'bg-status-up/15 border border-status-up/30 text-status-up' : 'bg-red-500/15 border border-red-500/30 text-red-400'">
             Duration: {{ incident.duration }}
           </span>
         </div>
 
-        <p class="text-xs font-mono text-gray-400">
-          Target IP: <span class="text-gray-200">{{ incident.deviceIp }}</span> &bull;
-          Device Type: <span class="text-gray-200">{{ incident.deviceType }}</span> &bull;
-          Started: <span class="text-gray-200">{{ incident.startTime }}</span>
+        <p class="text-xs font-mono text-text-secondary">
+          Target IP: <span class="text-text-main">{{ incident.deviceIp }}</span> &bull;
+          Device Type: <span class="text-text-main">{{ incident.deviceType }}</span> &bull;
+          Started: <span class="text-text-main">{{ incident.startTime }}</span>
         </p>
       </div>
 
@@ -32,26 +32,26 @@
         <!-- AI RCA Analysis Button -->
         <button
           @click="aiStore.analyzeIncident(incident.id)"
-          class="px-3.5 py-2 rounded-lg bg-gradient-to-r from-[#7B96F5]/15 to-[#3ECF8E]/15 border border-[#7B96F5]/40 hover:border-[#7B96F5] text-white font-medium text-xs transition-all flex items-center gap-1.5 shadow-md shadow-[#7B96F5]/10 cursor-pointer"
+          class="px-3.5 py-2 rounded-lg bg-gradient-to-r from-[#7B96F5]/15 to-[#3ECF8E]/15 border border-brand-periwinkle/40 hover:border-brand-periwinkle text-text-main font-medium text-xs transition-all flex items-center gap-1.5 shadow-md shadow-brand-periwinkle/10 cursor-pointer"
           title="Run AI Root Cause Analysis & Remediation Guide"
         >
-          <Sparkles class="w-4 h-4 text-[#7B96F5]" />
+          <Sparkles class="w-4 h-4 text-brand-periwinkle" />
           <span>Analisis AI</span>
         </button>
 
         <!-- Export Structured PDF / Print -->
         <button
           @click="handlePrintPDF"
-          class="px-4 py-2 rounded-lg bg-[#18181B] border border-[#26262A] hover:bg-[#26262A] text-gray-300 font-medium text-xs transition-all flex items-center gap-1.5"
+          class="px-4 py-2 rounded-lg bg-card border border-subtle hover:bg-subtle text-text-secondary font-medium text-xs transition-all flex items-center gap-1.5"
         >
-          <Printer class="w-4 h-4 text-[#3ECF8E]" />
+          <Printer class="w-4 h-4 text-status-up" />
           Export PDF
         </button>
 
         <!-- Read-only badge for pimpinan -->
         <span
           v-if="authStore.user.role === 'pimpinan'"
-          class="px-3 py-1.5 rounded-lg border border-[#26262A] text-gray-500 text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5"
+          class="px-3 py-1.5 rounded-lg border border-subtle text-text-muted text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5"
         >
           <Eye class="w-3.5 h-3.5" />
           Read-only access
@@ -64,17 +64,17 @@
       <!-- Left Column: Event Timeline -->
       <div class="lg:col-span-2 space-y-6">
         <!-- Vertical Event Timeline -->
-        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-6 space-y-5">
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-2">
-              <Clock class="w-4 h-4 text-[#7B96F5]" />
+        <div class="bg-surface border border-subtle rounded-xl p-6 space-y-5">
+          <div class="flex items-center justify-between border-b border-subtle pb-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-text-main font-mono flex items-center gap-2">
+              <Clock class="w-4 h-4 text-brand-periwinkle" />
               Event Timeline & Failover Logs
             </h3>
-            <span class="text-[10px] font-mono text-gray-500">Chronological Audit</span>
+            <span class="text-[10px] font-mono text-text-muted">Chronological Audit</span>
           </div>
 
           <!-- Vertical Timeline Nodes -->
-          <div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#26262A]">
+          <div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-subtle">
             <div
               v-for="evt in (incident.timeline || [])"
               :key="evt.id"
@@ -82,41 +82,41 @@
             >
               <!-- Colored Circle Node on Bar -->
               <span
-                class="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full ring-4 ring-[#151517]"
+                class="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full ring-4 ring-surface"
                 :class="[
-                  evt.severity === 'critical' ? 'bg-[#F16565] pulsing-dot-red' :
-                  evt.severity === 'warning' ? 'bg-[#F5A65B]' :
-                  evt.severity === 'skipped' ? 'bg-gray-600' : 'bg-[#7B96F5]'
+                  evt.severity === 'critical' ? 'bg-status-down pulsing-dot-red' :
+                  evt.severity === 'warning' ? 'bg-status-warning' :
+                  evt.severity === 'skipped' ? 'bg-gray-600' : 'bg-brand-periwinkle'
                 ]"
               ></span>
 
               <div
-                class="border rounded-lg p-3.5 text-xs space-y-1 group-hover:border-[#3A3A40] transition-colors"
+                class="border border-subtle rounded-lg p-3.5 text-xs space-y-1 group-hover:border-brand-periwinkle/50 transition-colors"
                 :class="[
                   evt.severity === 'skipped'
-                    ? 'bg-[#18181B]/50 border-[#26262A]/50 opacity-70'
-                    : 'bg-[#18181B] border-[#26262A]'
+                    ? 'bg-card/50 border-subtle/50 opacity-70'
+                    : 'bg-card border-subtle'
                 ]"
               >
                 <div class="flex items-center justify-between">
                   <h4 class="font-bold flex items-center gap-2"
-                    :class="evt.severity === 'skipped' ? 'text-gray-500' : 'text-gray-100'"
+                    :class="evt.severity === 'skipped' ? 'text-text-muted' : 'text-text-main'"
                   >
                     {{ evt.title }}
                     <span v-if="evt.channel" class="text-[9px] font-mono px-1.5 py-0.5 rounded"
                       :class="[
                         evt.severity === 'skipped'
-                          ? 'bg-[#1C1C1F] text-gray-600'
-                          : 'bg-[#26262A] text-[#7B96F5]'
+                          ? 'bg-card text-text-muted'
+                          : 'bg-subtle text-brand-periwinkle'
                       ]"
                     >
                       {{ evt.channel }}
                     </span>
                   </h4>
-                  <span class="font-mono text-[10px] text-gray-500">{{ evt.timestamp }}</span>
+                  <span class="font-mono text-[10px] text-text-muted">{{ evt.timestamp }}</span>
                 </div>
                 <p class="font-mono text-[11px] leading-relaxed"
-                  :class="evt.severity === 'skipped' ? 'text-gray-600' : 'text-gray-400'"
+                  :class="evt.severity === 'skipped' ? 'text-text-muted' : 'text-text-secondary'"
                 >{{ evt.description }}</p>
               </div>
             </div>
@@ -128,36 +128,36 @@
       <div class="lg:col-span-1 space-y-6">
         <!-- 3 Small Stat Cards -->
         <div class="grid grid-cols-1 gap-3">
-          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-4 flex items-center justify-between">
+          <div class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p class="text-[10px] font-mono text-gray-500 uppercase">Packet Loss</p>
+              <p class="text-[10px] font-mono text-text-muted uppercase">Packet Loss</p>
               <p class="text-lg font-bold font-mono text-red-400 mt-0.5">{{ incident.packetLoss }}%</p>
             </div>
             <span class="w-2.5 h-2.5 rounded-full bg-red-500 pulsing-dot-red"></span>
           </div>
 
-          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-4 flex items-center justify-between">
+          <div class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p class="text-[10px] font-mono text-gray-500 uppercase">Latency</p>
-              <p class="text-lg font-bold font-mono text-gray-200 mt-0.5">{{ incident.latencyMs }} ms</p>
+              <p class="text-[10px] font-mono text-text-muted uppercase">Latency</p>
+              <p class="text-lg font-bold font-mono text-text-main mt-0.5">{{ incident.latencyMs }} ms</p>
             </div>
             <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
           </div>
 
-          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-4 flex items-center justify-between">
+          <div class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p class="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Node Location</p>
-              <p class="text-sm font-bold text-[#7B96F5] mt-0.5 truncate max-w-[200px]">{{ incident.location || 'Gedung Sate Lt 2' }}</p>
+              <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">Node Location</p>
+              <p class="text-sm font-bold text-brand-periwinkle mt-0.5 truncate max-w-[200px]">{{ incident.location || 'Gedung Sate Lt 2' }}</p>
             </div>
-            <MapPin class="w-4 h-4 text-[#7B96F5]" />
+            <MapPin class="w-4 h-4 text-brand-periwinkle" />
           </div>
         </div>
 
         <!-- Notification Audit Log Card -->
-        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
-          <div class="flex items-center justify-between border-b border-[#26262A] pb-3">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-200 font-mono flex items-center gap-2">
-              <Send class="w-4 h-4 text-[#3ECF8E]" />
+        <div class="bg-surface border border-subtle rounded-xl p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-subtle pb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-text-main font-mono flex items-center gap-2">
+              <Send class="w-4 h-4 text-status-up" />
               NOTIFICATION AUDIT LOG
             </h3>
           </div>
@@ -165,20 +165,20 @@
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs font-mono">
               <thead>
-                <tr class="text-[10px] text-gray-500 border-b border-[#26262A] uppercase">
+                <tr class="text-[10px] text-text-muted border-b border-subtle uppercase">
                   <th class="pb-2.5 font-medium w-28 sm:w-32">Channel</th>
                   <th class="pb-2.5 font-medium min-w-[200px]">Recipient & Details</th>
                   <th class="pb-2.5 font-medium w-24">Status</th>
                   <th class="pb-2.5 font-medium w-24 text-right">Sent</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-[#26262A]/50">
+              <tbody class="divide-y divide-subtle/50">
                 <tr v-for="log in auditLogs" :key="log.id" class="text-[11px]">
-                  <td class="py-3 font-bold text-gray-200 align-top">
+                  <td class="py-3 font-bold text-text-main align-top">
                     <div class="flex items-center gap-2">
                       <div
                         class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                        :class="log.channel.toLowerCase().includes('whatsapp') ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-[#7B96F5]/15 text-[#7B96F5] border border-[#7B96F5]/30'"
+                        :class="log.channel.toLowerCase().includes('whatsapp') ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-brand-periwinkle/15 text-brand-periwinkle border border-brand-periwinkle/30'"
                       >
                         <MessageSquare v-if="log.channel.toLowerCase().includes('whatsapp')" class="w-3.5 h-3.5" />
                         <Send v-else class="w-3.5 h-3.5" />
@@ -186,9 +186,9 @@
                       <span class="font-mono text-xs">{{ log.channel }}</span>
                     </div>
                   </td>
-                  <td class="py-3 text-gray-300 pr-3 align-top leading-tight">
-                    <div class="font-semibold text-gray-100 font-mono text-xs">{{ log.recipient }}</div>
-                    <div v-if="getLogDescription(log)" class="text-[10.5px] text-gray-400 font-sans italic mt-0.5">
+                  <td class="py-3 text-text-secondary pr-3 align-top leading-tight">
+                    <div class="font-semibold text-text-main font-mono text-xs">{{ log.recipient }}</div>
+                    <div v-if="getLogDescription(log)" class="text-[10.5px] text-text-secondary font-sans italic mt-0.5">
                       {{ getLogDescription(log) }}
                     </div>
                   </td>
@@ -199,13 +199,13 @@
                         log.status.toLowerCase() === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' :
                         log.status.toLowerCase() === 'failed' ? 'bg-red-500/10 text-red-400 border-red-500/25' :
                         log.status.toLowerCase() === 'skipped' ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
-                        'bg-gray-800 text-gray-400 border-gray-700'
+                        'bg-surface text-text-secondary border-subtle'
                       ]"
                     >
                       {{ log.status }}
                     </span>
                   </td>
-                  <td class="py-3 text-right text-gray-400 font-mono text-[10px] align-top whitespace-nowrap">
+                  <td class="py-3 text-right text-text-secondary font-mono text-[10px] align-top whitespace-nowrap">
                     {{ log.timestamp }}
                   </td>
                 </tr>
@@ -219,19 +219,19 @@
 
   <!-- Loading State -->
   <div v-else-if="pageState === 'loading'" class="space-y-6">
-    <div class="bg-[#151517] border border-[#26262A] rounded-xl p-6 space-y-3">
+    <div class="bg-surface border border-subtle rounded-xl p-6 space-y-3">
       <Skeleton width="45%" height="1.5rem" />
       <Skeleton width="60%" height="0.8rem" />
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
+      <div class="lg:col-span-2 bg-surface border border-subtle rounded-xl p-5 space-y-4">
         <Skeleton width="40%" height="1rem" />
-        <div v-for="i in 4" :key="i" class="p-3 bg-[#18181B] border border-[#26262A] rounded-lg space-y-2">
+        <div v-for="i in 4" :key="i" class="p-3 bg-card border border-subtle rounded-lg space-y-2">
           <Skeleton width="50%" height="0.8rem" />
           <Skeleton width="80%" height="0.65rem" />
         </div>
       </div>
-      <div class="lg:col-span-1 bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
+      <div class="lg:col-span-1 bg-surface border border-subtle rounded-xl p-5 space-y-4">
         <Skeleton width="60%" height="1rem" />
         <Skeleton v-for="i in 3" :key="i" width="100%" height="2.5rem" customClass="rounded-lg" />
       </div>
@@ -239,33 +239,33 @@
   </div>
 
   <!-- 404 Not Found State -->
-  <div v-else-if="pageState === 'not_found'" class="p-8 text-center bg-[#151517] border border-[#26262A] rounded-xl space-y-4">
+  <div v-else-if="pageState === 'not_found'" class="p-8 text-center bg-surface border border-subtle rounded-xl space-y-4">
     <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 text-amber-400">
       <AlertTriangle class="w-6 h-6" />
     </div>
-    <h3 class="text-sm font-bold text-white">Ticket Not Found</h3>
-    <p class="text-xs text-gray-400 max-w-md mx-auto">
+    <h3 class="text-sm font-bold text-text-main">Ticket Not Found</h3>
+    <p class="text-xs text-text-secondary max-w-md mx-auto">
       No incident ticket exists with ID <span class="font-mono text-amber-400">{{ route.params.id }}</span> in the NOC audit database.
     </p>
-    <router-link to="/incidents" class="inline-block px-4 py-2 text-xs font-semibold rounded-lg bg-[#7B96F5] text-white hover:bg-[#95ABF7]">
+    <router-link to="/incidents" class="inline-block px-4 py-2 text-xs font-semibold rounded-lg bg-brand-periwinkle text-white hover:bg-brand-periwinkle-hover">
       Back to Active Incidents Queue
     </router-link>
   </div>
   <!-- Network / 5xx Error State -->
-  <div v-else class="p-8 text-center bg-[#151517] border border-red-500/30 rounded-xl space-y-4">
+  <div v-else class="p-8 text-center bg-surface border border-red-500/30 rounded-xl space-y-4">
     <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 text-red-400">
       <AlertCircle class="w-6 h-6" />
     </div>
-    <h3 class="text-sm font-bold text-white">Failed to Load Incident Log</h3>
-    <p class="text-xs text-gray-400 max-w-md mx-auto">
+    <h3 class="text-sm font-bold text-text-main">Failed to Load Incident Log</h3>
+    <p class="text-xs text-text-secondary max-w-md mx-auto">
       Network or backend server connection error while communicating with Go API.
     </p>
     <div class="flex items-center justify-center gap-3">
-      <button @click="loadIncident" class="px-4 py-2 text-xs font-semibold rounded-lg bg-[#7B96F5] text-white hover:bg-[#95ABF7] flex items-center gap-1.5 cursor-pointer">
+      <button @click="loadIncident" class="px-4 py-2 text-xs font-semibold rounded-lg bg-brand-periwinkle text-white hover:bg-brand-periwinkle-hover flex items-center gap-1.5 cursor-pointer">
         <RefreshCw class="w-3.5 h-3.5" />
         Retry Connection
       </button>
-      <router-link to="/incidents" class="px-4 py-2 text-xs font-semibold rounded-lg border border-[#26262A] text-gray-300 hover:bg-[#18181B]">
+      <router-link to="/incidents" class="px-4 py-2 text-xs font-semibold rounded-lg border border-subtle text-text-secondary hover:bg-card">
         Back to Active Incidents Queue
       </router-link>
     </div>

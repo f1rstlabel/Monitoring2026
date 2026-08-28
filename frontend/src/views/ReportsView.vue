@@ -1,40 +1,40 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-[#26262A] pb-4">
+    <div class="flex items-center justify-between border-b border-subtle pb-4">
       <div>
-        <h1 class="text-xl font-extrabold text-white tracking-tight">Availability & SLA Reports</h1>
-        <p class="text-xs text-gray-400 mt-1">Network performance analysis, device uptime metrics, MTTR, and downtime distribution</p>
+        <h1 class="text-xl font-extrabold text-text-main tracking-tight">Availability & SLA Reports</h1>
+        <p class="text-xs text-text-secondary mt-1">Network performance analysis, device uptime metrics, MTTR, and downtime distribution</p>
       </div>
 
       <div class="flex items-center gap-3">
         <!-- Period Toggle -->
-        <div class="flex items-center bg-[#18181B] border border-[#26262A] rounded-lg p-0.5">
+        <div class="flex items-center bg-card border border-subtle rounded-lg p-0.5">
           <button
             @click="setPeriod('daily')"
             class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
-            :class="reportStore.period === 'daily' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+            :class="reportStore.period === 'daily' ? 'bg-subtle text-text-main shadow-sm' : 'text-text-secondary hover:text-text-main'"
           >
             Today
           </button>
           <button
             @click="setPeriod('weekly')"
             class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
-            :class="reportStore.period === 'weekly' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+            :class="reportStore.period === 'weekly' ? 'bg-subtle text-text-main shadow-sm' : 'text-text-secondary hover:text-text-main'"
           >
             Last 7 Days
           </button>
           <button
             @click="setPeriod('monthly')"
             class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
-            :class="reportStore.period === 'monthly' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+            :class="reportStore.period === 'monthly' ? 'bg-subtle text-text-main shadow-sm' : 'text-text-secondary hover:text-text-main'"
           >
             Last 30 Days
           </button>
           <button
             @click="setPeriod('custom')"
             class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
-            :class="reportStore.period === 'custom' ? 'bg-[#26262A] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+            :class="reportStore.period === 'custom' ? 'bg-subtle text-text-main shadow-sm' : 'text-text-secondary hover:text-text-main'"
           >
             Custom Range
           </button>
@@ -44,7 +44,7 @@
         <div v-if="authStore.hasPermission('reports.export')" class="relative">
           <button
             @click="showExportDropdown = !showExportDropdown"
-            class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
+            class="px-3.5 py-1.5 rounded-lg border border-subtle bg-surface hover:bg-hover text-emerald-400 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
             title="Export as Excel / CSV Spreadsheet"
           >
             <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-400" />
@@ -56,29 +56,29 @@
           <div
             v-if="showExportDropdown"
             @click="showExportDropdown = false"
-            class="absolute right-0 mt-1.5 w-52 bg-[#1A1A1E] border border-[#26262A] rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+            class="absolute right-0 mt-1.5 w-52 bg-card border border-subtle rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
           >
-            <div class="px-3 py-1.5 border-b border-[#26262A]/60 font-mono text-[10px] uppercase font-bold text-gray-400">
+            <div class="px-3 py-1.5 border-b border-subtle/60 font-mono text-[10px] uppercase font-bold text-text-secondary">
               Select Export Format
             </div>
             <button
               @click="reportStore.exportData('xls', activeTab, incidentStore.incidents)"
-              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-text-main hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
             >
               <FileSpreadsheet class="w-4 h-4 text-emerald-400 shrink-0" />
               <div>
                 <div class="font-bold">Excel Spreadsheet (.xls)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Structured Excel workbook</div>
+                <div class="text-[10px] text-text-secondary font-sans">Structured Excel workbook</div>
               </div>
             </button>
             <button
               @click="reportStore.exportData('csv', activeTab, incidentStore.incidents)"
-              class="w-full text-left px-3.5 py-2 text-xs font-mono text-gray-200 hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
+              class="w-full text-left px-3.5 py-2 text-xs font-mono text-text-main hover:bg-emerald-500/10 hover:text-emerald-400 flex items-center gap-2.5 transition-colors"
             >
               <FileText class="w-4 h-4 text-sky-400 shrink-0" />
               <div>
                 <div class="font-bold">CSV File (.csv)</div>
-                <div class="text-[10px] text-gray-400 font-sans">Standard UTF-8 CSV document</div>
+                <div class="text-[10px] text-text-secondary font-sans">Standard UTF-8 CSV document</div>
               </div>
             </button>
           </div>
@@ -88,7 +88,7 @@
         <button
           v-if="authStore.hasPermission('reports.export')"
           @click="handlePrintPDF()"
-          class="px-3.5 py-1.5 rounded-lg border border-[#26262A] bg-[#151517] hover:bg-[#1E1E22] text-sky-400 font-semibold text-xs transition-all flex items-center gap-1.5"
+          class="px-3.5 py-1.5 rounded-lg border border-subtle bg-surface hover:bg-hover text-sky-400 font-semibold text-xs transition-all flex items-center gap-1.5"
           title="Export SLA Audit as PDF"
         >
           <Printer class="w-3.5 h-3.5 text-sky-400" />
@@ -100,27 +100,27 @@
     <!-- Custom Date Range Bar & Type/Location Filters -->
     <div class="flex flex-wrap items-center gap-3">
       <!-- Custom Date Inputs -->
-      <div v-if="reportStore.period === 'custom'" class="flex items-center gap-2 bg-[#151517] border border-[#26262A] rounded-lg px-3 py-1.5 text-xs text-gray-300">
-        <Calendar class="w-3.5 h-3.5 text-[#7B96F5]" />
-        <span class="text-[10px] uppercase font-mono text-gray-400">From:</span>
+      <div v-if="reportStore.period === 'custom'" class="flex items-center gap-2 bg-surface border border-subtle rounded-lg px-3 py-1.5 text-xs text-text-secondary">
+        <Calendar class="w-3.5 h-3.5 text-brand-periwinkle" />
+        <span class="text-[10px] uppercase font-mono text-text-secondary">From:</span>
         <input
           v-model="reportStore.startDate"
           type="date"
           @change="reportStore.fetchReport()"
-          class="bg-[#18181B] border border-[#26262A] rounded px-2 py-1 text-xs text-gray-200 font-mono focus:outline-none focus:border-[#7B96F5]"
+          class="bg-card border border-subtle rounded px-2 py-1 text-xs text-text-main font-mono focus:outline-none focus:border-brand-periwinkle"
         />
-        <span class="text-[10px] uppercase font-mono text-gray-400">To:</span>
+        <span class="text-[10px] uppercase font-mono text-text-secondary">To:</span>
         <input
           v-model="reportStore.endDate"
           type="date"
           @change="reportStore.fetchReport()"
-          class="bg-[#18181B] border border-[#26262A] rounded px-2 py-1 text-xs text-gray-200 font-mono focus:outline-none focus:border-[#7B96F5]"
+          class="bg-card border border-subtle rounded px-2 py-1 text-xs text-text-main font-mono focus:outline-none focus:border-brand-periwinkle"
         />
       </div>
 
       <select
         v-model="reportStore.deviceTypeFilter"
-        class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+        class="bg-card border border-subtle rounded-lg px-3 py-2 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
       >
         <option value="All">All Device Types</option>
         <option value="Access Point">Access Point</option>
@@ -133,7 +133,7 @@
 
       <select
         v-model="reportStore.locationFilter"
-        class="bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5] font-mono"
+        class="bg-card border border-subtle rounded-lg px-3 py-2 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
       >
         <option v-for="loc in reportStore.uniqueLocations" :key="loc" :value="loc">
           {{ loc === 'All' ? 'All Locations' : loc }}
@@ -147,51 +147,51 @@
         <SkeletonCard v-for="i in 4" :key="i" />
       </template>
       <template v-else>
-        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-1">
-          <p class="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Avg SLA Uptime</p>
-          <p class="text-2xl font-extrabold text-[#34D399] font-mono">{{ reportStore.avgSlaUptime.toFixed(2) }}%</p>
-          <p class="text-[11px] text-gray-500 font-mono">Target: 99.50%</p>
+        <div class="bg-surface border border-subtle rounded-xl p-5 space-y-1">
+          <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">Avg SLA Uptime</p>
+          <p class="text-2xl font-extrabold text-status-up font-mono">{{ reportStore.avgSlaUptime.toFixed(2) }}%</p>
+          <p class="text-[11px] text-text-muted font-mono">Target: 99.50%</p>
         </div>
 
-        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-1">
-          <p class="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Total Outage Events</p>
+        <div class="bg-surface border border-subtle rounded-xl p-5 space-y-1">
+          <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">Total Outage Events</p>
           <p class="text-2xl font-extrabold text-amber-400 font-mono">{{ reportStore.totalOutageEvents }}</p>
-          <p class="text-[11px] text-gray-500 font-mono">Avg MTTR: {{ reportStore.avgMttrMinutes.toFixed(0) }}m</p>
+          <p class="text-[11px] text-text-muted font-mono">Avg MTTR: {{ reportStore.avgMttrMinutes.toFixed(0) }}m</p>
         </div>
 
-        <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-1">
-          <p class="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Alert Delivery</p>
-          <p class="text-2xl font-extrabold text-[#7B96F5] font-mono">{{ reportStore.alertDeliveryRate }}%</p>
-          <p class="text-[11px] text-gray-500 font-mono">WA + Telegram</p>
+        <div class="bg-surface border border-subtle rounded-xl p-5 space-y-1">
+          <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">Alert Delivery</p>
+          <p class="text-2xl font-extrabold text-brand-periwinkle font-mono">{{ reportStore.alertDeliveryRate }}%</p>
+          <p class="text-[11px] text-text-muted font-mono">WA + Telegram</p>
         </div>
 
-        <div class="bg-[#151517] border border-[#F5A65B]/30 rounded-xl p-5 space-y-1">
+        <div class="bg-surface border border-status-warning/30 rounded-xl p-5 space-y-1">
           <p class="text-[10px] font-mono text-amber-400/80 uppercase tracking-wider">Recurring Issues</p>
           <p class="text-2xl font-extrabold text-amber-400 font-mono">{{ reportStore.flapDevices.length }}</p>
-          <p class="text-[11px] text-gray-500 font-mono">≥5 downs / 7 days</p>
+          <p class="text-[11px] text-text-muted font-mono">≥5 downs / 7 days</p>
         </div>
       </template>
     </div>
     <!-- Report Section Tabs Selector -->
-    <div class="flex border-b border-[#26262A] gap-6 text-sm font-mono pb-0.5">
+    <div class="flex border-b border-subtle gap-6 text-sm font-mono pb-0.5">
       <button
         @click="activeTab = 'downtime'"
         class="pb-3 border-b-2 font-semibold transition-all relative text-xs"
-        :class="activeTab === 'downtime' ? 'border-[#7B96F5] text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+        :class="activeTab === 'downtime' ? 'border-brand-periwinkle text-text-main' : 'border-transparent text-text-muted hover:text-text-secondary'"
       >
         Downtime by Device
       </button>
       <button
         @click="activeTab = 'recurring'"
         class="pb-3 border-b-2 font-semibold transition-all relative text-xs"
-        :class="activeTab === 'recurring' ? 'border-amber-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+        :class="activeTab === 'recurring' ? 'border-amber-500 text-text-main' : 'border-transparent text-text-muted hover:text-text-secondary'"
       >
         Recurring Issues
       </button>
       <button
         @click="activeTab = 'active_incidents'"
         class="pb-3 border-b-2 font-semibold transition-all relative text-xs"
-        :class="activeTab === 'active_incidents' ? 'border-red-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+        :class="activeTab === 'active_incidents' ? 'border-red-500 text-text-main' : 'border-transparent text-text-muted hover:text-text-secondary'"
       >
         Active Incidents
       </button>
@@ -202,13 +202,13 @@
       <!-- Downtime Table (2/3 width) -->
       <div class="xl:col-span-2 space-y-4">
         <SkeletonTable v-if="reportStore.isLoading" :rows="7" :cols="5" />
-        <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden">
-          <div class="px-5 py-3.5 border-b border-[#26262A] flex items-center justify-between">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300 font-mono">Downtime by Device</h3>
-            <span class="text-[10px] text-gray-500 font-mono">Sorted by most-down first</span>
+        <div v-else class="bg-surface border border-subtle rounded-xl overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-subtle flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-text-secondary font-mono">Downtime by Device</h3>
+            <span class="text-[10px] text-text-muted font-mono">Sorted by most-down first</span>
           </div>
-          <table class="w-full text-left text-xs text-gray-300">
-            <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-500 border-b border-[#26262A]">
+          <table class="w-full text-left text-xs text-text-secondary">
+            <thead class="bg-card font-mono text-[10px] uppercase text-text-muted border-b border-subtle">
               <tr>
                 <th class="py-3 px-4">Device</th>
                 <th class="py-3 px-4">Location</th>
@@ -217,7 +217,7 @@
                 <th class="py-3 px-4">Last Down</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-[#26262A]">
+            <tbody class="divide-y divide-subtle">
               <tr v-if="reportStore.isLoading">
                 <td colspan="5" class="p-0 border-0">
                   <SkeletonTable :rows="5" :cols="5" />
@@ -227,40 +227,40 @@
                 <tr
                   v-for="(row, idx) in paginatedDowntimeRows"
                   :key="row.deviceId"
-                class="hover:bg-[#18181B] transition-colors"
+                class="hover:bg-card transition-colors"
                 :class="{ 'border-l-2 border-l-[#F5A65B]': row.downCount >= 5 }"
               >
                 <td class="py-3 px-4">
                   <div class="flex items-center gap-2">
                     <span
                       class="text-[10px] font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center"
-                      :class="idx === 0 ? 'bg-[#F16565]/20 text-[#F16565]' : idx === 1 ? 'bg-amber-500/20 text-amber-400' : 'bg-[#26262A] text-gray-400'"
+                      :class="idx === 0 ? 'bg-status-down/20 text-status-down' : idx === 1 ? 'bg-amber-500/20 text-amber-400' : 'bg-subtle text-text-secondary'"
                     >
                       {{ (downtimePage - 1) * downtimePageSize + idx + 1 }}
                     </span>
                     <div>
-                      <p class="font-bold text-white">{{ row.deviceName }}</p>
-                      <p class="text-[10px] font-mono text-gray-500">{{ row.deviceType }}</p>
+                      <p class="font-bold text-text-main">{{ row.deviceName }}</p>
+                      <p class="text-[10px] font-mono text-text-muted">{{ row.deviceType }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="py-3 px-4 text-gray-400 max-w-[150px] truncate text-[11px]">{{ row.location }}</td>
+                <td class="py-3 px-4 text-text-secondary max-w-[150px] truncate text-[11px]">{{ row.location }}</td>
                 <td class="py-3 px-4 text-center">
                   <span
                     class="text-sm font-extrabold font-mono"
-                    :class="row.downCount >= 6 ? 'text-[#F16565]' : row.downCount >= 3 ? 'text-amber-400' : 'text-gray-300'"
+                    :class="row.downCount >= 6 ? 'text-status-down' : row.downCount >= 3 ? 'text-amber-400' : 'text-text-secondary'"
                   >
                     {{ row.downCount }}
                   </span>
                 </td>
-                <td class="py-3 px-4 font-mono font-semibold text-[#F16565]">
+                <td class="py-3 px-4 font-mono font-semibold text-status-down">
                   {{ reportStore.formatDowntime(row.totalDowntimeMinutes) }}
                 </td>
-                <td class="py-3 px-4 font-mono text-gray-400 text-[11px]">{{ row.lastDown }}</td>
+                <td class="py-3 px-4 font-mono text-text-secondary text-[11px]">{{ row.lastDown }}</td>
               </tr>
               </template>
               <tr v-else-if="reportStore.filteredRows.length === 0">
-                <td colspan="5" class="py-10 text-center text-gray-600 text-xs">
+                <td colspan="5" class="py-10 text-center text-text-muted text-xs">
                   No downtime events for selected filters
                 </td>
               </tr>
@@ -278,7 +278,7 @@
       <!-- Bar Chart (1/3 width) -->
       <div class="xl:col-span-1">
         <template v-if="reportStore.isLoading">
-          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-3">
+          <div class="bg-surface border border-subtle rounded-xl p-5 space-y-3">
             <Skeleton height="0.75rem" width="60%" />
             <Skeleton v-for="i in 7" :key="i" height="1.25rem" :width="`${90 - i * 8}%`" />
           </div>
@@ -309,7 +309,7 @@
       <!-- Recurring Flap Chart (1/3 width) -->
       <div class="xl:col-span-1">
         <template v-if="reportStore.isLoading">
-          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-3">
+          <div class="bg-surface border border-subtle rounded-xl p-5 space-y-3">
             <Skeleton height="0.75rem" width="60%" />
             <Skeleton v-for="i in 5" :key="i" height="1.25rem" :width="`${85 - i * 10}%`" />
           </div>
@@ -326,14 +326,14 @@
       <!-- Active Incidents Table (2/3 width) -->
       <div class="xl:col-span-2 space-y-4">
         <SkeletonTable v-if="reportStore.isLoading" :rows="4" :cols="8" />
-        <div v-else class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden">
-          <div class="px-5 py-3.5 border-b border-[#26262A] flex items-center justify-between">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300 font-mono">Active Incidents Report Table</h3>
-            <span class="text-[10px] text-gray-500 font-mono">Real-time incident ticket queue</span>
+        <div v-else class="bg-surface border border-subtle rounded-xl overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-subtle flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-text-secondary font-mono">Active Incidents Report Table</h3>
+            <span class="text-[10px] text-text-muted font-mono">Real-time incident ticket queue</span>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-gray-300">
-              <thead class="bg-[#18181B] font-mono text-[10px] uppercase text-gray-500 border-b border-[#26262A]">
+            <table class="w-full text-left text-xs text-text-secondary">
+              <thead class="bg-card font-mono text-[10px] uppercase text-text-muted border-b border-subtle">
                 <tr>
                   <th class="py-3 px-4">Ticket ID</th>
                   <th class="py-3 px-4">Device Name</th>
@@ -345,7 +345,7 @@
                   <th class="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-[#26262A]">
+              <tbody class="divide-y divide-subtle">
                 <tr v-if="incidentStore.isLoading || reportStore.isLoading">
                   <td colspan="8" class="p-0 border-0">
                     <SkeletonTable :rows="5" :cols="8" />
@@ -355,18 +355,18 @@
                   <tr
                     v-for="inc in paginatedIncidents"
                     :key="inc.id"
-                    class="hover:bg-[#18181B] transition-colors"
+                    class="hover:bg-card transition-colors"
                   >
-                    <td class="py-3 px-4 font-mono font-bold text-[#7B96F5]">{{ inc.id }}</td>
+                    <td class="py-3 px-4 font-mono font-bold text-brand-periwinkle">{{ inc.id }}</td>
                     <td class="py-3 px-4">
                       <div>
-                        <p class="font-bold text-white">{{ inc.deviceName }}</p>
-                        <p class="text-[10px] text-gray-500 font-mono">{{ inc.location }}</p>
+                        <p class="font-bold text-text-main">{{ inc.deviceName }}</p>
+                        <p class="text-[10px] text-text-muted font-mono">{{ inc.location }}</p>
                       </div>
                     </td>
-                    <td class="py-3 px-4 text-gray-400">{{ inc.deviceType }}</td>
-                    <td class="py-3 px-4 font-mono text-gray-400">{{ inc.deviceIp }}</td>
-                    <td class="py-3 px-4 font-mono font-semibold" :class="inc.status === 'ACTIVE' ? 'text-red-400' : 'text-gray-400'">
+                    <td class="py-3 px-4 text-text-secondary">{{ inc.deviceType }}</td>
+                    <td class="py-3 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
+                    <td class="py-3 px-4 font-mono font-semibold" :class="inc.status === 'ACTIVE' ? 'text-red-400' : 'text-text-secondary'">
                       {{ formatLiveDuration(inc.startedAt, inc.status, inc.duration) }}
                     </td>
                     <td class="py-3 px-4 text-center font-mono">
@@ -377,7 +377,7 @@
                     <td class="py-3 px-4">
                       <span
                         class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold"
-                        :class="inc.status === 'ACTIVE' ? 'bg-[#F16565]/10 text-[#F16565] border border-[#F16565]/20' : 'bg-[#3ECF8E]/10 text-[#3ECF8E] border border-[#3ECF8E]/20'"
+                        :class="inc.status === 'ACTIVE' ? 'bg-status-down/10 text-status-down border border-status-down/20' : 'bg-status-up/10 text-status-up border border-status-up/20'"
                       >
                         {{ inc.status }}
                       </span>
@@ -385,7 +385,7 @@
                     <td class="py-3 px-4 text-right">
                       <router-link
                         :to="`/incidents/${inc.id}`"
-                        class="px-2.5 py-1 rounded-lg bg-[#26262A] hover:bg-[#323236] text-xs font-semibold text-gray-200 transition-colors inline-block"
+                        class="px-2.5 py-1 rounded-lg bg-subtle hover:bg-hover text-xs font-semibold text-text-main transition-colors inline-block"
                       >
                         View Details
                       </router-link>
@@ -393,7 +393,7 @@
                   </tr>
                 </template>
                 <tr v-else-if="incidentStore.incidents.length === 0">
-                  <td colspan="8" class="py-10 text-center text-gray-600 text-xs">
+                  <td colspan="8" class="py-10 text-center text-text-muted text-xs">
                     No active or recent incidents reported
                   </td>
                 </tr>
@@ -412,7 +412,7 @@
       <!-- Active Incidents Chart (1/3 width) -->
       <div class="xl:col-span-1">
         <template v-if="reportStore.isLoading">
-          <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-3">
+          <div class="bg-surface border border-subtle rounded-xl p-5 space-y-3">
             <Skeleton height="0.75rem" width="60%" />
             <Skeleton v-for="i in 4" :key="i" height="1.25rem" :width="`${85 - i * 10}%`" />
           </div>
