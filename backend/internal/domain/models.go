@@ -181,6 +181,7 @@ type DeviceStatusLog struct {
 type IPChangeEvent struct {
 	ID        string    `json:"id"`
 	DeviceID  string    `json:"deviceId"`
+	DeviceName string   `json:"deviceName,omitempty"`
 	OldIP     string    `json:"oldIp"`
 	NewIP     string    `json:"newIp"`
 	Timestamp time.Time `json:"timestamp"`

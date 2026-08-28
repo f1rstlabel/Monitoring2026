@@ -44,6 +44,14 @@ type Config struct {
 
 	GeminiAPIKey string
 	GeminiModel  string
+
+	// Kea DHCP Sync
+	KeaDBHost       string
+	KeaDBPort       string
+	KeaDBUser       string
+	KeaDBPassword   string
+	KeaDBName       string
+	KeaSyncInterval string
 }
 
 func LoadConfig() *Config {
@@ -99,6 +107,13 @@ func LoadConfig() *Config {
 
 		GeminiAPIKey: getEnvWithFallback("GEMINI_API_KEY", "GOOGLE_API_KEY", ""),
 		GeminiModel:  getEnv("GEMINI_MODEL", "gemini-1.5-flash"),
+
+		KeaDBHost:       getEnv("KEA_DB_HOST", ""),
+		KeaDBPort:       getEnv("KEA_DB_PORT", "3306"),
+		KeaDBUser:       getEnv("KEA_DB_USER", "kea_reader"),
+		KeaDBPassword:   getEnv("KEA_DB_PASSWORD", ""),
+		KeaDBName:       getEnv("KEA_DB_NAME", "kea"),
+		KeaSyncInterval: getEnv("KEA_SYNC_INTERVAL", "5m"),
 	}
 }
 
@@ -113,6 +128,15 @@ func (c *Config) PostgresDSN() string {
 
 func (c *Config) RedisAddr() string {
 	return fmt.Sprintf("%s:%s", c.RedisHost, c.RedisPort)
+}
+
+func (c *Config) KeaMySQLDSN() string {
+	if c.KeaDBPassword != "" {
+		return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+			c.KeaDBUser, c.KeaDBPassword, c.KeaDBHost, c.KeaDBPort, c.KeaDBName)
+	}
+	return fmt.Sprintf("%s@tcp(%s:%s)/%s",
+		c.KeaDBUser, c.KeaDBHost, c.KeaDBPort, c.KeaDBName)
 }
 
 func getEnv(key, defaultVal string) string {

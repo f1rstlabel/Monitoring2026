@@ -2736,3 +2736,14 @@ func (h *Handler) UploadBrandingAsset(c *gin.Context) {
 		"filename":  filename,
 	})
 }
+
+// GetDHCPLogs returns recent IP change logs
+func (h *Handler) GetDHCPLogs(c *gin.Context) {
+	limit := 50
+	logs, err := h.deviceRepo.GetIPChangeLogs(limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get DHCP logs"})
+		return
+	}
+	c.JSON(http.StatusOK, logs)
+}
