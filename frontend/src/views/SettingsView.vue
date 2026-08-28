@@ -879,18 +879,22 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-subtle/50">
+                  <tr v-if="isFetchingDHCPLogs">
+                    <td colspan="4" class="p-0 border-0">
+                      <SkeletonTable :rows="10" :cols="4" />
+                    </td>
+                  </tr>
+                  
                   <tr v-if="!isFetchingDHCPLogs && dhcpLogs.length === 0">
                     <td colspan="4" class="px-5 py-8 text-center text-text-secondary text-xs italic font-mono">No recent IP changes recorded.</td>
                   </tr>
-                  
-                  <SkeletonTable v-if="isFetchingDHCPLogs" :rows="dhcpLogsPageSize" :columns="4" />
 
-                  <template v-else>
-                    <tr v-for="log in dhcpLogs" :key="log.id" class="hover:bg-subtle/30 transition-colors">
+                  <template v-if="!isFetchingDHCPLogs && dhcpLogs.length > 0">
+                    <tr v-for="log in dhcpLogs" :key="log.id || Math.random()" class="hover:bg-subtle/30 transition-colors">
                       <td class="px-5 py-3 font-medium text-text-main">{{ log.deviceName || log.deviceId }}</td>
                       <td class="px-5 py-3 font-mono text-xs text-red-400 line-through decoration-red-400/50">{{ log.oldIp || '-' }}</td>
                       <td class="px-5 py-3 font-mono text-xs text-status-up">{{ log.newIp }}</td>
-                      <td class="px-5 py-3 text-xs text-text-secondary">{{ new Date(log.timestamp).toLocaleString() }}</td>
+                      <td class="px-5 py-3 text-xs text-text-secondary">{{ log.timestamp ? new Date(log.timestamp).toLocaleString() : '-' }}</td>
                     </tr>
                   </template>
                 </tbody>
@@ -1803,6 +1807,40 @@ const availableTabs = computed(() => {
   return allTabs.value.filter((t) => t.permission());
 });
 
+const dhcpLogs = ref<any[]>([]);
+const isFetchingDHCPLogs = ref(false);
+const dhcpLogsPage = ref(1);
+const dhcpLogsPageSize = ref(10);
+const dhcpLogsTotal = ref(0);
+
+async function fetchDHCPLogs(manual = false) {
+  isFetchingDHCPLogs.value = true;
+  try {
+    const res = await api.get('/settings/dhcp/logs', {
+      params: { page: dhcpLogsPage.value, limit: dhcpLogsPageSize.value }
+    });
+    
+    if (res.data && res.data.data) {
+      dhcpLogs.value = Array.isArray(res.data.data) ? res.data.data : [];
+      dhcpLogsTotal.value = res.data.total || dhcpLogs.value.length;
+    } else {
+      dhcpLogs.value = Array.isArray(res.data) ? res.data : [];
+      dhcpLogsTotal.value = dhcpLogs.value.length;
+    }
+    
+    if (manual === true) {
+      triggerFeedback('DHCP Sync', 'Logs refreshed successfully!');
+    }
+  } catch (e) {
+    console.error('Failed to fetch DHCP logs:', e);
+    if (manual === true) {
+      triggerFeedback('Error', 'Failed to refresh DHCP logs', false);
+    }
+  } finally {
+    isFetchingDHCPLogs.value = false;
+  }
+}
+
 // Sync active tab with route query and permissions
 watch(
   [availableTabs, () => route.query.tab],
@@ -2052,40 +2090,6 @@ const isLogsLoading = ref(false);
 const logsPage = ref(1);
 const logsPageSize = ref(10);
 const logsTotal = ref(0);
-
-const dhcpLogs = ref<any[]>([]);
-const isFetchingDHCPLogs = ref(false);
-const dhcpLogsPage = ref(1);
-const dhcpLogsPageSize = ref(10);
-const dhcpLogsTotal = ref(0);
-
-async function fetchDHCPLogs(manual = false) {
-  isFetchingDHCPLogs.value = true;
-  try {
-    const res = await api.get('/settings/dhcp/logs', {
-      params: { page: dhcpLogsPage.value, limit: dhcpLogsPageSize.value }
-    });
-    
-    if (res.data && res.data.data) {
-      dhcpLogs.value = Array.isArray(res.data.data) ? res.data.data : [];
-      dhcpLogsTotal.value = res.data.total || dhcpLogs.value.length;
-    } else {
-      dhcpLogs.value = Array.isArray(res.data) ? res.data : [];
-      dhcpLogsTotal.value = dhcpLogs.value.length;
-    }
-    
-    if (manual === true) {
-      triggerFeedback('DHCP Sync', 'Logs refreshed successfully!');
-    }
-  } catch (e) {
-    console.error('Failed to fetch DHCP logs:', e);
-    if (manual === true) {
-      triggerFeedback('Error', 'Failed to refresh DHCP logs', false);
-    }
-  } finally {
-    isFetchingDHCPLogs.value = false;
-  }
-}
 
 async function fetchUserLogs() {
   isLogsLoading.value = true;
@@ -2406,6 +2410,9 @@ onMounted(async () => {
       fetchUserLogs(),
       fetchLocations()
     ]);
+    if (activeTab.value === 'dhcp') {
+      fetchDHCPLogs();
+    }
   } catch (e) {
     // fallback
   } finally {
