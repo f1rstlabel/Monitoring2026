@@ -14,17 +14,18 @@
         @click.self="$emit('close')"
       >
         <div 
-          class="bg-[#151517] border border-[#26262A] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          class="bg-surface border border-subtle rounded-xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+          :class="maxWidth || 'max-w-2xl'"
         >
           <!-- Modal Header -->
-          <div class="px-6 py-4 border-b border-[#26262A] flex items-center justify-between bg-[#18181B]">
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <div class="px-6 py-4 border-b border-subtle flex items-center justify-between bg-card">
+            <h3 class="text-base font-bold text-text-main flex items-center gap-2">
               <slot name="icon" />
               {{ title }}
             </h3>
             <button
               @click="$emit('close')"
-              class="p-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#26262A] transition-colors"
+              class="p-1 rounded-lg text-text-secondary hover:text-text-main hover:bg-subtle transition-colors"
             >
               <X class="w-5 h-5" />
             </button>
@@ -36,7 +37,7 @@
           </div>
 
           <!-- Modal Footer -->
-          <div v-if="$slots.footer" class="px-6 py-4 border-t border-[#26262A] bg-[#18181B] flex items-center justify-end gap-3">
+          <div v-if="$slots.footer" class="px-6 py-4 border-t border-subtle bg-card flex items-center justify-end gap-3">
             <slot name="footer" />
           </div>
         </div>
@@ -51,6 +52,7 @@ import { X } from 'lucide-vue-next';
 defineProps<{
   isOpen: boolean;
   title: string;
+  maxWidth?: string;
 }>();
 
 defineEmits(['close']);

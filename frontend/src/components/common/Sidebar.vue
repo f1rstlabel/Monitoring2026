@@ -1,10 +1,10 @@
 <template>
-  <aside class="w-60 bg-[#0D0D0F] border-r border-[#26262A] flex flex-col justify-between h-screen fixed left-0 top-0 z-30 select-none">
+  <aside class="w-60 bg-main border-r border-subtle flex flex-col justify-between h-screen fixed left-0 top-0 z-30 select-none">
     <!-- Top Branding & Navigation -->
     <div>
       <!-- Header / Logo -->
-      <div class="px-4 py-4 border-b border-[#26262A]/60 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-[#151517] border border-[#26262A] flex items-center justify-center shrink-0 overflow-hidden relative shadow-sm">
+      <div class="px-4 py-4 border-b border-subtle/60 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-surface border border-subtle flex items-center justify-center shrink-0 overflow-hidden relative shadow-sm">
           <img
             v-if="settingStore.branding.logoUrl"
             :src="settingStore.branding.logoUrl"
@@ -21,13 +21,13 @@
         </div>
         <div class="min-w-0 flex-1 flex flex-col justify-center">
           <div class="flex items-center justify-between gap-1">
-            <h1 class="text-sm font-black text-white tracking-wider leading-none truncate">
+            <h1 class="text-sm font-black text-text-main tracking-wider leading-none truncate">
               {{ settingStore.branding.appTitle || 'SANOC' }}
             </h1>
-            <span class="text-[9px] font-mono text-[#7B96F5] font-semibold bg-[#7B96F5]/10 px-1 py-0.5 rounded border border-[#7B96F5]/20 shrink-0">v2.6.0</span>
+            <span class="text-[9px] font-mono text-brand-periwinkle font-semibold bg-brand-periwinkle/10 px-1 py-0.5 rounded border border-brand-periwinkle/20 shrink-0">v2.6.0</span>
           </div>
           <p
-            class="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-tight truncate leading-tight"
+            class="text-[10px] font-mono text-text-secondary mt-1 uppercase tracking-tight truncate leading-tight"
             :title="settingStore.branding.appSubtitle || 'Jabar Regional SANOC'"
           >
             {{ settingStore.branding.appSubtitle || 'Jabar Regional SANOC' }}
@@ -56,7 +56,7 @@
         >
           <Server class="w-4 h-4 shrink-0" />
           <span>Devices</span>
-          <span class="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#26262A] text-gray-300">
+          <span class="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-subtle text-text-secondary">
             {{ deviceStore.summary.totalDevices }}
           </span>
         </router-link>
@@ -113,40 +113,40 @@
 
       <!-- Role indicator badge -->
       <div class="px-4 mt-1">
-        <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[#0A0A0B] border border-[#26262A]/50">
+        <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-main border border-subtle/50">
           <component :is="roleIcon" class="w-3 h-3 shrink-0" :class="roleColor" />
           <span class="text-[10px] font-mono uppercase tracking-widest" :class="roleColor">
             {{ roleLabel }}
           </span>
-          <span class="ml-auto inline-block w-1.5 h-1.5 rounded-full bg-[#3ECF8E]" />
+          <span class="ml-auto inline-block w-1.5 h-1.5 rounded-full bg-status-up" />
         </div>
       </div>
     </div>
 
     <!-- Bottom User Section -->
-    <div class="p-3 border-t border-[#26262A]/60 bg-[#0A0A0B]/50">
-      <div class="flex items-center justify-between p-2 rounded-lg bg-[#151517] border border-[#26262A]">
+    <div class="p-3 border-t border-subtle/60 bg-main/50">
+      <div class="flex items-center justify-between p-2 rounded-lg bg-surface border border-subtle">
         <router-link to="/profile" class="flex items-center gap-2.5 overflow-hidden group flex-1 mr-1" title="View & Edit Profile">
           <img
             :src="authStore.user.avatarUrl"
             alt="User Avatar"
             @error="(e: Event) => (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256'"
-            class="w-8 h-8 rounded-full object-cover border border-[#7B96F5]/40 shrink-0 group-hover:ring-2 group-hover:ring-[#7B96F5] transition-all"
+            class="w-8 h-8 rounded-full object-cover border border-brand-periwinkle/40 shrink-0 group-hover:ring-2 group-hover:ring-brand-periwinkle transition-all"
           />
           <div class="overflow-hidden">
-            <p class="text-xs font-medium text-gray-200 truncate leading-tight group-hover:text-[#7B96F5] transition-colors">{{ authStore.user.name }}</p>
-            <p class="text-[10px] text-gray-500 truncate mt-0.5">{{ authStore.user.email }}</p>
+            <p class="text-xs font-medium text-text-main truncate leading-tight group-hover:text-brand-periwinkle transition-colors">{{ authStore.user.name }}</p>
+            <p class="text-[10px] text-text-muted truncate mt-0.5">{{ authStore.user.email }}</p>
           </div>
         </router-link>
         <button
           @click="handleLogout"
           title="Logout"
-          class="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
+          class="p-1.5 rounded text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 cursor-pointer"
         >
           <LogOut class="w-4 h-4" />
         </button>
       </div>
-      <p class="mt-2 text-center text-[9px] font-mono text-gray-500 tracking-tight">
+      <p class="mt-2 text-center text-[9px] font-mono text-text-muted tracking-tight">
         © Tim SANOC — UTB 2026.
       </p>
     </div>
@@ -181,8 +181,8 @@ const settingStore = useSettingStore();
 function navLinkClass(path: string) {
   const isActive = route.path === path || (route.path.startsWith(path) && path !== '/dashboard');
   return isActive
-    ? 'bg-[#7B96F5]/15 text-[#7B96F5] border border-[#7B96F5]/30 font-semibold shadow-sm shadow-[#7B96F5]/10'
-    : 'text-gray-400 hover:text-gray-200 hover:bg-[#151517] border border-transparent';
+    ? 'bg-brand-periwinkle/15 text-brand-periwinkle border border-brand-periwinkle/30 font-semibold shadow-sm shadow-brand-periwinkle/10'
+    : 'text-text-secondary hover:text-text-main hover:bg-surface border border-transparent';
 }
 
 // Role display metadata
@@ -195,11 +195,11 @@ const roleLabel = computed(() => {
 
 const roleColor = computed(() => {
   const map: Record<string, string> = {
-    admin: 'text-[#7B96F5]',
+    admin: 'text-brand-periwinkle',
     pimpinan: 'text-amber-400',
-    anggota: 'text-[#34D399]'
+    anggota: 'text-status-up'
   };
-  return map[authStore.user.role] ?? 'text-gray-400';
+  return map[authStore.user.role] ?? 'text-text-secondary';
 });
 
 const roleIcon = computed(() => {

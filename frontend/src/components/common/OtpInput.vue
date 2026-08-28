@@ -13,13 +13,13 @@
       @input="handleInput(idx, $event)"
       @keydown="handleKeyDown(idx, $event)"
       @focus="handleFocus(idx)"
-      class="w-10 h-12 sm:w-12 sm:h-14 bg-[#18181B] border rounded-xl text-center text-xl font-bold font-mono text-white transition-all focus:outline-none select-none"
+      class="w-10 h-12 sm:w-12 sm:h-14 bg-card border rounded-xl text-center text-xl font-bold font-mono text-text-main transition-all focus:outline-none select-none"
       :class="[
         error
           ? 'border-red-500/80 text-red-400 bg-red-500/5 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
           : digits[idx]
-          ? 'border-[#7B96F5] bg-[#7B96F5]/10 text-white shadow-sm shadow-[#7B96F5]/20'
-          : 'border-[#26262A] text-gray-400 focus:border-[#7B96F5] focus:ring-2 focus:ring-[#7B96F5]/20 hover:border-[#3A3A40]',
+          ? 'border-brand-periwinkle bg-brand-periwinkle/10 text-white shadow-sm shadow-brand-periwinkle/20'
+          : 'border-subtle text-text-secondary focus:border-brand-periwinkle focus:ring-2 focus:ring-brand-periwinkle/20 hover:border-brand-periwinkle/50',
         disabled ? 'opacity-40 cursor-not-allowed' : ''
       ]"
     />

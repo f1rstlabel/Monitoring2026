@@ -1,11 +1,11 @@
 <template>
-  <div class="bg-[#151517] border border-[#26262A] rounded-xl p-5 space-y-4">
+  <div class="bg-surface border border-subtle rounded-xl p-5 space-y-4">
     <div class="flex items-center justify-between">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300 font-mono">Down Count per Device</h3>
-      <span class="text-[10px] font-mono text-gray-500">{{ period }} period</span>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-text-secondary font-mono">Down Count per Device</h3>
+      <span class="text-[10px] font-mono text-text-muted">{{ period }} period</span>
     </div>
 
-    <div v-if="data.length === 0" class="flex items-center justify-center h-32 text-gray-600 text-xs">
+    <div v-if="data.length === 0" class="flex items-center justify-center h-32 text-text-muted text-xs">
       No data for selected period
     </div>
 
@@ -17,14 +17,14 @@
       >
         <!-- Label -->
         <div class="w-40 shrink-0 text-right">
-          <p class="text-[11px] text-gray-400 font-medium truncate group-hover:text-gray-200 transition-colors" :title="item.deviceName">
+          <p class="text-[11px] text-text-secondary font-medium truncate group-hover:text-text-main transition-colors" :title="item.deviceName">
             {{ truncate(item.deviceName, 22) }}
           </p>
         </div>
 
         <!-- Bar + value -->
         <div class="flex-1 flex items-center gap-2">
-          <div class="flex-1 h-5 bg-[#0A0A0B] rounded-md overflow-hidden border border-[#26262A]">
+          <div class="flex-1 h-5 bg-main rounded-md overflow-hidden border border-subtle">
             <div
               class="h-full rounded-md transition-all duration-700 ease-out relative"
               :style="{ width: item.pct + '%' }"
@@ -36,7 +36,7 @@
           </div>
           <span
             class="text-xs font-mono font-bold w-6 text-right"
-            :class="item.downCount >= 6 ? 'text-[#F16565]' : item.downCount >= 3 ? 'text-amber-400' : 'text-[#7B96F5]'"
+            :class="item.downCount >= 6 ? 'text-status-down' : item.downCount >= 3 ? 'text-amber-400' : 'text-brand-periwinkle'"
           >
             {{ item.downCount }}
           </span>
@@ -45,18 +45,18 @@
     </div>
 
     <!-- Legend -->
-    <div class="flex items-center gap-4 pt-2 border-t border-[#26262A]">
+    <div class="flex items-center gap-4 pt-2 border-t border-subtle">
       <div class="flex items-center gap-1.5">
         <div class="w-3 h-3 rounded-sm bg-gradient-to-r from-[#F16565] to-[#E04040]" />
-        <span class="text-[10px] font-mono text-gray-500">≥6 (critical)</span>
+        <span class="text-[10px] font-mono text-text-muted">≥6 (critical)</span>
       </div>
       <div class="flex items-center gap-1.5">
         <div class="w-3 h-3 rounded-sm bg-gradient-to-r from-[#F5A65B] to-[#E08830]" />
-        <span class="text-[10px] font-mono text-gray-500">≥3 (warning)</span>
+        <span class="text-[10px] font-mono text-text-muted">≥3 (warning)</span>
       </div>
       <div class="flex items-center gap-1.5">
         <div class="w-3 h-3 rounded-sm bg-gradient-to-r from-[#7B96F5] to-[#6070D0]" />
-        <span class="text-[10px] font-mono text-gray-500">&lt;3 (normal)</span>
+        <span class="text-[10px] font-mono text-text-muted">&lt;3 (normal)</span>
       </div>
     </div>
   </div>

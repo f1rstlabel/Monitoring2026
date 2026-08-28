@@ -8,18 +8,18 @@
         @input="handleInput"
         @keydown.enter.prevent="handleEnter"
         placeholder="Ketik kata kunci atau pilih lokasi..."
-        class="w-full bg-[#18181B] border border-[#26262A] rounded-lg pl-3 pr-8 py-2 text-xs text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+        class="w-full bg-card border border-subtle rounded-lg pl-3 pr-8 py-2 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle"
       />
-      <ChevronDown class="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <ChevronDown class="w-4 h-4 text-text-secondary absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
     </div>
 
     <!-- Dropdown Menu -->
     <div
       v-if="isOpen"
-      class="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[#151517] border border-[#26262A] rounded-lg shadow-xl z-50 divide-y divide-[#26262A] text-xs"
+      class="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-surface border border-subtle rounded-lg shadow-xl z-50 divide-y divide-subtle text-xs"
     >
       <!-- Loading indicator -->
-      <div v-if="isLoading" class="p-2 text-center text-gray-500 font-mono text-[11px]">
+      <div v-if="isLoading" class="p-2 text-center text-text-muted font-mono text-[11px]">
         Mencari data lokasi...
       </div>
 
@@ -29,28 +29,28 @@
           v-for="loc in filteredLocations"
           :key="loc.id"
           @click="selectLocation(loc)"
-          class="p-2.5 hover:bg-[#18181B] cursor-pointer flex items-center justify-between transition-colors"
-          :class="modelValue === loc.name ? 'bg-[#7B96F5]/10 text-[#7B96F5] font-semibold' : 'text-gray-200'"
+          class="p-2.5 hover:bg-card cursor-pointer flex items-center justify-between transition-colors"
+          :class="modelValue === loc.name ? 'bg-brand-periwinkle/10 text-brand-periwinkle font-semibold' : 'text-text-main'"
         >
           <div class="flex items-center gap-2 truncate">
-            <MapPin class="w-3.5 h-3.5 text-[#7B96F5] shrink-0" />
+            <MapPin class="w-3.5 h-3.5 text-brand-periwinkle shrink-0" />
             <span class="truncate">{{ loc.name }}</span>
           </div>
-          <Check v-if="modelValue === loc.name" class="w-3.5 h-3.5 text-[#7B96F5] shrink-0" />
+          <Check v-if="modelValue === loc.name" class="w-3.5 h-3.5 text-brand-periwinkle shrink-0" />
         </div>
 
         <!-- Create new location option when query doesn't match an existing location exactly -->
         <div
           v-if="query.trim() && !exactMatch"
           @click="createNewLocation"
-          class="p-2.5 hover:bg-[#7B96F5]/15 cursor-pointer text-[#7B96F5] font-semibold flex items-center gap-2 transition-colors bg-[#7B96F5]/5"
+          class="p-2.5 hover:bg-brand-periwinkle/15 cursor-pointer text-brand-periwinkle font-semibold flex items-center gap-2 transition-colors bg-brand-periwinkle/5"
         >
           <Plus class="w-3.5 h-3.5 shrink-0" />
           <span>Buat lokasi baru: "{{ query.trim() }}"</span>
         </div>
 
         <!-- Empty state when no query and no locations -->
-        <div v-if="filteredLocations.length === 0 && !query.trim()" class="p-3 text-center text-gray-500 text-[11px]">
+        <div v-if="filteredLocations.length === 0 && !query.trim()" class="p-3 text-center text-text-muted text-[11px]">
           Belum ada data lokasi. Ketik nama lokasi baru di atas.
         </div>
       </template>

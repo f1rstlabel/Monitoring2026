@@ -1,52 +1,52 @@
 <template>
   <Modal :is-open="isOpen" title="Configure Telegram Bot Integration" @close="$emit('close')">
     <template #icon>
-      <Send class="w-5 h-5 text-[#7B96F5]" />
+      <Send class="w-5 h-5 text-brand-periwinkle" />
     </template>
 
     <form @submit.prevent="handleSave" class="space-y-4 text-xs">
       <!-- Bot Token -->
       <div class="space-y-1.5">
-        <label class="block font-mono uppercase text-[10px] text-gray-400 font-medium">Telegram Bot Token *</label>
+        <label class="block font-mono uppercase text-[10px] text-text-secondary font-medium">Telegram Bot Token *</label>
         <div class="relative">
           <input
             v-model="form.botToken"
             :type="showToken ? 'text' : 'password'"
             required
             placeholder="e.g. 7129847123:AAH3k891k1zL0P921..."
-            class="w-full bg-[#18181B] border border-[#26262A] rounded-lg pl-3 pr-10 py-2 font-mono text-gray-200 focus:outline-none focus:border-[#7B96F5]"
+            class="w-full bg-card border border-subtle rounded-lg pl-3 pr-10 py-2 font-mono text-text-main focus:outline-none focus:border-brand-periwinkle"
           />
           <button
             type="button"
             @click="showToken = !showToken"
-            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-main"
           >
             <Eye v-if="!showToken" class="w-4 h-4" />
             <EyeOff v-else class="w-4 h-4" />
           </button>
         </div>
-        <p class="text-[10px] text-gray-500">Obtain your bot token from @BotFather on Telegram</p>
+        <p class="text-[10px] text-text-muted">Obtain your bot token from @BotFather on Telegram</p>
       </div>
 
       <!-- Chat / Channel ID -->
       <div class="space-y-1.5">
-        <label class="block font-mono uppercase text-[10px] text-gray-400 font-medium">Chat or Channel ID *</label>
+        <label class="block font-mono uppercase text-[10px] text-text-secondary font-medium">Chat or Channel ID *</label>
         <input
           v-model="form.chatId"
           type="text"
           required
           placeholder="e.g. -1001982736412 or @SanocAlerts"
-          class="w-full bg-[#18181B] border border-[#26262A] rounded-lg px-3 py-2 font-mono text-gray-200 focus:outline-none focus:border-[#7B96F5]"
-          :class="chatIdError ? 'border-[#F16565]' : ''"
+          class="w-full bg-card border border-subtle rounded-lg px-3 py-2 font-mono text-text-main focus:outline-none focus:border-brand-periwinkle"
+          :class="chatIdError ? 'border-status-down' : ''"
         />
         <!-- Bug 1: inline validation error -->
-        <p v-if="chatIdError" class="text-[10px] text-[#F16565] font-semibold">{{ chatIdError }}</p>
-        <p class="text-[10px] text-gray-500">
+        <p v-if="chatIdError" class="text-[10px] text-status-down font-semibold">{{ chatIdError }}</p>
+        <p class="text-[10px] text-text-muted">
           To get your chat ID: message <b>@userinfobot</b> on Telegram for a personal chat ID.
           For a group/channel, add your bot to it, then check <b>@RawDataBot</b> or use
           <code>getUpdates</code> to find the negative group ID (e.g., <b>-1001234567890</b>).
         </p>
-        <p class="text-[10px] text-gray-500">Ensure the bot is added as an Administrator in your target channel</p>
+        <p class="text-[10px] text-text-muted">Ensure the bot is added as an Administrator in your target channel</p>
       </div>
 
       <!-- Test Connection Button & Inline Result Banner -->
@@ -56,18 +56,18 @@
             type="button"
             :disabled="isTesting || !form.botToken || !form.chatId"
             @click="handleTest"
-            class="px-3.5 py-1.5 rounded-lg border border-[#7B96F5]/40 bg-[#7B96F5]/10 text-[#7B96F5] hover:bg-[#7B96F5]/20 font-medium text-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            class="px-3.5 py-1.5 rounded-lg border border-brand-periwinkle/40 bg-brand-periwinkle/10 text-brand-periwinkle hover:bg-brand-periwinkle/20 font-medium text-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
             <Send class="w-3.5 h-3.5" />
             {{ isTesting ? 'Testing...' : 'Test Connection' }}
           </button>
-          <span v-if="testResult" class="text-[11px] font-mono" :class="testResult.success ? 'text-[#34D399]' : 'text-[#F16565]'">
+          <span v-if="testResult" class="text-[11px] font-mono" :class="testResult.success ? 'text-status-up' : 'text-status-down'">
             {{ testResult.success ? '✓ Verified' : '✗ Failed' }}
           </span>
         </div>
 
         <!-- Result Banner -->
-        <div v-if="testResult" class="mt-2 p-3 rounded-lg border text-xs" :class="testResult.success ? 'bg-[#34D399]/10 border-[#34D399]/30 text-[#34D399]' : 'bg-[#F16565]/10 border-[#F16565]/30 text-[#F16565]'">
+        <div v-if="testResult" class="mt-2 p-3 rounded-lg border text-xs" :class="testResult.success ? 'bg-status-up/10 border-status-up/30 text-status-up' : 'bg-status-down/10 border-status-down/30 text-status-down'">
           <div class="flex items-start gap-2">
             <CheckCircle2 v-if="testResult.success" class="w-4 h-4 shrink-0 mt-0.5" />
             <AlertCircle v-else class="w-4 h-4 shrink-0 mt-0.5" />
@@ -85,7 +85,7 @@
         <button
           type="button"
           @click="$emit('close')"
-          class="px-4 py-2 rounded-lg border border-[#26262A] text-gray-400 hover:text-gray-200 text-xs font-medium transition-colors"
+          class="px-4 py-2 rounded-lg border border-subtle text-text-secondary hover:text-text-main text-xs font-medium transition-colors"
         >
           Cancel
         </button>
@@ -93,7 +93,7 @@
           type="button"
           :disabled="isSaving || !form.botToken || !form.chatId"
           @click="handleSave"
-          class="px-5 py-2 rounded-lg bg-[#7B96F5] hover:bg-[#95ABF7] text-white font-semibold text-xs shadow-md shadow-[#7B96F5]/20 transition-all flex items-center gap-2 disabled:opacity-50"
+          class="px-5 py-2 rounded-lg bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-semibold text-xs shadow-md shadow-brand-periwinkle/20 transition-all flex items-center gap-2 disabled:opacity-50"
         >
           <Save class="w-4 h-4" />
           {{ isSaving ? 'Saving...' : 'Save Configuration' }}

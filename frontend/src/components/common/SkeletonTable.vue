@@ -1,11 +1,11 @@
 <template>
-  <div class="bg-[#151517] border border-[#26262A] rounded-xl overflow-hidden" aria-hidden="true">
+  <div class="bg-surface border border-subtle rounded-xl overflow-hidden" aria-hidden="true">
     <!-- Header row -->
-    <div class="bg-[#18181B] border-b border-[#26262A] flex items-center gap-4 px-4 py-3">
+    <div class="bg-card border-b border-subtle flex items-center gap-4 px-4 py-3">
       <Skeleton v-for="i in cols" :key="i" height="0.625rem" :width="colWidths[(i - 1) % colWidths.length]" />
     </div>
     <!-- Data rows -->
-    <div class="divide-y divide-[#26262A]">
+    <div class="divide-y divide-subtle">
       <div
         v-for="row in rows"
         :key="row"
