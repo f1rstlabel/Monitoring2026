@@ -3,23 +3,92 @@
 @tailwind utilities;
 
 :root {
-  --bg-main: #0A0A0B;
-  --bg-surface: #151517;
-  --bg-card: #18181B;
-  --bg-hover: #222226;
-  --border-color: #26262A;
-  --text-primary: #F3F4F6;
-  --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
-  --accent-blue: #7B96F5;
-  --accent-blue-hover: #95ABF7;
+  color-scheme: light;
+  /* Shared light palette: cool neutrals with one periwinkle accent. */
+  --bg-main: #F4F6F8;
+  --bg-main-rgb: 244 246 248;
+  --bg-surface: #ECF0F4;
+  --bg-surface-rgb: 236 240 244;
+  --bg-card: #FFFFFF;
+  --bg-card-rgb: 255 255 255;
+  --bg-hover: #E3E9F0;
+  --bg-hover-rgb: 227 233 240;
+  --border-color: #D5DDE7;
+  --border-color-rgb: 213 221 231;
+  --text-primary: #182231;
+  --text-primary-rgb: 24 34 49;
+  --text-secondary: #526174;
+  --text-secondary-rgb: 82 97 116;
+  --text-muted: #7C8999;
+  --text-muted-rgb: 124 137 153;
+
+  --accent-blue: #657BE8;
+  --accent-blue-rgb: 101 123 232;
+  --accent-blue-hover: #5068D5;
+  --accent-blue-hover-rgb: 80 104 213;
   --accent-blue-bg: rgba(123, 150, 245, 0.15);
+
+  --status-up: #12805C;
+  --status-up-rgb: 18 128 92;
+  --status-up-bg: rgba(18, 128, 92, 0.12);
+  --status-down: #C73F4A;
+  --status-down-rgb: 199 63 74;
+  --status-down-bg: rgba(199, 63, 74, 0.12);
+  --status-down-border: rgba(199, 63, 74, 0.35);
+  --status-warning: #B46A13;
+  --status-warning-rgb: 180 106 19;
+  --status-warning-bg: rgba(180, 106, 19, 0.12);
+
+  --bg-terminal: #F8FAFC;
+  --chart-grid: #D5DDE7;
+  --chart-label: #526174;
+  --control-border: #C4CEDA;
+  --shadow-color: 24 39 58;
+  --focus-ring: #657BE8;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --bg-main: #0B0F14;
+  --bg-main-rgb: 11 15 20;
+  --bg-surface: #11171F;
+  --bg-surface-rgb: 17 23 31;
+  --bg-card: #171E27;
+  --bg-card-rgb: 23 30 39;
+  --bg-hover: #202A36;
+  --bg-hover-rgb: 32 42 54;
+  --border-color: #2B3745;
+  --border-color-rgb: 43 55 69;
+  --text-primary: #EEF3F8;
+  --text-primary-rgb: 238 243 248;
+  --text-secondary: #A9B5C4;
+  --text-secondary-rgb: 169 181 196;
+  --text-muted: #738195;
+  --text-muted-rgb: 115 129 149;
+
+  --accent-blue: #8798FF;
+  --accent-blue-rgb: 135 152 255;
+  --accent-blue-hover: #95ABF7;
+  --accent-blue-hover-rgb: 149 171 247;
+  --accent-blue-bg: rgba(135, 152, 255, 0.16);
+
   --status-up: #3ECF8E;
+  --status-up-rgb: 62 207 142;
   --status-up-bg: rgba(62, 207, 142, 0.12);
   --status-down: #F16565;
+  --status-down-rgb: 241 101 101;
   --status-down-bg: rgba(241, 101, 101, 0.12);
+  --status-down-border: rgba(241, 101, 101, 0.35);
   --status-warning: #F5A65B;
+  --status-warning-rgb: 245 166 91;
   --status-warning-bg: rgba(245, 166, 91, 0.12);
+
+  --bg-terminal: #0E141B;
+  --chart-grid: #2B3745;
+  --chart-label: #A9B5C4;
+  --control-border: #354354;
+  --shadow-color: 0 0 0;
+  --focus-ring: #8798FF;
 }
 
 @layer base {
@@ -27,8 +96,67 @@
     background-color: var(--bg-main);
     color: var(--text-primary);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    @apply antialiased transition-colors duration-150;
+    @apply antialiased transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  ::selection {
+    background: var(--accent-blue);
+    color: #ffffff;
+  }
+
+  input,
+  select,
+  textarea {
+    color-scheme: inherit;
+  }
+
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    border-color: var(--control-border);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 0.9;
+  }
+
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'] {
+    accent-color: var(--accent-blue);
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: ease-out;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  button:active:not(:disabled),
+  a:active {
+    transform: translateY(1px);
   }
 
   /* Technical values (IPs, MACs, timestamps) use monospace */
@@ -50,6 +178,29 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
+  }
+}
+
+@layer utilities {
+  /* Legacy status utilities remain theme-safe while components migrate to semantic names. */
+  :where(.text-red-200, .text-red-300, .text-red-400, .text-red-500) {
+    color: var(--status-down);
+  }
+
+  :where(.text-amber-300, .text-amber-400, .text-amber-500) {
+    color: var(--status-warning);
+  }
+
+  :where(.text-emerald-300, .text-emerald-400, .text-emerald-500) {
+    color: var(--status-up);
+  }
+
+  .bg-terminal {
+    background-color: var(--bg-terminal);
+  }
+
+  .scrollbar-thumb-theme {
+    scrollbar-color: var(--border-color) var(--bg-terminal);
   }
 }
 
