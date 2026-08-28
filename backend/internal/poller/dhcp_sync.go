@@ -64,7 +64,12 @@ func (w *DHCPSyncWorker) Start() {
 }
 
 func (w *DHCPSyncWorker) Stop() {
-	close(w.stopChan)
+	select {
+	case <-w.stopChan:
+		// already closed
+	default:
+		close(w.stopChan)
+	}
 }
 
 func (w *DHCPSyncWorker) runSync() {

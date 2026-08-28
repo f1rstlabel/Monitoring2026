@@ -259,17 +259,28 @@ func (r *PostgresDeviceRepository) UpdateLastKnownIP(deviceID, newIP string) err
 	return err
 }
 
-func (r *PostgresDeviceRepository) GetIPChangeLogs(limit int) ([]domain.IPChangeEvent, error) {
+func (r *PostgresDeviceRepository) GetIPChangeLogs(page, limit int) ([]domain.IPChangeEvent, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	var totalCount int
+	err := r.db.QueryRow(`SELECT COUNT(*) FROM ip_change_log`).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	query := `
 		SELECT i.id, i.device_id, d.name as device_name, i.old_ip, i.new_ip, i.created_at
 		FROM ip_change_log i
 		LEFT JOIN devices d ON i.device_id = d.id
 		ORDER BY i.created_at DESC
-		LIMIT $1
+		LIMIT $1 OFFSET $2
 	`
-	rows, err := r.db.Query(query, limit)
+	rows, err := r.db.Query(query, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -278,7 +289,7 @@ func (r *PostgresDeviceRepository) GetIPChangeLogs(limit int) ([]domain.IPChange
 		var l domain.IPChangeEvent
 		var deviceName sql.NullString
 		if err := rows.Scan(&l.ID, &l.DeviceID, &deviceName, &l.OldIP, &l.NewIP, &l.Timestamp); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if deviceName.Valid {
 			l.DeviceName = deviceName.String
@@ -288,9 +299,9 @@ func (r *PostgresDeviceRepository) GetIPChangeLogs(limit int) ([]domain.IPChange
 		logs = append(logs, l)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return logs, nil
+	return logs, totalCount, nil
 }
 
 func (r *PostgresDeviceRepository) UpdateStatus(deviceID string, status domain.DeviceStatus) error {
