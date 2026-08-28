@@ -8,26 +8,29 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: {
-          bg: '#0A0A0B',
-          surface: '#151517',
-          card: '#18181B',
-          border: '#26262A',
-          hover: '#222226'
-        },
+        main: 'rgb(var(--bg-main-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
+        card: 'rgb(var(--bg-card-rgb) / <alpha-value>)',
+        subtle: 'rgb(var(--border-color-rgb) / <alpha-value>)',
+        hover: 'rgb(var(--bg-hover-rgb) / <alpha-value>)',
         brand: {
-          periwinkle: '#7B96F5',
-          'periwinkle-hover': '#95ABF7',
-          'periwinkle-muted': 'rgba(123, 150, 245, 0.15)',
+          periwinkle: 'rgb(var(--accent-blue-rgb) / <alpha-value>)',
+          'periwinkle-hover': 'rgb(var(--accent-blue-hover-rgb) / <alpha-value>)',
+          'periwinkle-muted': 'rgb(var(--accent-blue-rgb) / 0.15)',
         },
         status: {
-          up: '#3ECF8E',
-          'up-bg': 'rgba(62, 207, 142, 0.12)',
-          down: '#F16565',
-          'down-bg': 'rgba(241, 101, 101, 0.12)',
-          'down-border': 'rgba(241, 101, 101, 0.35)',
-          warning: '#F5A65B',
-          'warning-bg': 'rgba(245, 166, 91, 0.12)'
+          up: 'rgb(var(--status-up-rgb) / <alpha-value>)',
+          'up-bg': 'rgb(var(--status-up-rgb) / 0.12)',
+          down: 'rgb(var(--status-down-rgb) / <alpha-value>)',
+          'down-bg': 'rgb(var(--status-down-rgb) / 0.12)',
+          'down-border': 'var(--status-down-border)',
+          warning: 'rgb(var(--status-warning-rgb) / <alpha-value>)',
+          'warning-bg': 'rgb(var(--status-warning-rgb) / 0.12)'
+        },
+        text: {
+          main: 'rgb(var(--text-primary-rgb) / <alpha-value>)',
+          secondary: 'rgb(var(--text-secondary-rgb) / <alpha-value>)',
+          muted: 'rgb(var(--text-muted-rgb) / <alpha-value>)'
         }
       },
       fontFamily: {

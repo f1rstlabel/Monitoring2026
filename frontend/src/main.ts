@@ -13,4 +13,7 @@ app.use(createPinia());
 app.use(router);
 app.use(VueApexCharts as any);
 
-app.mount('#app');
+// Wait until the initial route is resolved so /login never briefly renders the dashboard.
+router.isReady().then(() => {
+  app.mount('#app');
+});
