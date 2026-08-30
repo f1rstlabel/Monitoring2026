@@ -769,6 +769,10 @@ func (h *Handler) GetDeviceByID(c *gin.Context) {
 	id := c.Param("id")
 	device, err := h.deviceRepo.GetByID(id)
 	if err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Device not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
@@ -833,7 +837,7 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 
 	createdDev, err := h.deviceRepo.Create(&dev)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create device"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to create device: " + err.Error()})
 		return
 	}
 
@@ -885,7 +889,7 @@ func (h *Handler) UpdateDevice(c *gin.Context) {
 
 	err := h.deviceRepo.Update(&dev)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update device"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to update device: " + err.Error()})
 		return
 	}
 
@@ -896,7 +900,11 @@ func (h *Handler) DeleteDevice(c *gin.Context) {
 	id := c.Param("id")
 	err := h.deviceRepo.Delete(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to delete device"})
+		if strings.Contains(err.Error(), "no rows in result set") {
+			c.JSON(http.StatusNotFound, gin.H{"message": "Device not found"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Failed to delete device: " + err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
