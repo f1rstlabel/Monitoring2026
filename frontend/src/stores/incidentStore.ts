@@ -50,7 +50,7 @@ export const useIncidentStore = defineStore('incidents', () => {
       if (found) {
         currentIncident.value = found;
       } else {
-        currentIncident.value = generateInitialIncidents()[0];
+        throw e;
       }
     } finally {
       isLoading.value = false;
