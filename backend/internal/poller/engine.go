@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -1315,22 +1314,7 @@ func (e *Engine) icmpCheckWithLatency(ip string) (bool, int64) {
 		return true, lat
 	}
 
-	// Fallback to TCP port check with independent per-port timing
-	for _, port := range []string{"80", "443", "22", "53", "8080"} {
-		tcpStart := time.Now()
-		conn, tcpErr := net.DialTimeout("tcp", net.JoinHostPort(ip, port), 600*time.Millisecond)
-		if tcpErr == nil {
-			conn.Close()
-			tcpLat := time.Since(tcpStart).Milliseconds()
-			if tcpLat <= 0 {
-				tcpLat = 1
-			}
-			log.Printf("[PollerEngine] TCP fallback UP for %s on port %s (latency: %dms)", ip, port, tcpLat)
-			return true, tcpLat
-		}
-	}
-
-	log.Printf("[PollerEngine] ICMP and TCP check both DOWN for %s", ip)
+	log.Printf("[PollerEngine] ICMP check DOWN for %s", ip)
 	return false, 0
 }
 
