@@ -245,6 +245,7 @@ func main() {
 
 	// ─── DHCP Auto-Sync Engine ──────────────────────────────────────────────────
 	dhcpSyncWorker := poller.NewDHCPSyncWorker(cfg, deviceRepo)
+	pollerEngine.SetDHCPSyncWorker(dhcpSyncWorker)
 	dhcpSyncWorker.Start()
 	defer dhcpSyncWorker.Stop()
 

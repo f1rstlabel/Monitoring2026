@@ -82,14 +82,15 @@ func (d *DebounceState) ResetAll(deviceID string) {
 // Engine is the polling coordinator. It batches devices, distributes work
 // across a goroutine worker pool, and drives status change callbacks.
 type Engine struct {
-	hub        *ws.Hub
-	pipeline   *notifier.Pipeline
+	hub          *ws.Hub
+	pipeline     *notifier.Pipeline
 	deviceRepo   repository.DeviceRepository
 	statusRepo   repository.StatusLogRepository
 	settingsRepo *repository.SettingsRepository // optional: read live settings each cycle
 	metricRepo   repository.DeviceMetricRepository
 	incidentRepo repository.IncidentRepository
 	notifyQueue  *notifier.NotifyQueue
+	dhcpWorker   *DHCPSyncWorker
 
 	cfgMu              sync.RWMutex
 	intervalSec        int
@@ -204,6 +205,10 @@ func (e *Engine) SetMetricRepo(repo repository.DeviceMetricRepository) {
 
 func (e *Engine) SetIncidentRepo(repo repository.IncidentRepository) {
 	e.incidentRepo = repo
+}
+
+func (e *Engine) SetDHCPSyncWorker(w *DHCPSyncWorker) {
+	e.dhcpWorker = w
 }
 
 // UpdateConfig atomically replaces the engine's runtime config.
@@ -330,6 +335,9 @@ func (e *Engine) Stop() {
 // TriggerPollNow forces an immediate out-of-schedule ICMP polling cycle.
 func (e *Engine) TriggerPollNow() (int, time.Time) {
 	log.Println("[PollerEngine] Manual refresh triggered via API")
+	if e.dhcpWorker != nil {
+		e.dhcpWorker.SyncNow()
+	}
 	go e.runPollCycle()
 	devices, _ := e.deviceRepo.GetAll("", "", "")
 	return len(devices), nowWIB()

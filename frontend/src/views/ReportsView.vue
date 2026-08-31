@@ -568,10 +568,10 @@ function formatLiveDuration(startedAtStr: string | undefined, status: string, du
   const parts = [];
   if (days > 0) parts.push(`${days}d`);
   if (hours > 0) parts.push(`${hours}h`);
-  parts.push(`${mins}m`);
-  parts.push(`${secs}s`);
+  if (mins > 0) parts.push(`${mins}m`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
   
-  return `${parts.join(' ')} (ongoing)`;
+  return parts.join(' ') + ' (ongoing)';
 }
 
 async function handlePrintPDF() {
