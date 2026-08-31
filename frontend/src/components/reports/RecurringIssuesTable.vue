@@ -7,7 +7,7 @@
       </div>
       <div>
         <p class="text-xs font-bold text-amber-400">Recurring Issues — Needs Technician</p>
-        <p class="text-[10px] text-text-secondary mt-0.5">Devices with ≥5 downs in the last 7 days — possible hardware fault</p>
+        <p class="text-[10px] text-text-secondary mt-0.5">Devices with ≥5 downs in the selected period — possible hardware fault</p>
       </div>
     </div>
 
@@ -58,7 +58,7 @@
       </div>
       <div>
         <p class="text-sm font-bold text-text-main">No Recurring Issues Detected</p>
-        <p class="text-xs text-text-muted mt-1 max-w-md mx-auto">All infrastructure nodes are operating stably. No devices have exceeded the flapping threshold of 5+ outages in the past 7 days.</p>
+        <p class="text-xs text-text-muted mt-1 max-w-md mx-auto">All infrastructure nodes are operating stably. No devices have exceeded the flapping threshold of 5+ outages in the selected period.</p>
       </div>
     </div>
   </div>

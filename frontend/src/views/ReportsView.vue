@@ -392,7 +392,7 @@
                     </td>
                   </tr>
                 </template>
-                <tr v-else-if="incidentStore.incidents.length === 0">
+                <tr v-else-if="filteredIncidents.length === 0">
                   <td colspan="8" class="py-10 text-center text-text-muted text-xs">
                     No active or recent incidents reported
                   </td>
@@ -405,7 +405,7 @@
         <PaginationControl
           v-model:current-page="incidentsPage"
           v-model:page-size="incidentsPageSize"
-          :total="incidentStore.incidents.length"
+          :total="filteredIncidents.length"
         />
       </div>
 
@@ -419,7 +419,7 @@
         </template>
         <ActiveIncidentsChart
           v-else
-          :incidents="incidentStore.incidents"
+          :incidents="filteredIncidents"
         />
       </div>
     </div>
@@ -433,8 +433,8 @@
       :avg-mttr-minutes="reportStore.avgMttrMinutes"
       :alert-delivery-rate="reportStore.alertDeliveryRate"
       :rows="reportStore.filteredRows"
-      :flap-devices="reportStore.flapDevices"
-      :incidents="incidentStore.incidents"
+      :flap-devices="reportStore.filteredFlapDevices"
+      :incidents="filteredIncidents"
     />
   </div>
 </template>
@@ -478,12 +478,49 @@ const paginatedDowntimeRows = computed(() => {
 
 const paginatedFlapDevices = computed(() => {
   const start = (recurringPage.value - 1) * recurringPageSize.value;
-  return reportStore.flapDevices.slice(start, start + recurringPageSize.value);
+  return reportStore.filteredFlapDevices.slice(start, start + recurringPageSize.value);
+});
+
+const filteredIncidents = computed(() => {
+  let filtered = incidentStore.incidents;
+
+  // Filter by date range based on reportStore.period
+  const now = new Date().getTime();
+  let fromTime = 0;
+  if (reportStore.period === 'daily') fromTime = now - 24 * 3600 * 1000;
+  else if (reportStore.period === 'weekly') fromTime = now - 7 * 24 * 3600 * 1000;
+  else if (reportStore.period === 'monthly') fromTime = now - 30 * 24 * 3600 * 1000;
+  else if (reportStore.period === 'custom' && reportStore.startDate) {
+    fromTime = new Date(reportStore.startDate).getTime();
+  }
+  let toTime = now;
+  if (reportStore.period === 'custom' && reportStore.endDate) {
+    const d = new Date(reportStore.endDate);
+    d.setHours(23, 59, 59, 999);
+    toTime = d.getTime();
+  }
+  
+  if (fromTime > 0) {
+    filtered = filtered.filter(inc => {
+      const incTime = new Date(inc.startedAt || inc.startTime).getTime();
+      return incTime >= fromTime && incTime <= toTime;
+    });
+  }
+
+  if (reportStore.locationFilter !== 'All') {
+    filtered = filtered.filter(inc => inc.location && inc.location.includes(reportStore.locationFilter));
+  }
+  if (reportStore.deviceTypeFilter !== 'All') {
+    filtered = filtered.filter(inc => inc.deviceType === reportStore.deviceTypeFilter);
+  }
+  // Always filter only ACTIVE incidents for this tab
+  filtered = filtered.filter(inc => inc.status === 'ACTIVE');
+  return filtered;
 });
 
 const paginatedIncidents = computed(() => {
   const start = (incidentsPage.value - 1) * incidentsPageSize.value;
-  return incidentStore.incidents.slice(start, start + incidentsPageSize.value);
+  return filteredIncidents.value.slice(start, start + incidentsPageSize.value);
 });
 
 // Reset page numbers to 1 when filters or tabs change
@@ -508,6 +545,9 @@ const isPrintRendered = ref(false);
 function setPeriod(p: 'daily' | 'weekly' | 'monthly' | 'custom') {
   reportStore.period = p;
   reportStore.fetchReport();
+  // Refetch all incidents so we can filter them by date locally.
+  // User requested to ONLY show active incidents in this tab.
+  incidentStore.fetchIncidents({ status: 'ACTIVE' });
 }
 
 function formatLiveDuration(startedAtStr: string | undefined, status: string, durationStr?: string) {
@@ -550,7 +590,7 @@ async function handlePrintPDF() {
 
 onMounted(() => {
   reportStore.fetchReport();
-  incidentStore.fetchIncidents();
+  incidentStore.fetchIncidents({ status: 'ACTIVE' });
   durationInterval = setInterval(() => {
     now.value = Date.now();
   }, 1000);

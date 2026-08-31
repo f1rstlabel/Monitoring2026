@@ -1288,9 +1288,10 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 				waLogs := []domain.NotificationLogRow{}
 				tgLogs := []domain.NotificationLogRow{}
 				for _, log := range inc.NotificationLog {
-					if log.Channel == "WhatsApp" {
+					switch log.Channel {
+					case "WhatsApp":
 						waLogs = append(waLogs, log)
-					} else if log.Channel == "Telegram" {
+					case "Telegram":
 						tgLogs = append(tgLogs, log)
 					}
 				}
@@ -2388,9 +2389,32 @@ func (h *Handler) GetReport(c *gin.Context) {
 }
 
 func (h *Handler) GetFlapDevices(c *gin.Context) {
+	periodOpt := c.Query("period")
+	startDateOpt := c.Query("startDate")
+	endDateOpt := c.Query("endDate")
+
 	now := time.Now()
-	sevenDaysAgo := now.Add(-7 * 24 * time.Hour)
-	reports, err := h.statusRepo.GetFlapDevices(5, sevenDaysAgo, now)
+	var from time.Time
+	if periodOpt == "daily" {
+		from = now.Add(-24 * time.Hour)
+	} else if periodOpt == "weekly" {
+		from = now.Add(-7 * 24 * time.Hour)
+	} else if periodOpt == "custom" && startDateOpt != "" {
+		if t, err := time.Parse("2006-01-02", startDateOpt); err == nil {
+			from = t
+		} else {
+			from = now.Add(-30 * 24 * time.Hour)
+		}
+		if endDateOpt != "" {
+			if t, err := time.Parse("2006-01-02", endDateOpt); err == nil {
+				now = t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			}
+		}
+	} else {
+		from = now.Add(-30 * 24 * time.Hour)
+	}
+
+	reports, err := h.statusRepo.GetFlapDevices(5, from, now)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch flap reports"})
 		return
