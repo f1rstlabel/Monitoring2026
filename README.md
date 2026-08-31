@@ -1,124 +1,48 @@
-# SANOC — Smart Agent and Network Operations Center
+# SANOC (Smart Agent and Network Operation Centers)
 
-> **Enterprise System Monitoring & SLA Compliance Audit Platform — Infrastructure NOC**  
-> *Sistem Monitoring Infrastruktur Jaringan & Audit Kepatuhan SLA Real-time*  
-> **Diskominfo Pemerintah Daerah Provinsi Jawa Barat — 2026**
+## Overview
+SANOC adalah sistem pemantauan dan kendali jaringan terpadu (Network Monitoring System) yang dikembangkan untuk regional Jawa Barat. Sistem ini dibangun dengan pendekatan arsitektur *Full-Stack* (Vue.js dan Golang) untuk memantau ketersediaan perangkat jaringan secara *real-time*, mengelola penyebaran notifikasi insiden, serta mengintegrasikan kecerdasan buatan untuk membantu administrator melakukan investigasi masalah jaringan.
 
----
+## Problem
+Infrastruktur jaringan skala besar sering mengalami gangguan yang terlambat terdeteksi. Ketika terjadi insiden (misalnya *node* terputus atau *timeout* berulang), tim *Network Engineer* sering kesulitan melacak runtutan kejadian secara pasti, merangkum *Root Cause Analysis* (RCA) dengan cepat, serta menghadapi kendala dalam mendistribusikan notifikasi insiden secara sistematis kepada tim piket melalui saluran yang tepat (seperti WhatsApp atau Telegram).
 
-## 🌐 Dokumentasi & Panduan Lengkap (Documentation)
+## Solution
+Membangun sebuah sistem pintar (*Smart Agent*) yang melakukan *polling* status perangkat keras jaringan secara berkala, mengirimkan notifikasi peringatan multi-saluran secara dinamis ketika ambang batas kegagalan tercapai, merekam garis waktu (*timeline*) insiden secara rinci, dan menyediakan asisten kecerdasan buatan (AI Copilot) untuk membantu memandu dan mendiagnosa akar permasalahan secara instan.
 
-Daftar modul panduan teknis yang tersedia di folder [`/docs`](./docs/README.md):
+## Fitur-fitur Utama
+- **Dashboard Real-time**: Memantau seluruh *uptime* dan *downtime* infrastruktur jaringan secara visual dengan indikator yang diperbarui seketika menggunakan protokol WebSocket.
+- **Incident Investigation & Timeline**: Garis waktu yang merekam jejak kronologis setiap insiden dengan presisi. Meliputi kegagalan *ping* (ICMP) tahap awal, proses pengiriman notifikasi, kegagalan (*fallback* ke saluran alternatif), hingga detik di mana perangkat dinyatakan kembali *online*.
+- **Smart Notification Gateway**: Pengiriman peringatan insiden cerdas yang mampu mencoba menghubungi teknisi NOC melalui WhatsApp terlebih dahulu, dan secara otomatis melakukan *fallback* ke Telegram jika WhatsApp terdeteksi gagal terkirim atau luring.
+- **AI Copilot (Gemini Integration)**: Modul asisten kecerdasan buatan yang siap membantu *Network Engineer*. AI ini mempermudah pembuatan *Root Cause Analysis* (RCA), meringkas status kinerja jaringan harian, dan bahkan memberikan panduan draf pelaporan insiden kepada pimpinan.
+- **Perlindungan Login Aman**: Antarmuka masuk (Login) dilindungi dengan otentikasi JWT (JSON Web Token) dan dilengkapi oleh validasi bot/anti-spam menggunakan **Google reCAPTCHA**.
 
-- 🏛️ **[01 — Arsitektur Sistem (System Architecture)](./docs/01-architecture.md)**
-- 📖 **[02 — Panduan Operasional & Penggunaan (Usage Guide)](./docs/02-usage-guide.md)**
-- ⚡ **[03 — Kebutuhan Non-Fungsional & Keamanan (NFR/NFSR)](./docs/03-nfr-nfsr.md)**
-- 👥 **[04 — Diagram Use Case (Use Case Diagram)](./docs/04-use-case-diagram.md)**
-- 🔀 **[05 — Diagram Alur Polling & Notifikasi (Flowchart)](./docs/05-flowchart.md)**
-- 🔄 **[06 — Alur Proses Bisnis NOC (Business Flow)](./docs/06-business-flow.md)**
-- 🏊 **[07 — Diagram Aktivitas Swimlane (Activity Diagram)](./docs/07-activity-diagram-swimlane.md)**
-- ⏱️ **[08 — Diagram Sekuensial (Sequence Diagram)](./docs/08-sequence-diagram.md)**
-- 🧱 **[09 — Diagram Kelas Backend (Class Diagram)](./docs/09-class-diagram.md)**
-- 🗄️ **[10 — Skema Relasi Database (ERD)](./docs/10-erd.md)**
-- 💾 **[11 — Manajemen Data & Memori (Data Management)](./docs/11-data-and-memory-management.md)**
-- 🛠️ **[12 — Panduan Instalasi Lokal (Installation)](./docs/12-installation.md)**
-- 🐳 **[13 — Pengerahan Menggunakan Docker (Docker Deployment)](./docs/13-docker-deployment.md)**
-- 🌿 **[14 — Alur Kerja Git Branching (Git Workflow)](./docs/14-git-branching-workflow.md)**
-- 🔐 **[15 — Keamanan & Konfigurasi TOTP MFA (Security & MFA)](./docs/15-recaptcha-setup.md)**
-- 🚀 **[16 — Panduan Pengerahan Server Produksi (Production Deployment)](./docs/16-deployment.md)**
-- 📧 **[17 — Konfigurasi Email SMTP & OTP Produksi (SMTP Gateway)](./docs/17-smtp-email-configuration.md)**
+## Implementation
+- **Dibangun dengan arsitektur terpisah (*decoupled*)**: **Vue.js 3** untuk Frontend dan **Golang** (Go) untuk Backend
+- **Database Terintegrasi**: Menggunakan **PostgreSQL** untuk menyimpan data perangkat dan histori insiden, serta **Redis** untuk *caching* dan optimasi antrian
+- **Sistem *Polling***: Mesin internal melakukan pemantauan berbasis ICMP secara *real-time* ke perangkat-perangkat terdaftar
+- **Notifikasi Pintar**: Distribusi pesan dikelola secara hierarkis menggunakan *Sidecar* berbasis **Node.js** khusus untuk WhatsApp Gateway dan native API untuk Telegram Bot
+- **Integrasi AI**: **Google Gemini API** dihubungkan ke sistem sebagai AI Copilot interaktif untuk *Root Cause Analysis* (RCA) dan rangkuman harian
+- **Keamanan**: Sistem dilindungi dengan otentikasi JWT dan anti-spam **reCAPTCHA**
 
----
+## Result
+Sistem ini memungkinkan tim NOC (Network Operations Center) memantau infrastruktur berskala besar secara proaktif dari satu dasbor *real-time*. Ketika suatu jaringan atau perangkat terputus, insiden langsung terekam lengkap dengan *timeline*-nya, notifikasi terdistribusi ke ponsel teknisi dalam hitungan detik (via WA/Telegram), dan asisten AI secara signifikan mempercepat proses analisis sehingga *downtime* jaringan dapat diminimalisir dengan efektif.
 
-## 🇬🇧 English Documentation
-
-### 📌 Project Overview
-**SANOC (Smart Agent and Network Operations Center)** is an enterprise-grade network infrastructure monitoring and SLA compliance auditing system developed for **Diskominfo Pemerintah Daerah Provinsi Jawa Barat**. It provides real-time automated ICMP ping and SNMP polling across regional network nodes, switches, routers, access points, and server devices.
-
-Key capabilities include:
-- **Real-Time Monitoring**: Automated ICMP & SNMP polling engine with sub-minute failure detection and debounce logic.
-- **Incident & Outage Management**: Automated incident ticket generation, live outage duration tracking, and incident resolution workflows.
-- **Multi-Channel Alert Gateway**: Real-time broadcast alerts via Baileys WhatsApp Sidecar and Telegram Bot.
-- **AI Copilot Assistant**: In-system Google Gemini AI agent assisting technicians with root cause analysis (RCA), diagnostic guidance, and executive summaries.
-- **Live SLA & Availability Analytics**: Dynamic SLA metrics, Mean Time to Recovery (MTTR), and scheduled compliance reports.
-- **Enterprise Security**: Role-based access control (RBAC), Time-based One-Time Password (TOTP) MFA, and email verification.
-
----
-
-### 📦 Technology Stack
-
-- **Backend**: Go (Golang 1.22+), Gin Web Framework, PostgreSQL 14+, Redis & Asynq (queue & rate limiting), JWT Authentication, TOTP MFA (`pquerna/otp`), Gmail SMTP Gateway.
-- **Sidecar**: Node.js 18+ with `@whiskeysockets/baileys` for native WhatsApp Web multi-device connectivity.
-- **Frontend**: Vue 3 (Composition API), Vite, TypeScript, Pinia State Store, TailwindCSS, Lucide Icons.
-- **Database Migrations**: `golang-migrate`.
+## Cara Menggunakan Aplikasi Web
+1. **Login ke Sistem**
+   Akses antarmuka web melalui peramban web (browser). Masukkan kredensial administrator Anda (Email dan Kata Sandi), dan klik/centang kotak verifikasi reCAPTCHA jika diminta, kemudian tekan **Masuk**.
+2. **Pantau Dasbor & Inventaris Perangkat**
+   Setelah masuk, Anda akan melihat *Dashboard* yang merangkum *uptime* sistem serta peta penyebaran insiden. Beralih ke menu **Devices** (Perangkat) di bilah navigasi kiri untuk menambahkan perangkat jaringan baru (IP, Nama, Grup) yang ingin Anda pantau. Sistem *backend* akan otomatis mulai melakukan *ping* (ICMP) ke *IP Address* tersebut setiap saat.
+3. **Memonitor dan Menginvestigasi Insiden**
+   Jika perangkat gagal merespons, sistem akan menghasilkan lansiran baru di halaman **Incidents**.
+   - Buka menu **Incidents**.
+   - Klik salah satu ID insiden untuk membuka mode investigasi.
+   - Di sini Anda dapat melihat bagan **Timeline**, mulai dari perangkat gagal *ping* tahap 1, 2, dan 3, proses agregasi peringatan, hingga sistem melaporkan pengiriman peringatan melalui WhatsApp (atau Telegram).
+4. **Berinteraksi dengan AI Copilot**
+   Di layar investigasi mana pun (atau melalui ikon *AI Copilot* di sudut kanan bawah), Anda dapat meluncurkan asisten pintar. 
+   - Klik saran cepat (contoh: *"Lakukan Analisis Akar Masalah untuk insiden ini"*).
+   - Atau ketikkan pertanyaan manual seperti: *"Buatkan saya draf WhatsApp untuk dilaporkan ke pimpinan mengenai matinya server Lantai 2"*. AI akan langsung merumuskan pesannya untuk Anda.
 
 ---
-
-### 💻 Quick Start & Local Setup
-
-#### 1. Backend Setup
-```bash
-cd backend
-
-# Copy environment template
-cp .env.example .env
-
-# Run database migrations
-go run ./cmd/api --migrate
-
-# Start Backend API Server
-air
-```
-
-#### 2. WhatsApp Sidecar Setup
-```bash
-cd backend/wa-sidecar
-npm install
-node index.js
-```
-
-#### 3. Frontend Setup
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Open browser at `http://localhost:5173`.
-
----
-
-<br/>
-
----
-
-## 🇮🇩 Dokumentasi Bahasa Indonesia
-
-### 📌 Penjelasan Project
-**SANOC (Smart Agent and Network Operations Center)** adalah sistem pemantauan infrastruktur jaringan berbasis *enterprise* dan pengauditan kepatuhan SLA (*Service Level Agreement*) resmi **Diskominfo Pemerintah Daerah Provinsi Jawa Barat**. Sistem ini secara otomatis memonitor ketersediaan perangkat jaringan (router, switch, access point, server, CCTV) menggunakan protokol ICMP Ping dan SNMP Polling secara real-time.
-
-Fitur Unggulan:
-- **Monitoring Real-time**: Engine polling ICMP & SNMP otomatis dengan goroutines performa tinggi dan deteksi gangguan dalam hitungan detik.
-- **Manajemen Incident & Outage**: Pembuatan tiket kejadian otomatis, pencatatan durasi outage *live*, dan workflow penyelesaian incident.
-- **Pengiriman Notifikasi Multi-Kanal**: Pengiriman pesan peringatan seketika via WhatsApp API Gateway (broadcast ke semua target nomor teknisi & grup) dan fallback ke Telegram Bot.
-- **Verifikasi Email Asli & OTP**: Validasi alamat email real dengan pengiriman 6-digit kode OTP untuk pembuatan akun baru dan reset password profil.
-- **Laporan Kepatuhan SLA**: Perhitungan persentase Uptime SLA otomatis, pencatatan MTTR (*Mean Time to Recovery*), serta pilihan ekspor dokumen (PDF A4 full-width, Excel `.xls`, CSV `.csv`).
-- **Keamanan Tingkat Tinggi**: Autentikasi Dua Faktor (TOTP MFA via Google Authenticator / Authy), Hak Akses Berbasis Role (Admin, Pimpinan, Anggota SANOC), serta validasi berkas upload yang aman.
-
----
-
-### 📝 Ringkasan Peningkatan Sistem Terbaru
-
-1. **Standarisasi Bahasa Default Sistem ke English**:
-   - Seluruh modul operasional (Dashboard, Devices, Incidents, Reports, Settings, User Profile) distandarkan menggunakan Bahasa Inggris.
-   - **Pusat Bantuan (Help Center)** menjadi satu-satunya halaman yang memiliki tombol switcher dwibahasa (ID / EN) interaktif.
-
-2. **Verifikasi Akun & Reset Kata Sandi via Email Asli**:
-   - Setiap pembuatan akun baru oleh Admin mewajibkan alamat email aktif (disertai pemblokiran email dummy) dan verifikasi OTP 6-digit.
-   - UI Kode Verifikasi menggunakan 6 kotak input terpisah (1 kolom 1 digit) dengan dukungan auto-advance dan paste clipboard.
-   - Reset kata sandi di halaman Profil mendukung opsi Kata Sandi Saat Ini atau Verifikasi Email OTP.
-
-3. **Integrasi Global Gmail SMTP**:
-   - Pengiriman email notifikasi dan OTP menggunakan gateway Gmail SMTP (`smtp.gmail.com:587`) dengan identitas pengirim resmi `SANOC Jabar Monitoring <sanoc.noreply@gmail.com>` dan header `Reply-To`.
-
-4. **Notifikasi WhatsApp Multi-Target Broadcast**:
-   - Tombol pengujian di kartu gateway WhatsApp secara otomatis menyiarkan pesan uji coba ke seluruh target yang terdaftar (baik nomor personal teknisi maupun grup koordinasi WhatsApp).
+> **Informasi Modul Spesifik**:
+> - Lihat **[Frontend README](./frontend/README.md)** untuk panduan teknis UI, konfigurasi `.env`, dan instalasi Node.js (Vite).
+> - Lihat **[Backend README](./backend/README.md)** untuk panduan instalasi Golang, konfigurasi Database, dan *startup* WA Sidecar.
