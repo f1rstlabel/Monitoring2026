@@ -1153,115 +1153,7 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 				}
 			}
 
-			// Build full 5-phase timeline events if DB events were empty
-			if len(inc.Timeline) == 0 {
-				var targetList []string
-				if h.whatsappTargetRepo != nil {
-					if targets, err := h.whatsappTargetRepo.GetAll(); err == nil && len(targets) > 0 {
-						for _, t := range targets {
-							phone := "+" + strings.TrimPrefix(t.PhoneNumber, "+")
-							if t.Label != "" {
-								targetList = append(targetList, fmt.Sprintf("%s (%s)", t.Label, phone))
-							} else {
-								targetList = append(targetList, phone)
-							}
-						}
-					}
-				}
-				if len(targetList) == 0 {
-					envNum := os.Getenv("WHATSAPP_TARGET_NUMBER")
-					if envNum == "" {
-						envNum = "6289526788625"
-					}
-					targetList = append(targetList, fmt.Sprintf("NOC Target (+%s)", strings.TrimPrefix(envNum, "+")))
-				}
-
-				loc := inc.Location
-				if loc == "" {
-					loc = "Lantai 2"
-				}
-
-				timelineItems := []domain.EventTimelineItem{
-					{
-						ID:          "evt-1",
-						Timestamp:   inc.StartTime,
-						Title:       "Polling Check Failed",
-						Description: fmt.Sprintf("Check 1/3 failed — ICMP ping timeout for IP %s", inc.DeviceIP),
-						Severity:    "warning",
-					},
-					{
-						ID:          "evt-2",
-						Timestamp:   inc.StartTime,
-						Title:       "Polling Check Failed",
-						Description: fmt.Sprintf("Check 2/3 failed — ICMP ping timeout for IP %s", inc.DeviceIP),
-						Severity:    "warning",
-					},
-					{
-						ID:          "evt-3",
-						Timestamp:   inc.StartTime,
-						Title:       "Incident Created",
-						Description: fmt.Sprintf("Check 3/3 failed — failure threshold reached on %s (%s)", inc.DeviceName, inc.DeviceIP),
-						Severity:    "critical",
-					},
-					{
-						ID:          "evt-4",
-						Timestamp:   inc.StartTime,
-						Title:       "Aggregation Phase",
-						Description: fmt.Sprintf("Single device alert in %s — sent individually", loc),
-						Severity:    "info",
-					},
-					{
-						ID:          "evt-5",
-						Timestamp:   inc.StartTime,
-						Title:       "Rate Limit Check",
-						Description: "Rate limit OK — dispatching notification now",
-						Severity:    "info",
-					},
-					{
-						ID:          "evt-6",
-						Timestamp:   inc.StartTime,
-						Title:       "Attempting Notification (WhatsApp)",
-						Description: fmt.Sprintf("Attempting WhatsApp notification to %d configured target(s)...", len(targetList)),
-						Severity:    "info",
-						Channel:     "WhatsApp",
-					},
-				}
-
-				for idx, tgt := range targetList {
-					timelineItems = append(timelineItems, domain.EventTimelineItem{
-						ID:          fmt.Sprintf("evt-wa-%d", idx+1),
-						Timestamp:   inc.StartTime,
-						Title:       "✅ Notification Delivered (WhatsApp)",
-						Description: fmt.Sprintf("WhatsApp delivered successfully to %s", tgt),
-						Severity:    "info",
-						Channel:     "WhatsApp",
-					})
-				}
-
-				timelineItems = append(timelineItems, domain.EventTimelineItem{
-					ID:          "evt-tg-skip",
-					Timestamp:   inc.StartTime,
-					Title:       "⏭️ Telegram Skipped (Not Needed)",
-					Description: fmt.Sprintf("Telegram skipped — WhatsApp delivered successfully to %d target(s) (no fallback needed)", len(targetList)),
-					Severity:    "skipped",
-					Channel:     "Telegram",
-				})
-
-				if inc.Status == "RESOLVED" && inc.ResolvedAt != "" {
-					timelineItems = append(timelineItems, domain.EventTimelineItem{
-						ID:          "evt-resolved",
-						Timestamp:   inc.ResolvedAt,
-						Title:       "Incident Resolved — Device UP",
-						Description: fmt.Sprintf("%s recovered, ping status restored to normal", inc.DeviceName),
-						Severity:    "info",
-						Channel:     "System Engine",
-					})
-				}
-
-				inc.Timeline = timelineItems
-			}
-
-			// Hydrate notification logs from notifLogRepo or real database targets
+			// 1. Hydrate notification logs from notifLogRepo or real database targets FIRST
 			if len(inc.NotificationLog) == 0 {
 				var logs []domain.NotificationLogRow
 				if h.notifLogRepo != nil {
@@ -1294,15 +1186,17 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 
 					waStatus := "Delivered"
 					tgStatus := "Skipped"
-					for _, evt := range inc.Timeline {
-						if strings.Contains(strings.ToLower(evt.Channel), "whatsapp") || strings.Contains(strings.ToLower(evt.Title), "whatsapp") {
-							if strings.Contains(strings.ToLower(evt.Title), "failed") {
-								waStatus = "Failed"
+					if len(inc.Timeline) > 0 {
+						for _, evt := range inc.Timeline {
+							if strings.Contains(strings.ToLower(evt.Channel), "whatsapp") || strings.Contains(strings.ToLower(evt.Title), "whatsapp") {
+								if strings.Contains(strings.ToLower(evt.Title), "failed") {
+									waStatus = "Failed"
+								}
 							}
-						}
-						if strings.Contains(strings.ToLower(evt.Channel), "telegram") || strings.Contains(strings.ToLower(evt.Title), "telegram") {
-							if strings.Contains(strings.ToLower(evt.Title), "delivered") {
-								tgStatus = "Delivered"
+							if strings.Contains(strings.ToLower(evt.Channel), "telegram") || strings.Contains(strings.ToLower(evt.Title), "telegram") {
+								if strings.Contains(strings.ToLower(evt.Title), "delivered") {
+									tgStatus = "Delivered"
+								}
 							}
 						}
 					}
@@ -1344,6 +1238,190 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 					})
 				}
 				inc.NotificationLog = logs
+			}
+
+			// 2. Build full 5-phase timeline events if DB events were empty
+			if len(inc.Timeline) == 0 {
+				loc := inc.Location
+				if loc == "" {
+					loc = "Lantai 2"
+				}
+
+				timelineItems := []domain.EventTimelineItem{
+					{
+						ID:          "evt-1",
+						Timestamp:   inc.StartTime,
+						Title:       "Polling Check Failed",
+						Description: fmt.Sprintf("Check 1/3 failed — ICMP ping timeout for IP %s", inc.DeviceIP),
+						Severity:    "warning",
+					},
+					{
+						ID:          "evt-2",
+						Timestamp:   inc.StartTime,
+						Title:       "Polling Check Failed",
+						Description: fmt.Sprintf("Check 2/3 failed — ICMP ping timeout for IP %s", inc.DeviceIP),
+						Severity:    "warning",
+					},
+					{
+						ID:          "evt-3",
+						Timestamp:   inc.StartTime,
+						Title:       "Incident Created",
+						Description: fmt.Sprintf("Check 3/3 failed — failure threshold reached on %s (%s)", inc.DeviceName, inc.DeviceIP),
+						Severity:    "critical",
+					},
+					{
+						ID:          "evt-4",
+						Timestamp:   inc.StartTime,
+						Title:       "Aggregation Phase",
+						Description: fmt.Sprintf("Single device alert in %s — sent individually", loc),
+						Severity:    "info",
+					},
+					{
+						ID:          "evt-5",
+						Timestamp:   inc.StartTime,
+						Title:       "Rate Limit Check",
+						Description: "Rate limit OK — dispatching notification now",
+						Severity:    "info",
+					},
+				}
+
+				waLogs := []domain.NotificationLogRow{}
+				tgLogs := []domain.NotificationLogRow{}
+				for _, log := range inc.NotificationLog {
+					if log.Channel == "WhatsApp" {
+						waLogs = append(waLogs, log)
+					} else if log.Channel == "Telegram" {
+						tgLogs = append(tgLogs, log)
+					}
+				}
+
+				if len(waLogs) > 0 {
+					timelineItems = append(timelineItems, domain.EventTimelineItem{
+						ID:          "evt-wa-attempt",
+						Timestamp:   inc.StartTime,
+						Title:       "Attempting Notification (WhatsApp)",
+						Description: fmt.Sprintf("Attempting WhatsApp notification to %d configured target(s)...", len(waLogs)),
+						Severity:    "info",
+						Channel:     "WhatsApp",
+					})
+					
+					allWAFailedOrSkipped := true
+					for i, log := range waLogs {
+						statusIcon := "✅"
+						statusText := "Delivered successfully"
+						severity := "info"
+						
+						if strings.EqualFold(log.Status, "Failed") {
+							statusIcon = "❌"
+							statusText = "Failed to deliver"
+							severity = "critical"
+						} else if strings.EqualFold(log.Status, "Skipped") {
+							statusIcon = "⏭️"
+							statusText = "Skipped"
+							severity = "skipped"
+						} else {
+							allWAFailedOrSkipped = false
+						}
+						
+						timelineItems = append(timelineItems, domain.EventTimelineItem{
+							ID:          fmt.Sprintf("evt-wa-res-%d", i+1),
+							Timestamp:   inc.StartTime,
+							Title:       fmt.Sprintf("%s Notification %s (WhatsApp)", statusIcon, log.Status),
+							Description: fmt.Sprintf("WhatsApp %s to %s", statusText, log.Recipient),
+							Severity:    severity,
+							Channel:     "WhatsApp",
+						})
+					}
+					
+					if len(tgLogs) > 0 {
+						if allWAFailedOrSkipped {
+							timelineItems = append(timelineItems, domain.EventTimelineItem{
+								ID:          "evt-tg-attempt",
+								Timestamp:   inc.StartTime,
+								Title:       "Falling Back to Secondary Channel",
+								Description: "WhatsApp failed or skipped. Attempting Telegram notification...",
+								Severity:    "warning",
+								Channel:     "Telegram",
+							})
+							
+							for i, log := range tgLogs {
+								statusIcon := "✅"
+								severity := "info"
+								statusText := "Delivered successfully"
+								if strings.EqualFold(log.Status, "Failed") {
+									statusIcon = "❌"
+									severity = "critical"
+									statusText = "Failed to deliver"
+								} else if strings.EqualFold(log.Status, "Skipped") {
+									statusIcon = "⏭️"
+									severity = "skipped"
+									statusText = "Skipped"
+								}
+								timelineItems = append(timelineItems, domain.EventTimelineItem{
+									ID:          fmt.Sprintf("evt-tg-res-%d", i+1),
+									Timestamp:   inc.StartTime,
+									Title:       fmt.Sprintf("%s Notification %s (Telegram)", statusIcon, log.Status),
+									Description: fmt.Sprintf("Telegram %s to %s", statusText, log.Recipient),
+									Severity:    severity,
+									Channel:     "Telegram",
+								})
+							}
+						} else {
+							timelineItems = append(timelineItems, domain.EventTimelineItem{
+								ID:          "evt-tg-skip",
+								Timestamp:   inc.StartTime,
+								Title:       "⏭️ Telegram Skipped (Not Needed)",
+								Description: fmt.Sprintf("Telegram skipped — WhatsApp delivered successfully to %d target(s) (no fallback needed)", len(waLogs)),
+								Severity:    "skipped",
+								Channel:     "Telegram",
+							})
+						}
+					}
+				} else if len(tgLogs) > 0 {
+					timelineItems = append(timelineItems, domain.EventTimelineItem{
+						ID:          "evt-tg-attempt",
+						Timestamp:   inc.StartTime,
+						Title:       "Attempting Notification (Telegram)",
+						Description: fmt.Sprintf("Attempting Telegram notification to %d configured target(s)...", len(tgLogs)),
+						Severity:    "info",
+						Channel:     "Telegram",
+					})
+					for i, log := range tgLogs {
+						statusIcon := "✅"
+						severity := "info"
+						statusText := "Delivered successfully"
+						if strings.EqualFold(log.Status, "Failed") {
+							statusIcon = "❌"
+							severity = "critical"
+							statusText = "Failed to deliver"
+						} else if strings.EqualFold(log.Status, "Skipped") {
+							statusIcon = "⏭️"
+							severity = "skipped"
+							statusText = "Skipped"
+						}
+						timelineItems = append(timelineItems, domain.EventTimelineItem{
+							ID:          fmt.Sprintf("evt-tg-res-%d", i+1),
+							Timestamp:   inc.StartTime,
+							Title:       fmt.Sprintf("%s Notification %s (Telegram)", statusIcon, log.Status),
+							Description: fmt.Sprintf("Telegram %s to %s", statusText, log.Recipient),
+							Severity:    severity,
+							Channel:     "Telegram",
+						})
+					}
+				}
+
+				if inc.Status == "RESOLVED" && inc.ResolvedAt != "" {
+					timelineItems = append(timelineItems, domain.EventTimelineItem{
+						ID:          "evt-resolved",
+						Timestamp:   inc.ResolvedAt,
+						Title:       "Incident Resolved — Device UP",
+						Description: fmt.Sprintf("%s recovered, ping status restored to normal", inc.DeviceName),
+						Severity:    "info",
+						Channel:     "System Engine",
+					})
+				}
+
+				inc.Timeline = timelineItems
 			}
 
 			c.JSON(http.StatusOK, inc)
