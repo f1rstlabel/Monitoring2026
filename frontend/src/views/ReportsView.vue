@@ -557,10 +557,21 @@ function formatLiveDuration(startedAtStr: string | undefined, status: string, du
   if (!startedAtStr) return durationStr || 'Ongoing';
   const start = new Date(startedAtStr);
   const diffMs = now.value - start.getTime();
-  if (diffMs < 0) return '0m 0s';
-  const mins = Math.floor(diffMs / 60000);
-  const secs = Math.floor((diffMs % 60000) / 1000);
-  return `${mins}m ${secs}s (ongoing)`;
+  if (diffMs < 0) return '0s (ongoing)';
+  
+  const totalSecs = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  parts.push(`${mins}m`);
+  parts.push(`${secs}s`);
+  
+  return `${parts.join(' ')} (ongoing)`;
 }
 
 async function handlePrintPDF() {
