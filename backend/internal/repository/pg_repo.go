@@ -149,7 +149,38 @@ func (r *PostgresDeviceRepository) GetByMAC(mac string) (*domain.Device, error) 
 }
 
 func (r *PostgresDeviceRepository) GetDHCPDevices() ([]domain.Device, error) {
-	return r.GetAll("", "", "")
+	query := `SELECT d.id, d.name, d.type, d.mac_address, COALESCE(d.last_known_ip, ''), d.addressing_mode, COALESCE(d.model, ''), COALESCE(d.firmware_status, ''), d.status, COALESCE(d.location_id, ''), COALESCE(l.name, d.location, ''), COALESCE(d.rack, ''), d.failure_threshold, d.uptime_30d, d.down_count_7d, d.down_count_30d, d.checked_seconds_ago, COALESCE(d.last_checked, ''), COALESCE(d.snmp_enabled, false), COALESCE(d.snmp_community, 'public'), COALESCE(d.snmp_port, 161), COALESCE(d.snmp_if_index, 0), COALESCE(d.snmp_sys_name, ''), COALESCE(d.snmp_sys_descr, ''), COALESCE(d.snmp_sys_uptime, ''), COALESCE(d.snmp_sys_contact, ''), COALESCE(d.snmp_sys_location, ''), COALESCE(d.use_custom_threshold, false), d.custom_failure_threshold, COALESCE(d.created_by_user_id, ''), COALESCE(u.name, '')
+		FROM devices d
+		LEFT JOIN locations l ON d.location_id = l.id
+		LEFT JOIN users u ON d.created_by_user_id = u.id
+		WHERE d.addressing_mode = 'DHCP'`
+	
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var devices []domain.Device
+	for rows.Next() {
+		var d domain.Device
+		err := rows.Scan(
+			&d.ID, &d.Name, &d.Type, &d.MAC, &d.IP, &d.AddressingMode, &d.Model, &d.FirmwareStatus,
+			&d.Status, &d.LocationID, &d.Location, &d.Rack, &d.FailureThreshold, &d.Uptime30d,
+			&d.DownCount7d, &d.DownCount30d, &d.CheckedSecondsAgo, &d.LastChecked,
+			&d.SNMPEnabled, &d.SNMPCommunity, &d.SNMPPort, &d.SNMPIfIndex, &d.SNMPSysName,
+			&d.SNMPSysDescr, &d.SNMPSysUpTime, &d.SNMPSysContact, &d.SNMPSysLocation,
+			&d.UseCustomThreshold, &d.CustomFailureThreshold, &d.CreatedByUserID, &d.CreatedByUserName,
+		)
+		if err != nil {
+			return nil, err
+		}
+		devices = append(devices, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return devices, nil
 }
 
 func (r *PostgresDeviceRepository) resolveLocationID(locationName string) string {

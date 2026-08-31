@@ -1663,8 +1663,14 @@ function confirmDelete(device: Device) {
 async function executeDelete() {
   if (!deleteTarget.value) return;
   try {
+    const devName = deleteTarget.value.name;
     await devicesApi.deleteDevice(deleteTarget.value.id);
     deleteTarget.value = null;
+    triggerFeedback(
+      'Perangkat Berhasil Dihapus',
+      `Perangkat ${devName} telah dihapus permanen dari sistem inventaris.`,
+      true
+    );
     await loadDevices();
   } catch (e: any) {
     alert(e.response?.data?.error || 'Gagal menghapus perangkat');
