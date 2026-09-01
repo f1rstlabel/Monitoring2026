@@ -313,6 +313,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useDeviceStore } from '../../stores/deviceStore';
+import { useToastStore } from '../../stores/toastStore';
 import { locationsApi } from '../../api';
 import type { ImportRow, ImportResult, ImportSummary, ColumnMapping, Device } from '../../types';
 import {
@@ -324,6 +325,7 @@ const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits(['close']);
 
 const deviceStore = useDeviceStore();
+const toastStore = useToastStore();
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const step = ref(0);
@@ -356,7 +358,7 @@ function handleFileSelect(e: Event) {
 
 function setFile(file: File) {
   if (!file.name.match(/\.(csv|xlsx)$/i)) {
-    alert('Only .csv and .xlsx files are supported.');
+    toastStore.error('Format File Tidak Didukung', 'Hanya file format .csv dan .xlsx yang didukung.');
     return;
   }
   selectedFile.value = file;

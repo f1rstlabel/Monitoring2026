@@ -832,7 +832,7 @@
       :mode="formModalMode"
       :device="editTarget"
       @close="isFormModalOpen = false"
-      @saved="loadDevices(); isFormModalOpen = false"
+      @saved="onDeviceSaved"
     />
 
     <!-- Diagnostic Terminal Modal -->
@@ -861,16 +861,19 @@
       <template #footer>
         <button
           @click="deleteTarget = null"
-          class="px-4 py-2 rounded-lg border border-subtle text-text-secondary hover:text-text-main text-xs cursor-pointer"
+          :disabled="isDeletingSingle"
+          class="px-4 py-2 rounded-lg border border-subtle text-text-secondary hover:text-text-main text-xs cursor-pointer disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           @click="executeDelete"
-          class="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold text-xs shadow-md shadow-red-500/20 flex items-center gap-1.5 cursor-pointer"
+          :disabled="isDeletingSingle"
+          class="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold text-xs shadow-md shadow-red-500/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
         >
-          <Trash2 class="w-3.5 h-3.5" />
-          <span>Delete Device</span>
+          <RefreshCw v-if="isDeletingSingle" class="w-3.5 h-3.5 animate-spin" />
+          <Trash2 v-else class="w-3.5 h-3.5" />
+          <span>{{ isDeletingSingle ? 'Menghapus...' : 'Delete Device' }}</span>
         </button>
       </template>
     </Modal>
@@ -1089,34 +1092,6 @@
       </template>
     </Modal>
 
-    <!-- Unified Feedback Modal -->
-    <Modal :is-open="showFeedbackModal" :title="feedbackTitle" @close="showFeedbackModal = false">
-      <template #default>
-        <div class="space-y-3 text-xs font-mono">
-          <div
-            class="p-4 rounded-2xl border flex items-start gap-3"
-            :class="feedbackSuccess ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-red-500/10 border-red-500/30 text-red-300'"
-          >
-            <CheckCircle2 v-if="feedbackSuccess" class="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
-            <AlertTriangle v-else class="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
-            <div class="space-y-1">
-              <h4 class="font-bold text-text-main text-sm">{{ feedbackTitle }}</h4>
-              <p class="text-xs opacity-90 leading-relaxed">{{ feedbackMessage }}</p>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <button
-          @click="showFeedbackModal = false"
-          class="px-5 py-2 rounded-lg bg-brand-periwinkle hover:bg-brand-periwinkle-hover text-white font-semibold text-xs shadow-md shadow-brand-periwinkle/20 cursor-pointer font-mono"
-        >
-          OK
-        </button>
-      </template>
-    </Modal>
-
     <!-- Bulk Import Modal -->
     <BulkImportModal :is-open="isImportModalOpen" @close="isImportModalOpen = false; loadDevices(); fetchAllLocations();" />
   </div>
@@ -1127,6 +1102,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useDeviceStore } from '../stores/deviceStore';
 import { useAuthStore } from '../stores/authStore';
+import { useToastStore } from '../stores/toastStore';
 import type { Device, DeviceType, LocationItem, BulkDeviceUpdates } from '../types';
 import { devicesApi, locationsApi } from '../api';
 import api from '../api/client';
@@ -1155,7 +1131,6 @@ import {
   RefreshCw,
   Terminal,
   Check,
-  CheckCircle2,
   Info,
   Layers,
   Radio,
@@ -1167,6 +1142,7 @@ const router = useRouter();
 const route = useRoute();
 const deviceStore = useDeviceStore();
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 
 const viewMode = ref<'grouped' | 'flat'>('flat');
 const expandedGroups = reactive<Record<string, boolean>>({});
@@ -1177,6 +1153,7 @@ const isTerminalModalOpen = ref(false);
 const selectedDiagnosticTarget = ref('');
 const editTarget = ref<Device | null>(null);
 const deleteTarget = ref<Device | null>(null);
+const isDeletingSingle = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(10);
 
@@ -1197,17 +1174,22 @@ const isBulkConfirmModalOpen = ref(false);
 const isBulkDeleteConfirmModalOpen = ref(false);
 const isBulkDiscardModalOpen = ref(false);
 
-// Unified Feedback Modal State
-const showFeedbackModal = ref(false);
-const feedbackTitle = ref('');
-const feedbackMessage = ref('');
-const feedbackSuccess = ref(true);
-
 function triggerFeedback(title: string, message: string, success = true) {
-  feedbackTitle.value = title;
-  feedbackMessage.value = message;
-  feedbackSuccess.value = success;
-  showFeedbackModal.value = true;
+  if (success) {
+    toastStore.success(title, message);
+  } else {
+    toastStore.error(title, message);
+  }
+}
+
+function onDeviceSaved(mode?: string, name?: string) {
+  loadDevices();
+  fetchAllLocations();
+  isFormModalOpen.value = false;
+  toastStore.success(
+    mode === 'add' ? 'Perangkat Berhasil Ditambahkan' : 'Perangkat Berhasil Disimpan',
+    `Konfigurasi perangkat ${name ? `"${name}"` : ''} berhasil disimpan ke sistem.`
+  );
 }
 
 const bulkForm = reactive({
@@ -1361,10 +1343,11 @@ async function handleSaveLocEdit() {
       await locationsApi.createLocation(locEditName.value, locEditDescription.value);
     }
     isLocEditModalOpen.value = false;
+    triggerFeedback('Lokasi Berhasil Disimpan', `Lokasi "${locEditName.value}" berhasil disimpan.`);
     await fetchAllLocations();
     loadDevices();
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Failed to rename location');
+    triggerFeedback('Gagal Mengubah Lokasi', e.response?.data?.error || 'Failed to rename location', false);
   } finally {
     isSavingLocEdit.value = false;
   }
@@ -1387,10 +1370,11 @@ async function handleConfirmLocDelete() {
       await locationsApi.deleteLocation(locDeleteId.value);
     }
     isLocDeleteModalOpen.value = false;
+    triggerFeedback('Lokasi Dihapus', `Lokasi "${locDeleteName.value}" berhasil dihapus.`);
     await fetchAllLocations();
     loadDevices();
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Failed to delete location');
+    triggerFeedback('Gagal Menghapus Lokasi', e.response?.data?.error || 'Failed to delete location', false);
   } finally {
     isDeletingLoc.value = false;
   }
@@ -1568,14 +1552,19 @@ async function executeBulkDelete() {
   isExecutingBulk.value = true;
   bulkActionType.value = 'delete';
   const targetCount = selectedDeviceIds.value.length;
+  const idsToDelete = [...selectedDeviceIds.value];
 
   try {
     await devicesApi.bulkAction({
       action: 'delete',
-      deviceIds: selectedDeviceIds.value
+      deviceIds: idsToDelete
     });
     isBulkDeleteConfirmModalOpen.value = false;
     isBulkDrawerOpen.value = false;
+    // Optimistically update device store
+    const idSet = new Set(idsToDelete);
+    deviceStore.devices = deviceStore.devices.filter(d => !idSet.has(d.id));
+    deviceStore.totalCount = Math.max(0, deviceStore.totalCount - targetCount);
     triggerFeedback(
       'Perangkat Berhasil Dihapus',
       `Sebanyak ${targetCount} perangkat telah dihapus permanen dari sistem inventaris.`,
@@ -1662,10 +1651,16 @@ function confirmDelete(device: Device) {
 
 async function executeDelete() {
   if (!deleteTarget.value) return;
+  isDeletingSingle.value = true;
+  const target = deleteTarget.value;
   try {
-    const devName = deleteTarget.value.name;
-    await devicesApi.deleteDevice(deleteTarget.value.id);
+    const devName = target.name;
+    const devId = target.id;
+    await devicesApi.deleteDevice(devId);
     deleteTarget.value = null;
+    // Optimistically remove from store
+    deviceStore.devices = deviceStore.devices.filter(d => d.id !== devId);
+    if (deviceStore.totalCount > 0) deviceStore.totalCount--;
     triggerFeedback(
       'Perangkat Berhasil Dihapus',
       `Perangkat ${devName} telah dihapus permanen dari sistem inventaris.`,
@@ -1673,7 +1668,9 @@ async function executeDelete() {
     );
     await loadDevices();
   } catch (e: any) {
-    alert(e.response?.data?.error || 'Gagal menghapus perangkat');
+    triggerFeedback('Gagal Menghapus Perangkat', e.response?.data?.error || 'Gagal menghapus perangkat', false);
+  } finally {
+    isDeletingSingle.value = false;
   }
 }
 
