@@ -324,3 +324,13 @@ export interface PortProbeResult {
   error?: string;
 }
 
+export interface IPChangeEvent {
+  id: string;
+  deviceId: string;
+  deviceName?: string;
+  oldIp: string;
+  newIp: string;
+  source?: 'KEA_DHCP' | 'L3_ARP' | string;
+  timestamp: string;
+}
+

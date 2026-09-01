@@ -40,6 +40,21 @@ export const useLiveStore = defineStore('live', () => {
       authStore.fetchMe();
     }
 
+    if (data.type === 'IP_CHANGED') {
+      const dev = deviceStore.devices.find(d => d.id === data.deviceId);
+      if (dev && data.ip) {
+        dev.ip = data.ip;
+      }
+      pushLiveFeed({
+        id: `feed-ip-${data.deviceId || 'sys'}-${Date.now()}`,
+        timestamp: formatWIBTime(),
+        title: data.title || (data.deviceName ? `${data.deviceName} — IP Changed` : 'DHCP IP Auto-Corrected'),
+        description: data.description || `New IP: ${data.ip || 'N/A'}`,
+        severity: 'info',
+        deviceId: data.deviceId
+      });
+    }
+
     if (data.type === 'BATCH_PROGRESS') {
       batchStatusMessage.value = data.title || '';
       let formattedTs = formatWIBTime();
