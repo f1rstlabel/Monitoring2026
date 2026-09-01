@@ -365,6 +365,7 @@ func (e *Engine) runPollCycle() {
 	checkedCount := 0
 
 	// Reload settings from DB if we have a settings repo (no-op if nil)
+	var coreSwitch domain.CoreSwitchConfig
 	if e.settingsRepo != nil {
 		var s struct {
 			FlapReuseWindowMinutes int `json:"flapReuseWindowMinutes"`
@@ -376,8 +377,10 @@ func (e *Engine) runPollCycle() {
 				Type                string `json:"type"`
 				ConsecutiveFailures int    `json:"consecutiveFailures"`
 			} `json:"thresholds"`
+			CoreSwitch domain.CoreSwitchConfig `json:"coreSwitch"`
 		}
 		if err := e.settingsRepo.GetJSON("system_settings", &s); err == nil {
+			coreSwitch = s.CoreSwitch
 			thresholds := make(map[domain.DeviceType]int)
 			for _, t := range s.Thresholds {
 				thresholds[domain.DeviceType(t.Type)] = t.ConsecutiveFailures
@@ -399,6 +402,31 @@ func (e *Engine) runPollCycle() {
 	if len(devices) == 0 {
 		log.Printf("[PollerEngine] Poller cycle complete: 0 devices checked")
 		return
+	}
+
+	// Pre-fetch Core Switch L3 ARP table once per cycle if there are DHCP devices
+	var coreSwitchARPMap map[string]string
+	hasDHCP := false
+	for _, d := range devices {
+		if d.AddressingMode == domain.AddressingDHCP && d.MAC != "" {
+			hasDHCP = true
+			break
+		}
+	}
+	if hasDHCP && coreSwitch.IP != "" {
+		arpEntries, err := QueryCoreSwitchARPTable(coreSwitch)
+		if err == nil && len(arpEntries) > 0 {
+			coreSwitchARPMap = make(map[string]string, len(arpEntries))
+			for _, entry := range arpEntries {
+				norm := normalizeMACForSearch(entry.MAC)
+				if norm != "" {
+					coreSwitchARPMap[norm] = entry.IP
+				}
+			}
+			log.Printf("[PollerEngine] Cached %d L3 ARP entries from Core Switch %s for DHCP auto-healing", len(coreSwitchARPMap), coreSwitch.IP)
+		} else if err != nil {
+			log.Printf("[PollerEngine] Warning: Failed to query Core Switch ARP table (%s): %v", coreSwitch.IP, err)
+		}
 	}
 
 	batchSize := e.getConcurrency()
@@ -452,7 +480,7 @@ func (e *Engine) runPollCycle() {
 					}
 				}()
 
-				e.pollDevice(d)
+				e.pollDevice(d, coreSwitchARPMap, coreSwitch)
 				updatedDev, err := e.deviceRepo.GetByID(d.ID)
 				if err != nil || updatedDev == nil {
 					resChan <- batchRes{isUp: false}
@@ -507,24 +535,49 @@ func (e *Engine) runPollCycle() {
 	}
 }
 
-func (e *Engine) pollDevice(dev domain.Device) {
+func (e *Engine) pollDevice(dev domain.Device, arpMap map[string]string, coreSwitch domain.CoreSwitchConfig) {
 	targetIP := dev.IP
 
-	// If DHCP with MAC address, attempt resolution
+	// If DHCP with MAC address, attempt resolution and self-healing
 	if dev.AddressingMode == domain.AddressingDHCP && dev.MAC != "" {
-		resolved := ResolveIPFromARPWarm(dev.MAC, dev.IP)
+		normalizedTarget := normalizeMACForSearch(dev.MAC)
+		var resolved string
+		var source string = "L3_ARP"
+
+		// 1. Priority 1 (Authoritative): Check Kea DHCP Lease cache first
+		if e.dhcpWorker != nil {
+			if keaIP, ok := e.dhcpWorker.GetCachedLease(dev.MAC); ok && keaIP != "" {
+				resolved = keaIP
+				source = "KEA_DHCP"
+			}
+		}
+
+		// 2. Priority 2 (Fallback): If not found in Kea, check pre-fetched Core Switch L3 ARP map
+		if resolved == "" && arpMap != nil && normalizedTarget != "" {
+			resolved = arpMap[normalizedTarget]
+			source = "L3_ARP"
+		}
+
+		// 3. Priority 3: Fallback to live ARP resolution with Core Switch
+		if resolved == "" {
+			resolved = ResolveIPFromARPWithCoreSwitch(dev.MAC, dev.IP, coreSwitch)
+			source = "L3_ARP"
+		}
+
 		if resolved != "" && resolved != dev.IP {
-			log.Printf("[PollerEngine] RESOLVED DHCP IP for %s (%s) -> %s", dev.Name, dev.MAC, resolved)
-			_ = e.deviceRepo.UpdateLastKnownIP(dev.ID, resolved)
-			e.hub.BroadcastMessage(domain.WSMessage{
-				Type:        "IP_CHANGED",
-				DeviceID:    dev.ID,
-				DeviceName:  dev.Name,
-				IP:          resolved,
-				Description: fmt.Sprintf("%s DHCP lease renewed — IP changed from %s to %s", dev.Name, dev.IP, resolved),
-				Severity:    "info",
-				Timestamp:   nowWIB(),
-			})
+			log.Printf("[PollerEngine] DHCP SELF-HEAL (%s): Auto-corrected IP for %s (%s) from %s -> %s", source, dev.Name, dev.MAC, dev.IP, resolved)
+			_ = e.deviceRepo.UpdateLastKnownIPWithSource(dev.ID, resolved, source)
+			if e.hub != nil {
+				e.hub.BroadcastMessage(domain.WSMessage{
+					Type:        "IP_CHANGED",
+					DeviceID:    dev.ID,
+					DeviceName:  dev.Name,
+					IP:          resolved,
+					Description: fmt.Sprintf("%s DHCP IP self-healed via %s — updated from %s to %s", dev.Name, source, dev.IP, resolved),
+					Severity:    "info",
+					Timestamp:   nowWIB(),
+				})
+			}
 			targetIP = resolved
 		} else if resolved != "" {
 			targetIP = resolved
@@ -535,7 +588,6 @@ func (e *Engine) pollDevice(dev domain.Device) {
 	if targetIP == "" {
 		_ = e.deviceRepo.UpdateStatus(dev.ID, domain.StatusUnresolvedDHCP)
 		log.Printf("[PollerEngine] Skipping %q — no IP resolved (DHCP awaiting lease)", dev.Name)
-		log.Printf("[PollerEngine] Skipping poll for %s — no IP resolved (DHCP, awaiting first lease)", dev.Name)
 		return
 	}
 
