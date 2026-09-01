@@ -842,20 +842,49 @@
              DHCP Sync Engine Tab
              ══════════════════════════════════════════════════════════════════════════ -->
         <div v-else-if="activeTab === 'dhcp'" class="space-y-6 animate-fadeIn">
-          <div class="bg-surface border border-subtle rounded-2xl p-6 shadow-xl">
-            <div class="flex items-center justify-between mb-4">
+          <div class="bg-surface border border-subtle rounded-2xl p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-status-up/10 flex items-center justify-center text-status-up border border-status-up/20">
+                <div class="w-10 h-10 rounded-xl bg-status-up/10 flex items-center justify-center text-status-up border border-status-up/20 shrink-0">
                   <Network class="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold text-text-main font-mono">DHCP Sync Engine</h3>
-                  <p class="text-xs text-text-secondary">Worker is actively listening to Kea MySQL lease updates</p>
+                  <h3 class="text-sm font-bold text-text-main font-mono">DHCP Sync &amp; Self-Healing Engine</h3>
+                  <p class="text-xs text-text-secondary">Dual-Engine: Sinkronisasi sewa Kea DHCP (Authoritative) &amp; Self-Healing L3 Core Switch ARP</p>
                 </div>
               </div>
-              <div class="px-3 py-1 bg-status-up/10 text-status-up border border-status-up/20 rounded-lg text-xs font-mono font-bold flex items-center gap-2">
+              <div class="px-3 py-1 bg-status-up/10 text-status-up border border-status-up/20 rounded-lg text-xs font-mono font-bold flex items-center gap-2 shrink-0">
                 <span class="w-2 h-2 rounded-full bg-status-up animate-pulse"></span>
-                Online
+                Dual-Engine Active
+              </div>
+            </div>
+
+            <!-- Dual-Engine Architecture Sub-Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-subtle/50">
+              <div class="flex items-center gap-2.5 p-3 rounded-xl bg-card border border-subtle">
+                <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 shrink-0">
+                  <Server class="w-3.5 h-3.5" />
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-text-main flex items-center gap-1.5 font-mono">
+                    <span>KEA DHCP Server</span>
+                    <span class="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 font-bold">Priority 1 (Authoritative)</span>
+                  </div>
+                  <p class="text-[11px] text-text-secondary truncate">Sync berkala data lease database MySQL Kea DHCP</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2.5 p-3 rounded-xl bg-card border border-subtle">
+                <div class="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20 shrink-0">
+                  <Network class="w-3.5 h-3.5" />
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-text-main flex items-center gap-1.5 font-mono">
+                    <span>L3 Core Switch SNMP ARP</span>
+                    <span class="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 font-bold">Priority 2 (Self-Healing)</span>
+                  </div>
+                  <p class="text-[11px] text-text-secondary truncate">Auto-heal IP real-time via tabel ARP Core Switch per siklus</p>
+                </div>
               </div>
             </div>
           </div>
@@ -873,6 +902,7 @@
                 <thead class="bg-card border-b border-subtle text-text-secondary text-xs font-mono uppercase tracking-wider">
                   <tr>
                     <th class="px-5 py-3 font-semibold">Device</th>
+                    <th class="px-5 py-3 font-semibold">Source</th>
                     <th class="px-5 py-3 font-semibold">Old IP</th>
                     <th class="px-5 py-3 font-semibold">New IP</th>
                     <th class="px-5 py-3 font-semibold">Timestamp</th>
@@ -880,18 +910,34 @@
                 </thead>
                 <tbody class="divide-y divide-subtle/50">
                   <tr v-if="isFetchingDHCPLogs">
-                    <td colspan="4" class="p-0 border-0">
-                      <SkeletonTable :rows="10" :cols="4" />
+                    <td colspan="5" class="p-0 border-0">
+                      <SkeletonTable :rows="10" :cols="5" />
                     </td>
                   </tr>
                   
                   <tr v-if="!isFetchingDHCPLogs && dhcpLogs.length === 0">
-                    <td colspan="4" class="px-5 py-8 text-center text-text-secondary text-xs italic font-mono">No recent IP changes recorded.</td>
+                    <td colspan="5" class="px-5 py-8 text-center text-text-secondary text-xs italic font-mono">No recent IP changes recorded.</td>
                   </tr>
 
                   <template v-if="!isFetchingDHCPLogs && dhcpLogs.length > 0">
                     <tr v-for="log in dhcpLogs" :key="log.id || Math.random()" class="hover:bg-subtle/30 transition-colors">
                       <td class="px-5 py-3 font-medium text-text-main">{{ log.deviceName || log.deviceId }}</td>
+                      <td class="px-5 py-3">
+                        <span
+                          v-if="log.source === 'KEA_DHCP'"
+                          class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 inline-flex items-center gap-1"
+                        >
+                          <Server class="w-3 h-3" />
+                          KEA DHCP
+                        </span>
+                        <span
+                          v-else
+                          class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 inline-flex items-center gap-1"
+                        >
+                          <Network class="w-3 h-3" />
+                          L3 CORE ARP
+                        </span>
+                      </td>
                       <td class="px-5 py-3 font-mono text-xs text-red-400 line-through decoration-red-400/50">{{ log.oldIp || '-' }}</td>
                       <td class="px-5 py-3 font-mono text-xs text-status-up">{{ log.newIp }}</td>
                       <td class="px-5 py-3 text-xs text-text-secondary">{{ log.timestamp ? new Date(log.timestamp).toLocaleString() : '-' }}</td>
@@ -1134,31 +1180,7 @@
          MODALS & NOTIFICATIONS
          ══════════════════════════════════════════════════════════════════════════ -->
 
-    <!-- Save Success / Feedback Toast Notification -->
-    <transition
-      enter-active-class="transition ease-out duration-300"
-      enter-from-class="transform translate-y-4 opacity-0"
-      enter-to-class="transform translate-y-0 opacity-100"
-      leave-active-class="transition ease-in duration-200"
-      leave-from-class="transform translate-y-0 opacity-100"
-      leave-to-class="transform translate-y-4 opacity-0"
-    >
-      <div
-        v-if="showFeedbackModal"
-        class="fixed bottom-6 right-6 z-50 max-w-sm w-full p-4 rounded-xl border shadow-xl flex items-start gap-3 backdrop-blur-md"
-        :class="feedbackSuccess ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-red-500/10 border-red-500/30 text-red-300'"
-      >
-        <Check v-if="feedbackSuccess" class="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
-        <AlertTriangle v-else class="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
-        <div class="space-y-1 pr-6 flex-1">
-          <h4 class="font-bold text-text-main text-sm">{{ feedbackTitle }}</h4>
-          <p class="text-xs opacity-90 leading-relaxed text-text-secondary">{{ feedbackMessage }}</p>
-        </div>
-        <button @click="showFeedbackModal = false" class="absolute top-4 right-4 text-text-muted hover:text-text-main transition-colors">
-          <X class="w-4 h-4" />
-        </button>
-      </div>
-    </transition>
+
 
     <!-- Tab Switch Discard Confirmation Modal -->
     <Modal :is-open="showTabSwitchConfirmModal" title="Perubahan Belum Disimpan" @close="showTabSwitchConfirmModal = false">
@@ -1503,6 +1525,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { useSettingStore } from '../stores/settingStore';
 import { useAuthStore } from '../stores/authStore';
+import { useToastStore } from '../stores/toastStore';
 import Modal from '../components/common/Modal.vue';
 import OtpInput from '../components/common/OtpInput.vue';
 import Skeleton from '../components/common/Skeleton.vue';
@@ -1513,7 +1536,7 @@ import TelegramConfigModal from '../components/settings/TelegramConfigModal.vue'
 import WhatsAppTargetModal from '../components/settings/WhatsAppTargetModal.vue';
 import UserEditModal from '../components/users/UserEditModal.vue';
 import PermissionMatrix from '../components/settings/PermissionMatrix.vue';
-import type { User, UserRole, LocationItem } from '../types';
+import type { User, UserRole, LocationItem, IPChangeEvent } from '../types';
 import {
   Send,
   MessageSquare,
@@ -1539,7 +1562,7 @@ import {
   Upload,
   Image,
   Globe,
-  X
+  Server
 } from 'lucide-vue-next';
 import api from '../api/client';
 import { locationsApi, authApi, usersApi } from '../api';
@@ -1549,28 +1572,18 @@ const route = useRoute();
 const router = useRouter();
 const settingStore = useSettingStore();
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 
 // Core UI States
 const isInitialLoaded = ref(false);
 const activeTab = ref<string>('notifications');
 
-// Save Feedback Modal States
-const showFeedbackModal = ref(false);
-const feedbackTitle = ref('');
-const feedbackMessage = ref('');
-const feedbackSuccess = ref(true);
-let feedbackTimeout: ReturnType<typeof setTimeout> | null = null;
-
 function triggerFeedback(title: string, message: string, success = true) {
-  feedbackTitle.value = title;
-  feedbackMessage.value = message;
-  feedbackSuccess.value = success;
-  showFeedbackModal.value = true;
-  
-  if (feedbackTimeout) clearTimeout(feedbackTimeout);
-  feedbackTimeout = setTimeout(() => {
-    showFeedbackModal.value = false;
-  }, 4000);
+  if (success) {
+    toastStore.success(title, message);
+  } else {
+    toastStore.error(title, message);
+  }
 }
 
 // Notifications state
@@ -1807,7 +1820,7 @@ const availableTabs = computed(() => {
   return allTabs.value.filter((t) => t.permission());
 });
 
-const dhcpLogs = ref<any[]>([]);
+const dhcpLogs = ref<IPChangeEvent[]>([]);
 const isFetchingDHCPLogs = ref(false);
 const dhcpLogsPage = ref(1);
 const dhcpLogsPageSize = ref(10);
@@ -1856,7 +1869,7 @@ watch(
     } else {
       activeTab.value = tabs[0].id;
     }
-    if (activeTab.value === 'dhcp' && dhcpLogs.value.length === 0) {
+    if (activeTab.value === 'dhcp') {
       fetchDHCPLogs();
     }
   },
@@ -2436,6 +2449,11 @@ onMounted(async () => {
         userLogs.value.pop();
       }
       logsTotal.value++;
+    }
+    if (msg.type === 'IP_CHANGED') {
+      if (activeTab.value === 'dhcp') {
+        fetchDHCPLogs();
+      }
     }
   });
 });
