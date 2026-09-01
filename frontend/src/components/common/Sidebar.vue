@@ -154,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useDeviceStore } from '../../stores/deviceStore';
@@ -177,6 +177,10 @@ const router = useRouter();
 const authStore = useAuthStore();
 const deviceStore = useDeviceStore();
 const settingStore = useSettingStore();
+
+onMounted(() => {
+  deviceStore.fetchSummary();
+});
 
 function navLinkClass(path: string) {
   const isActive = route.path === path || (route.path.startsWith(path) && path !== '/dashboard');
