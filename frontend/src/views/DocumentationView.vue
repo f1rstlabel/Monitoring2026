@@ -442,6 +442,11 @@
                     <td class="py-3 px-3 text-red-400 font-mono">Redis (Asynq)</td>
                     <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow5 }}</td>
                   </tr>
+                  <tr>
+                    <td class="py-3 px-3 font-bold text-text-main font-mono">DHCP &amp; ARP Engine</td>
+                    <td class="py-3 px-3 text-brand-periwinkle font-mono">Kea MySQL + L3 SNMP ARP</td>
+                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow6 }}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -665,6 +670,7 @@ const dict = {
     archRow3: 'Penyimpanan relasional perangkat, tiket insiden, riwayat status, konfigurasi sistem.',
     archRow4: 'Sidecar socket gateway untuk broadcast notifikasi instan ke grup/nomor operator.',
     archRow5: 'Antrean pesan asinkron, retry backoff, dan pembatasan frekuensi pengiriman pesan.',
+    archRow6: 'Sinkronisasi sewa resmi dari database Kea MySQL dan auto-healing pemetaan MAC ke IP secara real-time via Core Switch SNMP ARP.',
     troubleHeader: 'PANDUAN TROUBLESHOOTING & PENANGANAN KENDALA',
     troubleSubheader: 'Solusi cepat saat menghadapi kendala operasional atau error status.',
     causeLabel: 'Penyebab',
@@ -755,6 +761,7 @@ const dict = {
     archRow3: 'Relational storage for devices, incidents, historical timeline, system configuration.',
     archRow4: 'Sidecar socket gateway for broadcasting instant outage alerts to operator groups.',
     archRow5: 'Asynchronous task queue, retry backoff, and transmission rate-limiting spacing.',
+    archRow6: 'Synchronizes authoritative leases from Kea MySQL database and performs real-time MAC-to-IP auto-healing via Core Switch SNMP ARP.',
     troubleHeader: 'TROUBLESHOOTING & DIAGNOSTIC GUIDE',
     troubleSubheader: 'Actionable solutions for resolving common operational anomalies and errors.',
     causeLabel: 'Root Cause',
@@ -833,6 +840,35 @@ interface FAQItem {
 }
 
 const faqList: FAQItem[] = [
+  {
+    key: 'dhcp-sync-engine',
+    tagKey: 'jaringan',
+    question: {
+      id: 'Bagaimana cara kerja Sinkronisasi IP DHCP dan apa bedanya sumber KEA DHCP vs L3 CORE ARP?',
+      en: 'How does DHCP IP Sync work and what is the difference between KEA DHCP and L3 CORE ARP?'
+    },
+    answer: {
+      id: `
+        <p class="font-medium text-text-main mb-1.5">SANOC menerapkan sistem <strong>Dual-Engine Auto-Sync &amp; Self-Healing</strong> untuk mendeteksi perpindahan IP perangkat DHCP:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
+          <li><strong>KEA DHCP Server (Prioritas 1 - Authoritative):</strong> Sistem menyinkronkan data sewa (lease) resmi langsung dari database MySQL Kea DHCP. Jika IP terdaftar di Kea, IP tersebut selalu menjadi rujukan utama.</li>
+          <li><strong>L3 CORE ARP (Prioritas 2 - Self-Healing):</strong> Setiap 15 detik, poller memindai tabel ARP Core Switch Layer-3. Jika perangkat berganti subnet atau IP dinamisnya berubah di lapangan, sistem langsung mengoreksi (auto-heal) IP di database dan memancarkan event WebSocket secara live.</li>
+          <li><strong>Otomasi saat Simpan / Edit:</strong> Jika Anda mengedit IP perangkat DHCP dan langsung menyimpan tanpa menunggu, backend akan otomatis mencocokkan MAC perangkat ke tabel ARP &amp; Kea untuk memastikan IP fisik yang tersimpan selalu benar.</li>
+          <li><strong>Syarat Wajib:</strong> Perangkat dengan Addressing Mode "DHCP" <strong>wajib memiliki MAC Address yang valid</strong> agar pelacakan dan self-healing dapat berjalan.</li>
+        </ul>
+      `,
+      en: `
+        <p class="font-medium text-text-main mb-1.5">SANOC employs an intelligent <strong>Dual-Engine Auto-Sync &amp; Self-Healing</strong> system for dynamic DHCP devices:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
+          <li><strong>KEA DHCP Server (Priority 1 - Authoritative):</strong> Synchronizes official lease records directly from the Kea DHCP MySQL database. Kea leases are always prioritized as the authoritative source.</li>
+          <li><strong>L3 CORE ARP (Priority 2 - Self-Healing):</strong> Every 15 seconds, the poller queries the Layer-3 Core Switch ARP table. If a device roams subnets or changes its dynamic IP, SANOC automatically self-heals the record in the database and broadcasts WebSocket updates live.</li>
+          <li><strong>Instant Save Auto-Correction:</strong> If you edit a DHCP device IP and save immediately, the backend automatically validates its MAC address against the ARP table and Kea to persist the correct physical IP.</li>
+          <li><strong>Mandatory Requirement:</strong> Devices configured with "DHCP" mode <strong>must have a valid MAC Address</strong> to enable tracking and self-healing.</li>
+        </ul>
+      `
+    },
+    tag: { id: 'Jaringan & DHCP', en: 'Network & DHCP' }
+  },
   {
     key: 'telegram-skipped',
     tagKey: 'notifikasi',
