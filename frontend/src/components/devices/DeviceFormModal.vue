@@ -629,7 +629,7 @@ async function handleSubmit() {
       await deviceStore.updateDevice(props.device.id, payload);
     }
 
-    emit('saved');
+    emit('saved', props.mode, form.name);
     emit('close');
   } catch (e: any) {
     formError.value = e.response?.data?.message || 'Failed to save device configuration.';

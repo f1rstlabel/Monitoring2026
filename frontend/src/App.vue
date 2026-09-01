@@ -22,6 +22,9 @@
     </div>
   </div>
   
+  <!-- Global Toast Notifications -->
+  <ToastContainer />
+  
   <!-- Cookie Consent Banner -->
   <CookieConsent />
 </template>
@@ -33,14 +36,17 @@ import Sidebar from './components/common/Sidebar.vue';
 import Topbar from './components/common/Topbar.vue';
 import AICopilotDrawer from './components/ai/AICopilotDrawer.vue';
 import CookieConsent from './components/common/CookieConsent.vue';
+import ToastContainer from './components/common/ToastContainer.vue';
 import { useLiveStore } from './stores/liveStore';
 import { useThemeStore } from './stores/themeStore';
 import { useSettingStore } from './stores/settingStore';
+import { useDeviceStore } from './stores/deviceStore';
 
 const route = useRoute();
 const liveStore = useLiveStore();
 const themeStore = useThemeStore();
 const settingStore = useSettingStore();
+const deviceStore = useDeviceStore();
 
 const isLoginPage = computed(() => route.path === '/login');
 
@@ -48,5 +54,6 @@ onMounted(() => {
   themeStore.initTheme();
   liveStore.initWebSocket();
   settingStore.fetchBranding();
+  deviceStore.fetchSummary();
 });
 </script>
