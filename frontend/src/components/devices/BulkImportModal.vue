@@ -67,23 +67,29 @@
                 </div>
                 <div class="text-center">
                   <p class="text-sm font-semibold text-text-main">Drop your file here or click to browse</p>
-                  <p class="text-xs text-text-muted mt-1">Supports <span class="font-mono text-text-secondary">.csv</span> and <span class="font-mono text-text-secondary">.xlsx</span> — max 10MB</p>
+                  <p class="text-xs text-text-muted mt-1">Supports <span class="font-mono text-text-secondary">.csv</span>, <span class="font-mono text-text-secondary">.xlsx</span>, and <span class="font-mono text-text-secondary">.xls</span> — max 10MB</p>
                 </div>
-                <input ref="fileInputRef" type="file" accept=".csv,.xlsx" class="hidden" @change="handleFileSelect" />
+                <input ref="fileInputRef" type="file" accept=".csv,.xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" @change="handleFileSelect" />
               </div>
 
-              <!-- Format hint -->
-              <div class="bg-main border border-subtle rounded-xl p-4 space-y-2">
-                <div class="flex items-center justify-between">
-                  <p class="text-[10px] font-mono uppercase tracking-widest text-text-muted">Expected CSV format</p>
-                  <button type="button" @click="downloadTemplate" class="text-[10px] text-brand-periwinkle hover:underline flex items-center gap-1 font-semibold bg-transparent border-0 cursor-pointer">
-                    <Download class="w-3.5 h-3.5" />
-                    Download CSV Template
-                  </button>
+              <!-- Format hint & Template Downloads -->
+              <div class="bg-main border border-subtle rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <p class="text-[10px] font-mono uppercase tracking-widest text-text-muted">Template Format (.CSV / .XLSX / .XLS)</p>
+                  <div class="flex items-center gap-2">
+                    <button type="button" @click="downloadExcelTemplate" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-xs flex items-center gap-1.5 font-semibold transition-colors cursor-pointer">
+                      <FileSpreadsheet class="w-3.5 h-3.5" />
+                      Download Excel (.xlsx)
+                    </button>
+                    <button type="button" @click="downloadCSVTemplate" class="px-2.5 py-1.5 rounded-lg bg-brand-periwinkle/10 border border-brand-periwinkle/30 text-brand-periwinkle hover:bg-brand-periwinkle/20 text-xs flex items-center gap-1.5 font-semibold transition-colors cursor-pointer">
+                      <Download class="w-3.5 h-3.5" />
+                      Download CSV (.csv)
+                    </button>
+                  </div>
                 </div>
                 <pre class="text-[10px] font-mono text-text-secondary leading-5 overflow-x-auto whitespace-pre">Device Name,Device Type,Addressing Mode,IP Address,MAC Address,Location,Rack,SNMP Polling Enabled,SNMP Community,SNMP Port,Custom Failure Threshold Override,Custom Failure Threshold Value
 AP Biro Umum,Access Point,Static IP,10.20.1.18,00:1A:2B:3C:4D:5E,Gedung Sate,Rack A,FALSE,public,161,FALSE,3
-AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,public,161,TRUE,5</pre>
+AP Core Switch,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,public,161,TRUE,5</pre>
               </div>
 
               <!-- Selected file info -->
@@ -312,6 +318,7 @@ AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,publi
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import * as XLSX from 'xlsx';
 import { useDeviceStore } from '../../stores/deviceStore';
 import { useToastStore } from '../../stores/toastStore';
 import { locationsApi } from '../../api';
@@ -357,8 +364,8 @@ function handleFileSelect(e: Event) {
 }
 
 function setFile(file: File) {
-  if (!file.name.match(/\.(csv|xlsx)$/i)) {
-    toastStore.error('Format File Tidak Didukung', 'Hanya file format .csv dan .xlsx yang didukung.');
+  if (!file.name.match(/\.(csv|xlsx|xls)$/i)) {
+    toastStore.error('Format File Tidak Didukung', 'Hanya file format .csv, .xlsx, dan .xls yang didukung.');
     return;
   }
   selectedFile.value = file;
@@ -369,28 +376,89 @@ function clearFile() {
   if (fileInputRef.value) fileInputRef.value.value = '';
 }
 
-// ─── CSV Parsing ─────────────────────────────────────────────────────────────
-async function parseCSV(file: File): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
-  const text = await file.text();
-  const lines = text.trim().split('\n').filter(l => l.trim());
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  const rows = lines.slice(1).map(line => {
-    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-    return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']));
-  });
-  return { headers, rows };
+// ─── File Parsing (Supports CSV, XLSX, and XLS) ───────────────────────────────
+async function parseFile(file: File): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error('File tidak memiliki sheet data yang valid.');
+    }
+    
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '' });
+    
+    if (!rawData || rawData.length === 0) {
+      return { headers: [], rows: [] };
+    }
+    
+    // Find header row (first non-empty row)
+    let headerRowIdx = 0;
+    while (headerRowIdx < rawData.length && (!rawData[headerRowIdx] || rawData[headerRowIdx].every(c => String(c || '').trim() === ''))) {
+      headerRowIdx++;
+    }
+    
+    if (headerRowIdx >= rawData.length) {
+      return { headers: [], rows: [] };
+    }
+    
+    const rawHeaders = rawData[headerRowIdx] as any[];
+    const headers: string[] = [];
+    const headerIndices: number[] = [];
+    
+    rawHeaders.forEach((h, idx) => {
+      const cleanH = String(h || '').trim();
+      if (cleanH) {
+        headers.push(cleanH);
+        headerIndices.push(idx);
+      }
+    });
+    
+    const rows: Record<string, string>[] = [];
+    for (let i = headerRowIdx + 1; i < rawData.length; i++) {
+      const rowArr = rawData[i] as any[];
+      if (!rowArr || rowArr.every(c => String(c || '').trim() === '')) {
+        continue; // Skip empty row
+      }
+      
+      const rowObj: Record<string, string> = {};
+      headers.forEach((h, hIdx) => {
+        const colIdx = headerIndices[hIdx];
+        rowObj[h] = String(rowArr[colIdx] ?? '').trim();
+      });
+      rows.push(rowObj);
+    }
+    
+    return { headers, rows };
+  } catch (err: any) {
+    console.error('Error parsing spreadsheet file:', err);
+    toastStore.error('Gagal Membaca File', err.message || 'Format file spreadsheet tidak valid');
+    return { headers: [], rows: [] };
+  }
 }
 
 // ─── Default Column Auto-mapping ─────────────────────────────────────────────
 const autoMappingRules: Record<string, keyof Device | ''> = {
   'device name': 'name',
+  'nama perangkat': 'name',
+  'nama': 'name',
   'device type': 'type',
+  'tipe perangkat': 'type',
+  'tipe': 'type',
   'addressing mode': 'addressingMode',
+  'mode ip': 'addressingMode',
   'ip address': 'ip',
+  'ip': 'ip',
   'mac address': 'mac',
+  'mac': 'mac',
   'location': 'location',
+  'lokasi': 'location',
   'rack': 'rack',
+  'rak': 'rack',
   'snmp polling enabled': 'snmpEnabled',
+  'snmp enabled': 'snmpEnabled',
   'snmp community': 'snmpCommunity',
   'snmp port': 'snmpPort',
   'custom failure threshold override': 'useCustomThreshold',
@@ -527,7 +595,11 @@ function validateRows(rawRows: Record<string, string>[]): ImportRow[] {
 // ─── Step Transitions ────────────────────────────────────────────────────────
 async function proceedFromUpload() {
   if (!selectedFile.value) return;
-  const { headers } = await parseCSV(selectedFile.value);
+  const { headers } = await parseFile(selectedFile.value);
+  if (headers.length === 0) {
+    toastStore.error('Gagal Membaca File', 'Tidak ditemukan kolom header pada file spreadsheet.');
+    return;
+  }
   columnMappings.value = headers.map(h => ({
     sourceColumn: h,
     targetField: autoMapColumn(h) as any
@@ -537,7 +609,11 @@ async function proceedFromUpload() {
 
 async function proceedFromMapping() {
   if (!selectedFile.value) return;
-  const { rows } = await parseCSV(selectedFile.value);
+  const { rows } = await parseFile(selectedFile.value);
+  if (rows.length === 0) {
+    toastStore.error('Data Kosong', 'Tidak ada baris data perangkat yang ditemukan dalam file.');
+    return;
+  }
   parsedRows.value = validateRows(rows);
   step.value = 2;
 }
@@ -626,9 +702,91 @@ async function executeImport() {
 
   importSummary.value = { imported, skipped, failed, results };
   step.value = 3;
+
+  if (imported > 0) {
+    toastStore.success(
+      'Import Berhasil',
+      `Berhasil mengimpor ${imported} perangkat ke sistem inventaris${skipped > 0 ? ` (${skipped} dilewati)` : ''}${failed > 0 ? ` (${failed} gagal)` : ''}.`
+    );
+  } else if (failed > 0) {
+    toastStore.error(
+      'Import Gagal',
+      `Gagal mengimpor ${failed} perangkat. Silakan periksa log kesalahan di layar.`
+    );
+  } else {
+    toastStore.info('Tidak Ada Perangkat Diimpor', 'Semua baris data dilewati atau sudah terdaftar.');
+  }
 }
 
-function downloadTemplate() {
+function downloadExcelTemplate() {
+  const data = [
+    [
+      'Device Name',
+      'Device Type',
+      'Addressing Mode',
+      'IP Address',
+      'MAC Address',
+      'Location',
+      'Rack',
+      'SNMP Polling Enabled',
+      'SNMP Community',
+      'SNMP Port',
+      'Custom Failure Threshold Override',
+      'Custom Failure Threshold Value'
+    ],
+    [
+      'AP Biro Umum',
+      'Access Point',
+      'Static IP',
+      '10.20.1.18',
+      '00:1A:2B:3C:4D:5E',
+      'Gedung Sate',
+      'Rack A',
+      'FALSE',
+      'public',
+      161,
+      'FALSE',
+      3
+    ],
+    [
+      'AP Core Switch',
+      'Switch',
+      'DHCP Reservation',
+      '',
+      '00:1A:2B:3C:4D:5F',
+      'Gedung Sate',
+      'Rack B',
+      'TRUE',
+      'public',
+      161,
+      'TRUE',
+      5
+    ]
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(data);
+  worksheet['!cols'] = [
+    { wch: 18 }, // Device Name
+    { wch: 14 }, // Device Type
+    { wch: 18 }, // Addressing Mode
+    { wch: 16 }, // IP Address
+    { wch: 20 }, // MAC Address
+    { wch: 16 }, // Location
+    { wch: 12 }, // Rack
+    { wch: 22 }, // SNMP Polling Enabled
+    { wch: 16 }, // SNMP Community
+    { wch: 12 }, // SNMP Port
+    { wch: 32 }, // Custom Failure Threshold Override
+    { wch: 30 }  // Custom Failure Threshold Value
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Devices');
+  XLSX.writeFile(workbook, 'device_import_template.xlsx');
+  toastStore.success('Template Excel Diunduh', 'File device_import_template.xlsx berhasil diunduh.');
+}
+
+function downloadCSVTemplate() {
   const headers = [
     'Device Name',
     'Device Type',
@@ -644,7 +802,7 @@ function downloadTemplate() {
     'Custom Failure Threshold Value'
   ].join(',');
   const row1 = 'AP Biro Umum,Access Point,Static IP,10.20.1.18,00:1A:2B:3C:4D:5E,Gedung Sate,Rack A,FALSE,public,161,FALSE,3';
-  const row2 = 'AP Core,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,public,161,TRUE,5';
+  const row2 = 'AP Core Switch,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRUE,public,161,TRUE,5';
   const csv = [headers, row1, row2].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -653,6 +811,7 @@ function downloadTemplate() {
   a.download = 'device_import_template.csv';
   a.click();
   URL.revokeObjectURL(url);
+  toastStore.success('Template CSV Diunduh', 'File device_import_template.csv berhasil diunduh.');
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
