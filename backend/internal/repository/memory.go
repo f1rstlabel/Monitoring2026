@@ -109,6 +109,10 @@ func (r *MemoryDeviceRepository) Update(d *domain.Device) error {
 }
 
 func (r *MemoryDeviceRepository) UpdateLastKnownIP(deviceID, newIP string) error {
+	return r.UpdateLastKnownIPWithSource(deviceID, newIP, "L3_ARP")
+}
+
+func (r *MemoryDeviceRepository) UpdateLastKnownIPWithSource(deviceID, newIP, source string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := range r.devices {

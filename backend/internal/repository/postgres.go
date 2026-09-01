@@ -4,11 +4,22 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"sanoc/backend/internal/config"
 
 	_ "github.com/lib/pq"
 )
+
+func configureConnectionPool(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(1 * time.Minute)
+}
 
 func InitPostgres(cfg *config.Config) (*sql.DB, error) {
 	dsn := cfg.PostgresDSN()
@@ -18,6 +29,7 @@ func InitPostgres(cfg *config.Config) (*sql.DB, error) {
 	if err == nil {
 		if pingErr := db.Ping(); pingErr == nil {
 			log.Printf("[Database] PostgreSQL connection established successfully to %s!", cfg.DBName)
+			configureConnectionPool(db)
 			return db, nil
 		}
 		db.Close()
@@ -39,6 +51,7 @@ func InitPostgres(cfg *config.Config) (*sql.DB, error) {
 			db, err = sql.Open("postgres", dsn)
 			if err == nil && db.Ping() == nil {
 				log.Printf("[Database] Successfully created and connected to '%s' database!", cfg.DBName)
+				configureConnectionPool(db)
 				return db, nil
 			}
 		} else {
@@ -54,6 +67,7 @@ func InitPostgres(cfg *config.Config) (*sql.DB, error) {
 	fallbackDB, fbErr := sql.Open("postgres", fallbackDSN)
 	if fbErr == nil && fallbackDB.Ping() == nil {
 		log.Printf("[Database] Connected to legacy 'govmonitor' fallback database!")
+		configureConnectionPool(fallbackDB)
 		return fallbackDB, nil
 	}
 	if fallbackDB != nil {

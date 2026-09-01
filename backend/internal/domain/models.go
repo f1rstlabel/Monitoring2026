@@ -179,12 +179,13 @@ type DeviceStatusLog struct {
 
 // IPChangeEvent is written when a DHCP device gets a new IP.
 type IPChangeEvent struct {
-	ID        string    `json:"id"`
-	DeviceID  string    `json:"deviceId"`
-	DeviceName string   `json:"deviceName,omitempty"`
-	OldIP     string    `json:"oldIp"`
-	NewIP     string    `json:"newIp"`
-	Timestamp time.Time `json:"timestamp"`
+	ID         string    `json:"id"`
+	DeviceID   string    `json:"deviceId"`
+	DeviceName string    `json:"deviceName,omitempty"`
+	OldIP      string    `json:"oldIp"`
+	NewIP      string    `json:"newIp"`
+	Source     string    `json:"source"` // E.g., 'KEA_DHCP' or 'L3_ARP'
+	Timestamp  time.Time `json:"timestamp"`
 }
 
 // ─── Notification Objects ─────────────────────────────────────────────────────
