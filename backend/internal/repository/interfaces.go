@@ -30,6 +30,8 @@ type DeviceRepository interface {
 
 	// UpdateLastKnownIP updates the last_known_ip and logs an IPChangeEvent.
 	UpdateLastKnownIP(deviceID, newIP string) error
+	// UpdateLastKnownIPWithSource updates the last_known_ip with an explicit source ('KEA_DHCP' or 'L3_ARP').
+	UpdateLastKnownIPWithSource(deviceID, newIP, source string) error
 	// GetIPChangeLogs returns the recent IP changes recorded with pagination (returns items, totalCount, error).
 	GetIPChangeLogs(page, limit int) ([]domain.IPChangeEvent, int, error)
 
@@ -136,6 +138,7 @@ type UserRepository interface {
 type DeviceMetricRepository interface {
 	SaveMetric(m *domain.DeviceMetric) error
 	GetMetricsByDeviceID(deviceID, metricType string, from, to time.Time) ([]domain.DeviceMetric, error)
+	PruneOldMetrics(olderThanDays int) (int64, error)
 }
 
 // ─── Notification Targets ────────────────────────────────────────────────────

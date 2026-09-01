@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"sanoc/backend/internal/domain"
+
+	"github.com/lib/pq"
 )
 
 type PostgresDeviceRepository struct {
@@ -275,17 +277,33 @@ func (r *PostgresDeviceRepository) UpdateSNMPMetadata(deviceID, sysName, sysDesc
 }
 
 func (r *PostgresDeviceRepository) UpdateLastKnownIP(deviceID, newIP string) error {
+	return r.UpdateLastKnownIPWithSource(deviceID, newIP, "L3_ARP")
+}
+
+func (r *PostgresDeviceRepository) UpdateLastKnownIPWithSource(deviceID, newIP, source string) error {
+	if source == "" {
+		source = "L3_ARP"
+	}
 	var oldIP string
 	_ = r.db.QueryRow(`SELECT COALESCE(last_known_ip, '') FROM devices WHERE id=$1`, deviceID).Scan(&oldIP)
 	query := `UPDATE devices SET last_known_ip=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2`
 	_, err := r.db.Exec(query, newIP, deviceID)
-	if err == nil && oldIP != "" && oldIP != newIP {
-		log.Printf("[IPChangeLog] Recording IP change for device %s: %s -> %s", deviceID, oldIP, newIP)
-		_, logErr := r.db.Exec(`INSERT INTO ip_change_log (id, device_id, old_ip, new_ip, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
-			fmt.Sprintf("ipchange-%d", time.Now().UnixNano()), deviceID, oldIP, newIP)
+	if err == nil && oldIP != newIP {
+		logOldIP := oldIP
+		if logOldIP == "" {
+			logOldIP = "0.0.0.0"
+		}
+		log.Printf("[IPChangeLog] Recording IP change for device %s (%s): %s -> %s", deviceID, source, logOldIP, newIP)
+		_, logErr := r.db.Exec(`INSERT INTO ip_change_log (id, device_id, old_ip, new_ip, source, created_at) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+			fmt.Sprintf("ipchange-%d", time.Now().UnixNano()), deviceID, logOldIP, newIP, source)
 		if logErr != nil {
 			log.Printf("[IPChangeLog] Error writing to ip_change_log: %v", logErr)
 		}
+	}
+	if r.redis != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		_ = r.redis.Client.Del(ctx, "devices:all").Err()
+		cancel()
 	}
 	return err
 }
@@ -303,7 +321,7 @@ func (r *PostgresDeviceRepository) GetIPChangeLogs(page, limit int) ([]domain.IP
 	}
 
 	query := `
-		SELECT i.id, i.device_id, d.name as device_name, i.old_ip, i.new_ip, i.created_at
+		SELECT i.id, i.device_id, d.name as device_name, i.old_ip, i.new_ip, COALESCE(i.source, 'L3_ARP') as source, i.created_at
 		FROM ip_change_log i
 		LEFT JOIN devices d ON i.device_id = d.id
 		ORDER BY i.created_at DESC
@@ -319,7 +337,7 @@ func (r *PostgresDeviceRepository) GetIPChangeLogs(page, limit int) ([]domain.IP
 	for rows.Next() {
 		var l domain.IPChangeEvent
 		var deviceName sql.NullString
-		if err := rows.Scan(&l.ID, &l.DeviceID, &deviceName, &l.OldIP, &l.NewIP, &l.Timestamp); err != nil {
+		if err := rows.Scan(&l.ID, &l.DeviceID, &deviceName, &l.OldIP, &l.NewIP, &l.Source, &l.Timestamp); err != nil {
 			return nil, 0, err
 		}
 		if deviceName.Valid {
@@ -350,14 +368,52 @@ func (r *PostgresDeviceRepository) UpdateStatus(deviceID string, status domain.D
 }
 
 func (r *PostgresDeviceRepository) Delete(id string) error {
-	query := `DELETE FROM devices WHERE id=$1`
-	_, err := r.db.Exec(query, id)
+	if r == nil || r.db == nil || id == "" {
+		return nil
+	}
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Explicit fast set-based deletion of child records to bypass slow row-by-row FK cascade triggers
+	if _, err := tx.Exec(`DELETE FROM device_metrics WHERE device_id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM device_status_log WHERE device_id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM incident_events WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = $1)`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM incidents WHERE device_id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM ip_change_log WHERE device_id = $1`, id); err != nil {
+		return err
+	}
+
+	// 2. Delete the device itself
+	res, err := tx.Exec(`DELETE FROM devices WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
 	if r.redis != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		_ = r.redis.Client.Del(ctx, "devices:all").Err()
 		cancel()
 	}
-	return err
+	return nil
 }
 
 func (r *PostgresDeviceRepository) BulkUpdate(ids []string, updates domain.BulkDeviceUpdates) (int, error) {
@@ -472,27 +528,46 @@ func (r *PostgresDeviceRepository) BulkDelete(ids []string) (int, error) {
 	if r == nil || r.db == nil || len(ids) == 0 {
 		return 0, nil
 	}
-	query := "DELETE FROM devices WHERE id IN ("
-	var args []interface{}
-	for i, id := range ids {
-		if i > 0 {
-			query += ", "
-		}
-		query += fmt.Sprintf("$%d", i+1)
-		args = append(args, id)
-	}
-	query += ")"
 
-	res, err := r.db.Exec(query, args...)
+	tx, err := r.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// 1. Explicit fast set-based deletion of child records for all target IDs in one shot
+	if _, err := tx.Exec(`DELETE FROM device_metrics WHERE device_id = ANY($1)`, pq.Array(ids)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM device_status_log WHERE device_id = ANY($1)`, pq.Array(ids)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM incident_events WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = ANY($1))`, pq.Array(ids)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM incidents WHERE device_id = ANY($1)`, pq.Array(ids)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM ip_change_log WHERE device_id = ANY($1)`, pq.Array(ids)); err != nil {
+		return 0, err
+	}
+
+	// 2. Delete the devices in a single set-based query
+	res, err := tx.Exec(`DELETE FROM devices WHERE id = ANY($1)`, pq.Array(ids))
+	if err != nil {
+		return 0, err
+	}
+	count, _ := res.RowsAffected()
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
 	if r.redis != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		_ = r.redis.Client.Del(ctx, "devices:all").Err()
 		cancel()
 	}
-	if err != nil {
-		return 0, err
-	}
-	count, _ := res.RowsAffected()
 	return int(count), nil
 }
 
@@ -755,6 +830,21 @@ func (r *PostgresDeviceMetricRepository) GetMetricsByDeviceID(deviceID, metricTy
 		return nil, err
 	}
 	return metrics, nil
+}
+
+func (r *PostgresDeviceMetricRepository) PruneOldMetrics(olderThanDays int) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, nil
+	}
+	if olderThanDays <= 0 {
+		olderThanDays = 7
+	}
+	cutoff := time.Now().AddDate(0, 0, -olderThanDays)
+	res, err := r.db.Exec(`DELETE FROM device_metrics WHERE recorded_at < $1`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func SeedPostgresData(db *sql.DB) {
