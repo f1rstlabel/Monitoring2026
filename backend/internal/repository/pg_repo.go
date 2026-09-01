@@ -385,6 +385,9 @@ func (r *PostgresDeviceRepository) Delete(id string) error {
 	if _, err := tx.Exec(`DELETE FROM device_status_log WHERE device_id = $1`, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(`DELETE FROM incident_notes WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = $1)`, id); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(`DELETE FROM incident_events WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = $1)`, id); err != nil {
 		return err
 	}
@@ -392,6 +395,9 @@ func (r *PostgresDeviceRepository) Delete(id string) error {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM ip_change_log WHERE device_id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM device_dependencies WHERE parent_id = $1 OR child_id = $1`, id); err != nil {
 		return err
 	}
 
@@ -542,6 +548,9 @@ func (r *PostgresDeviceRepository) BulkDelete(ids []string) (int, error) {
 	if _, err := tx.Exec(`DELETE FROM device_status_log WHERE device_id = ANY($1)`, pq.Array(ids)); err != nil {
 		return 0, err
 	}
+	if _, err := tx.Exec(`DELETE FROM incident_notes WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = ANY($1))`, pq.Array(ids)); err != nil {
+		return 0, err
+	}
 	if _, err := tx.Exec(`DELETE FROM incident_events WHERE incident_id IN (SELECT id FROM incidents WHERE device_id = ANY($1))`, pq.Array(ids)); err != nil {
 		return 0, err
 	}
@@ -549,6 +558,9 @@ func (r *PostgresDeviceRepository) BulkDelete(ids []string) (int, error) {
 		return 0, err
 	}
 	if _, err := tx.Exec(`DELETE FROM ip_change_log WHERE device_id = ANY($1)`, pq.Array(ids)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM device_dependencies WHERE parent_id = ANY($1) OR child_id = ANY($1)`, pq.Array(ids)); err != nil {
 		return 0, err
 	}
 
