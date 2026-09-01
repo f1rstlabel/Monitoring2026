@@ -216,19 +216,38 @@ func main() {
 		_ = repository.CleanupDuplicateAndStaleIncidents(db)
 	}
 
-	// Scheduled incident retention job (archives old resolved incidents)
+	// ─── Retention Jobs (Archive Old Incidents & Prune Old Metrics) ──────────────
+	runRetention := func() {
+		if db == nil {
+			return
+		}
+		var sysSettings domain.SystemSettings
+		incidentRetentionDays := 90
+		metricRetentionDays := 7
+		if settingsRepo != nil && settingsRepo.GetJSON("system_settings", &sysSettings) == nil {
+			if sysSettings.RetentionDays > 0 {
+				incidentRetentionDays = sysSettings.RetentionDays
+				metricRetentionDays = sysSettings.RetentionDays
+			}
+		}
+		_, _ = repository.ArchiveOldResolvedIncidents(db, incidentRetentionDays)
+		if metricRepo != nil {
+			deletedMetrics, err := metricRepo.PruneOldMetrics(metricRetentionDays)
+			if err == nil && deletedMetrics > 0 {
+				log.Printf("[Retention] Pruned %d historical device_metrics older than %d days", deletedMetrics, metricRetentionDays)
+			}
+		}
+	}
+
+	// Run once on startup in background
+	go runRetention()
+
+	// Scheduled retention job hourly
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {
-			if db != nil {
-				var sysSettings domain.SystemSettings
-				retentionDays := 90
-				if settingsRepo != nil && settingsRepo.GetJSON("system_settings", &sysSettings) == nil && sysSettings.RetentionDays > 0 {
-					retentionDays = sysSettings.RetentionDays
-				}
-				_, _ = repository.ArchiveOldResolvedIncidents(db, retentionDays)
-			}
+			runRetention()
 		}
 	}()
 
