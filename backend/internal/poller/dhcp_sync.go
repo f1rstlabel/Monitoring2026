@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"sanoc/backend/internal/config"
@@ -16,9 +17,11 @@ import (
 )
 
 type DHCPSyncWorker struct {
-	cfg        *config.Config
-	deviceRepo repository.DeviceRepository
-	stopChan   chan struct{}
+	cfg          *config.Config
+	deviceRepo   repository.DeviceRepository
+	stopChan     chan struct{}
+	leaseCacheMu sync.RWMutex
+	leaseCache   map[string]string // normalized hex MAC -> IP
 }
 
 func NewDHCPSyncWorker(cfg *config.Config, deviceRepo repository.DeviceRepository) *DHCPSyncWorker {
@@ -26,7 +29,34 @@ func NewDHCPSyncWorker(cfg *config.Config, deviceRepo repository.DeviceRepositor
 		cfg:        cfg,
 		deviceRepo: deviceRepo,
 		stopChan:   make(chan struct{}),
+		leaseCache: make(map[string]string),
 	}
+}
+
+// GetCachedLease returns the active Kea lease IP for a normalized MAC, if known.
+func (w *DHCPSyncWorker) GetCachedLease(normalizedMAC string) (string, bool) {
+	w.leaseCacheMu.RLock()
+	defer w.leaseCacheMu.RUnlock()
+	if w.leaseCache == nil {
+		return "", false
+	}
+	norm := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(normalizedMAC, ":", ""), "-", ""))
+	ip, ok := w.leaseCache[norm]
+	return ip, ok
+}
+
+// GetAllCachedLeases returns a snapshot copy of all active Kea leases.
+func (w *DHCPSyncWorker) GetAllCachedLeases() map[string]string {
+	w.leaseCacheMu.RLock()
+	defer w.leaseCacheMu.RUnlock()
+	if w.leaseCache == nil {
+		return nil
+	}
+	cp := make(map[string]string, len(w.leaseCache))
+	for k, v := range w.leaseCache {
+		cp[k] = v
+	}
+	return cp
 }
 
 func (w *DHCPSyncWorker) Start() {
@@ -72,28 +102,7 @@ func (w *DHCPSyncWorker) Stop() {
 }
 
 func (w *DHCPSyncWorker) SyncNow() {
-	// 1. Get SANOC Devices that use DHCP
-	devices, err := w.deviceRepo.GetDHCPDevices()
-	if err != nil {
-		log.Printf("[SANOC-DHCP-SYNC] Failed to fetch DHCP devices from local DB: %v", err)
-		return
-	}
-	if len(devices) == 0 {
-		return // No DHCP devices to sync
-	}
-
-	// Create a map for O(1) lookup by normalized MAC
-	deviceMap := make(map[string]*repositoryDevicePointer)
-	for i := range devices {
-		normalizedMAC := strings.ReplaceAll(strings.ToLower(devices[i].MAC), ":", "")
-		deviceMap[normalizedMAC] = &repositoryDevicePointer{
-			ID:   devices[i].ID,
-			IP:   devices[i].IP,
-			Name: devices[i].Name,
-		}
-	}
-
-	// 2. Connect to Kea Database
+	// 1. Connect to Kea Database
 	db, err := sql.Open("mysql", w.cfg.KeaMySQLDSN())
 	if err != nil {
 		log.Printf("[SANOC-DHCP-SYNC] Failed to open connection to Kea DB: %v", err)
@@ -103,9 +112,27 @@ func (w *DHCPSyncWorker) SyncNow() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	if err := db.PingContext(ctx); err != nil {
 		log.Printf("[SANOC-DHCP-SYNC] Cannot ping Kea DB: %v", err)
 		return
+	}
+
+	// 2. Get SANOC Devices that use DHCP
+	devices, err := w.deviceRepo.GetDHCPDevices()
+	if err != nil {
+		log.Printf("[SANOC-DHCP-SYNC] Failed to fetch DHCP devices from local DB: %v", err)
+	}
+
+	// Create a map for O(1) lookup by normalized MAC
+	deviceMap := make(map[string]*repositoryDevicePointer)
+	for i := range devices {
+		normalizedMAC := strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(devices[i].MAC), ":", ""), "-", "")
+		deviceMap[normalizedMAC] = &repositoryDevicePointer{
+			ID:   devices[i].ID,
+			IP:   devices[i].IP,
+			Name: devices[i].Name,
+		}
 	}
 
 	// 3. Query Active Leases — hex(hwaddr) converts VARBINARY to hex string
@@ -119,6 +146,7 @@ func (w *DHCPSyncWorker) SyncNow() {
 
 	leaseCount := 0
 	updateCount := 0
+	newLeaseCache := make(map[string]string)
 
 	for rows.Next() {
 		var hwaddrStr string
@@ -130,15 +158,17 @@ func (w *DHCPSyncWorker) SyncNow() {
 		leaseCount++
 
 		macStr := strings.ToLower(hwaddrStr)
-		if dev, exists := deviceMap[macStr]; exists {
-			// Convert integer address to dotted IP string
-			ip := make(net.IP, 4)
-			binary.BigEndian.PutUint32(ip, uint32(addressInt))
-			newIP := ip.String()
+		// Convert integer address to dotted IP string
+		ip := make(net.IP, 4)
+		binary.BigEndian.PutUint32(ip, uint32(addressInt))
+		newIP := ip.String()
 
+		newLeaseCache[macStr] = newIP
+
+		if dev, exists := deviceMap[macStr]; exists {
 			if dev.IP != newIP {
-				log.Printf("[SANOC-DHCP-SYNC] IP change: %s (MAC: %s) %s -> %s", dev.Name, macStr, dev.IP, newIP)
-				if err := w.deviceRepo.UpdateLastKnownIP(dev.ID, newIP); err != nil {
+				log.Printf("[SANOC-DHCP-SYNC] IP change (KEA_DHCP): %s (MAC: %s) %s -> %s", dev.Name, macStr, dev.IP, newIP)
+				if err := w.deviceRepo.UpdateLastKnownIPWithSource(dev.ID, newIP, "KEA_DHCP"); err != nil {
 					log.Printf("[SANOC-DHCP-SYNC] Failed to update %s: %v", dev.Name, err)
 				} else {
 					updateCount++
@@ -146,6 +176,10 @@ func (w *DHCPSyncWorker) SyncNow() {
 			}
 		}
 	}
+
+	w.leaseCacheMu.Lock()
+	w.leaseCache = newLeaseCache
+	w.leaseCacheMu.Unlock()
 
 	if err := rows.Err(); err != nil {
 		log.Printf("[SANOC-DHCP-SYNC] Row iteration error: %v", err)
