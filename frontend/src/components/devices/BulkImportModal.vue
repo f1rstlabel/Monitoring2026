@@ -434,7 +434,7 @@ async function parseFile(file: File): Promise<{ headers: string[]; rows: Record<
     return { headers, rows };
   } catch (err: any) {
     console.error('Error parsing spreadsheet file:', err);
-    toastStore.error('Gagal Membaca File', err.message || 'Format file spreadsheet tidak valid');
+    toastStore.error('Failed to Read File', err.message || 'Invalid spreadsheet file format');
     return { headers: [], rows: [] };
   }
 }
@@ -597,7 +597,7 @@ async function proceedFromUpload() {
   if (!selectedFile.value) return;
   const { headers } = await parseFile(selectedFile.value);
   if (headers.length === 0) {
-    toastStore.error('Gagal Membaca File', 'Tidak ditemukan kolom header pada file spreadsheet.');
+    toastStore.error('Failed to Read File', 'No header column found in spreadsheet file.');
     return;
   }
   columnMappings.value = headers.map(h => ({
@@ -611,7 +611,7 @@ async function proceedFromMapping() {
   if (!selectedFile.value) return;
   const { rows } = await parseFile(selectedFile.value);
   if (rows.length === 0) {
-    toastStore.error('Data Kosong', 'Tidak ada baris data perangkat yang ditemukan dalam file.');
+    toastStore.error('No Data', 'No device rows found in the file.');
     return;
   }
   parsedRows.value = validateRows(rows);
@@ -705,16 +705,16 @@ async function executeImport() {
 
   if (imported > 0) {
     toastStore.success(
-      'Import Berhasil',
-      `Berhasil mengimpor ${imported} perangkat ke sistem inventaris${skipped > 0 ? ` (${skipped} dilewati)` : ''}${failed > 0 ? ` (${failed} gagal)` : ''}.`
+      'Import Successful',
+      `Successfully imported ${imported} device(s)${skipped > 0 ? ` (${skipped} skipped)` : ''}${failed > 0 ? ` (${failed} failed)` : ''}.`
     );
   } else if (failed > 0) {
     toastStore.error(
-      'Import Gagal',
-      `Gagal mengimpor ${failed} perangkat. Silakan periksa log kesalahan di layar.`
+      'Import Failed',
+      `Failed to import ${failed} device(s). Please check the error log on screen.`
     );
   } else {
-    toastStore.info('Tidak Ada Perangkat Diimpor', 'Semua baris data dilewati atau sudah terdaftar.');
+    toastStore.info('No Devices Imported', 'All rows were skipped or already registered.');
   }
 }
 

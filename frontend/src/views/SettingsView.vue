@@ -581,8 +581,8 @@
         </div>
 
         <!-- ══════════════════════════════════════════════════════════════════════════
-             TAB 5: Location Management
-             ══════════════════════════════════════════════════════════════════════════ -->
+              TAB 5: Location Management
+              ══════════════════════════════════════════════════════════════════════════ -->
         <div v-else-if="activeTab === 'locations'" class="space-y-6 animate-fadeIn">
           <div class="flex items-center justify-between border-b border-subtle pb-3">
             <div>
@@ -1671,15 +1671,15 @@ function validateRealEmail(email: string): boolean {
 
 async function handleSendAddUserOTP() {
   if (!addUserForm.name || !addUserForm.email || !addUserForm.password) {
-    triggerFeedback('Form Belum Lengkap', 'Nama, email, dan kata sandi wajib diisi.', false);
+    triggerFeedback('Incomplete Form', 'Name, email, and password are required.', false);
     return;
   }
   if (!validateRealEmail(addUserForm.email)) {
-    triggerFeedback('Email Tidak Valid', 'Wajib menggunakan alamat email real yang valid (contoh: operator@jabarprov.go.id atau user@gmail.com).', false);
+    triggerFeedback('Invalid Email', 'A valid real email address is required (e.g., operator@jabarprov.go.id or user@gmail.com).', false);
     return;
   }
   if (addUserForm.password.length < 8) {
-    triggerFeedback('Password Kurang Kuat', 'Kata sandi minimal 8 karakter.', false);
+    triggerFeedback('Weak Password', 'Password must be at least 8 characters.', false);
     return;
   }
 
@@ -1688,9 +1688,9 @@ async function handleSendAddUserOTP() {
     const res = await authApi.sendVerificationOTP(addUserForm.email.trim().toLowerCase());
     addUserStep.value = 2;
     startAddUserCountdown();
-    triggerFeedback('Kode OTP Terkirim', res.message || `Kode verifikasi 6-digit telah dikirim ke ${addUserForm.email}`, true);
+    triggerFeedback('OTP Sent', res.message || `A 6-digit verification code has been sent to ${addUserForm.email}`, true);
   } catch (e: any) {
-    triggerFeedback('Gagal Mengirim OTP', e.response?.data?.error || 'Terjadi kesalahan sistem saat mengirim kode OTP.', false);
+    triggerFeedback('Failed to Send OTP', e.response?.data?.error || 'System error while sending OTP code.', false);
   } finally {
     isSendingAddUserOTP.value = false;
   }
@@ -1698,7 +1698,7 @@ async function handleSendAddUserOTP() {
 
 async function handleConfirmAddUser() {
   if (!addUserOTP.value || addUserOTP.value.trim().length !== 6) {
-    triggerFeedback('Kode OTP Tidak Lengkap', 'Silakan masukkan 6 digit kode OTP verifikasi email.', false);
+    triggerFeedback('Incomplete OTP', 'Please enter the 6-digit email verification OTP.', false);
     return;
   }
 
@@ -1716,9 +1716,9 @@ async function handleConfirmAddUser() {
     await settingStore.fetchUsers();
     isAddUserModalOpen.value = false;
     if (addUserTimer) clearInterval(addUserTimer);
-    triggerFeedback('Akun Berhasil Dibuat', `Pengguna ${addUserForm.name} (${addUserForm.email}) berhasil didaftarkan dan terverifikasi.`, true);
+    triggerFeedback('Account Created', `User ${addUserForm.name} (${addUserForm.email}) has been registered and verified.`, true);
   } catch (e: any) {
-    triggerFeedback('Pendaftaran Gagal', e.response?.data?.error || 'Gagal memverifikasi OTP atau membuat akun.', false);
+    triggerFeedback('Registration Failed', e.response?.data?.error || 'Failed to verify OTP or create account.', false);
   } finally {
     isCreatingUser.value = false;
   }
@@ -1894,9 +1894,9 @@ async function handleDeleteUser() {
     await settingStore.fetchUsers();
     isDeleteModalOpen.value = false;
     userToDelete.value = null;
-    triggerFeedback('User Account Deleted', 'Akun pengguna berhasil dihapus dari sistem.', true);
+    triggerFeedback('User Account Deleted', 'User account has been removed from the system.', true);
   } catch (e: any) {
-    triggerFeedback('Gagal Menghapus Pengguna', e.response?.data?.error || 'Terjadi kesalahan sistem.', false);
+    triggerFeedback('Failed to Delete User', e.response?.data?.error || 'System error occurred.', false);
   } finally {
     isDeletingUser.value = false;
   }
@@ -2263,10 +2263,10 @@ async function handleSaveLocation() {
   try {
     if (isLocationEdit.value && editingLocationId.value) {
       await locationsApi.updateLocation(editingLocationId.value, locationForm.name, locationForm.description);
-      triggerFeedback('Location Updated', `Lokasi "${locationForm.name}" berhasil diperbarui.`);
+      triggerFeedback('Location Updated', `Location "${locationForm.name}" has been updated.`);
     } else {
       await locationsApi.createLocation(locationForm.name, locationForm.description);
-      triggerFeedback('Location Created', `Lokasi "${locationForm.name}" berhasil ditambahkan.`);
+      triggerFeedback('Location Created', `Location "${locationForm.name}" has been created.`);
     }
     await fetchLocations();
     closeLocationModal();
@@ -2289,7 +2289,7 @@ async function handleDeleteLocation() {
     await locationsApi.deleteLocation(locationToDelete.value.id);
     await fetchLocations();
     isDeleteLocationModalOpen.value = false;
-    triggerFeedback('Location Deleted', `Lokasi "${locationToDelete.value.name}" berhasil dihapus.`);
+    triggerFeedback('Location Deleted', `Location "${locationToDelete.value.name}" has been deleted.`);
   } catch (e: any) {
     triggerFeedback('Location Delete Failed', e.response?.data?.error || 'Failed to delete location', false);
   } finally {
@@ -2364,10 +2364,10 @@ async function handleLogoUpload(e: Event) {
     const res = await settingStore.uploadBrandingAsset(file, 'logo');
     if (res && res.url) {
       brandingForm.logoUrl = res.url;
-      triggerFeedback('Logo Berhasil Diunggah', 'Logo baru siap diterapkan. Klik Simpan Branding untuk mengaktifkan.', true);
+      triggerFeedback('Logo Uploaded', 'New logo is ready. Click Save Branding to apply.', true);
     }
   } catch (err: any) {
-    triggerFeedback('Upload Gagal', err.response?.data?.error || 'Gagal mengunggah logo.', false);
+    triggerFeedback('Upload Failed', err.response?.data?.error || 'Failed to upload logo.', false);
   } finally {
     isUploadingLogo.value = false;
     if (logoInputRef.value) logoInputRef.value.value = '';
@@ -2383,10 +2383,10 @@ async function handleFaviconUpload(e: Event) {
     const res = await settingStore.uploadBrandingAsset(file, 'favicon');
     if (res && res.url) {
       brandingForm.faviconUrl = res.url;
-      triggerFeedback('Favicon Berhasil Diunggah', 'Favicon baru siap diterapkan. Klik Simpan Branding untuk mengaktifkan.', true);
+      triggerFeedback('Favicon Uploaded', 'New favicon is ready. Click Save Branding to apply.', true);
     }
   } catch (err: any) {
-    triggerFeedback('Upload Gagal', err.response?.data?.error || 'Gagal mengunggah favicon.', false);
+    triggerFeedback('Upload Failed', err.response?.data?.error || 'Failed to upload favicon.', false);
   } finally {
     isUploadingFavicon.value = false;
     if (faviconInputRef.value) faviconInputRef.value.value = '';
@@ -2405,9 +2405,9 @@ async function handleSaveBranding() {
       faviconUrl: brandingForm.faviconUrl,
       footerText: brandingForm.footerText.trim()
     });
-    triggerFeedback('Branding Berhasil Disimpan', 'Logo, Favicon, dan Nama Sistem telah diperbarui di seluruh aplikasi.', true);
+    triggerFeedback('Branding Saved', 'Logo, favicon, and system name have been updated across the application.', true);
   } catch (err: any) {
-    triggerFeedback('Gagal Menyimpan Branding', err.response?.data?.error || 'Terjadi kesalahan sistem saat menyimpan branding.', false);
+    triggerFeedback('Failed to Save Branding', err.response?.data?.error || 'System error while saving branding.', false);
   } finally {
     isSavingBranding.value = false;
   }

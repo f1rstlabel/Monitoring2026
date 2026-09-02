@@ -149,13 +149,13 @@
       <template v-else>
         <div class="bg-surface border border-subtle rounded-xl p-5 space-y-1">
           <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">Avg SLA Uptime</p>
-          <p class="text-2xl font-extrabold text-status-up font-mono">{{ reportStore.avgSlaUptime.toFixed(2) }}%</p>
+          <p class="text-2xl font-extrabold text-status-up font-mono">{{ reportStore.filteredAvgSlaUptime.toFixed(2) }}%</p>
           <p class="text-[11px] text-text-muted font-mono">Target: 99.50%</p>
         </div>
 
         <div class="bg-surface border border-subtle rounded-xl p-5 space-y-1">
           <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">Total Outage Events</p>
-          <p class="text-2xl font-extrabold text-amber-400 font-mono">{{ reportStore.totalOutageEvents }}</p>
+          <p class="text-2xl font-extrabold text-amber-400 font-mono">{{ reportStore.filteredTotalOutageEvents }}</p>
           <p class="text-[11px] text-text-muted font-mono">Avg MTTR: {{ reportStore.avgMttrMinutes.toFixed(0) }}m</p>
         </div>
 
@@ -167,7 +167,7 @@
 
         <div class="bg-surface border border-status-warning/30 rounded-xl p-5 space-y-1">
           <p class="text-[10px] font-mono text-amber-400/80 uppercase tracking-wider">Recurring Issues</p>
-          <p class="text-2xl font-extrabold text-amber-400 font-mono">{{ reportStore.flapDevices.length }}</p>
+          <p class="text-2xl font-extrabold text-amber-400 font-mono">{{ reportStore.filteredFlapDevices.length }}</p>
           <p class="text-[11px] text-text-muted font-mono">≥5 downs / 7 days</p>
         </div>
       </template>
@@ -301,7 +301,7 @@
           <PaginationControl
             v-model:current-page="recurringPage"
             v-model:page-size="recurringPageSize"
-            :total="reportStore.flapDevices.length"
+            :total="reportStore.filteredFlapDevices.length"
           />
         </template>
       </div>
@@ -316,7 +316,7 @@
         </template>
         <RecurringBarChart
           v-else
-          :devices="reportStore.flapDevices"
+          :devices="reportStore.filteredFlapDevices"
         />
       </div>
     </div>
@@ -428,8 +428,8 @@
       v-if="isPrintRendered"
       :period="reportStore.period"
       :active-tab="activeTab"
-      :avg-sla-uptime="reportStore.avgSlaUptime"
-      :total-outage-events="reportStore.totalOutageEvents"
+      :avg-sla-uptime="reportStore.filteredAvgSlaUptime"
+      :total-outage-events="reportStore.filteredTotalOutageEvents"
       :avg-mttr-minutes="reportStore.avgMttrMinutes"
       :alert-delivery-rate="reportStore.alertDeliveryRate"
       :rows="reportStore.filteredRows"

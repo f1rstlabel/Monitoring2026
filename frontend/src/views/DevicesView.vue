@@ -848,11 +848,17 @@
         <div class="space-y-4 text-xs">
           <div class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3 text-red-400">
             <AlertTriangle class="w-5 h-5 shrink-0 mt-0.5" />
-            <div>
-              <h4 class="font-bold font-mono">Tindakan Ini Tidak Dapat Dibatalkan</h4>
-              <p class="mt-1 text-[11px] text-text-secondary">
-                Apakah Anda yakin ingin menghapus perangkat <strong class="text-text-main font-mono">{{ deleteTarget?.name }}</strong> (IP: {{ deleteTarget?.ip }})?
+            <div class="space-y-2">
+              <h4 class="font-bold font-mono text-text-main">This action cannot be undone</h4>
+              <p class="text-[11px] text-text-secondary leading-relaxed">
+                Delete device <strong class="text-text-main font-mono">{{ deleteTarget?.name }}</strong> (IP: {{ deleteTarget?.ip }})?
               </p>
+              <div class="flex items-start gap-2 p-2.5 rounded-lg bg-surface border border-subtle">
+                <Info class="w-3.5 h-3.5 text-brand-periwinkle shrink-0 mt-0.5" />
+                <p class="text-[11px] leading-relaxed text-text-secondary">
+                  Only the device record will be removed. Incident history, status logs, metrics and IP change logs are <span class="font-semibold text-text-main">retained for audit</span>.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1021,16 +1027,22 @@
     </Modal>
 
     <!-- Bulk Delete Confirmation Modal -->
-    <Modal :is-open="isBulkDeleteConfirmModalOpen" title="Konfirmasi Hapus Massal" @close="isBulkDeleteConfirmModalOpen = false">
+    <Modal :is-open="isBulkDeleteConfirmModalOpen" title="Confirm Bulk Delete" @close="isBulkDeleteConfirmModalOpen = false">
       <template #default>
-        <div class="space-y-4 text-xs font-mono">
+        <div class="space-y-4 text-xs">
           <div class="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3 text-red-400">
             <AlertTriangle class="w-5 h-5 shrink-0 mt-0.5" />
-            <div class="space-y-1.5">
-              <h4 class="font-bold text-text-main text-xs">Tindakan Bersifat Permanen</h4>
+            <div class="space-y-2">
+              <h4 class="font-bold text-text-main text-xs">Permanent action</h4>
               <p class="text-[11px] text-text-secondary leading-relaxed">
-                Apakah Anda yakin ingin menghapus permanen <strong class="text-text-main font-bold">{{ selectedDeviceIds.length }} perangkat terpilih</strong> dari sistem inventaris? Seluruh riwayat probe, uptime, dan log status perangkat tersebut akan dihapus.
+                Delete <strong class="text-text-main font-bold">{{ selectedDeviceIds.length }} selected device(s)</strong> from inventory?
               </p>
+              <div class="flex items-start gap-2 p-2.5 rounded-lg bg-surface border border-subtle">
+                <Info class="w-3.5 h-3.5 text-brand-periwinkle shrink-0 mt-0.5" />
+                <p class="text-[11px] leading-relaxed text-text-secondary">
+                  Only device records will be removed. Incident history, logs and metrics are <span class="font-semibold text-text-main">retained</span>.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1187,8 +1199,8 @@ function onDeviceSaved(mode?: string, name?: string) {
   fetchAllLocations();
   isFormModalOpen.value = false;
   toastStore.success(
-    mode === 'add' ? 'Perangkat Berhasil Ditambahkan' : 'Perangkat Berhasil Disimpan',
-    `Konfigurasi perangkat ${name ? `"${name}"` : ''} berhasil disimpan ke sistem.`
+    mode === 'add' ? 'Device Added Successfully' : 'Device Saved Successfully',
+    `Device configuration ${name ? `"${name}"` : ''} has been saved successfully.`
   );
 }
 
@@ -1343,11 +1355,11 @@ async function handleSaveLocEdit() {
       await locationsApi.createLocation(locEditName.value, locEditDescription.value);
     }
     isLocEditModalOpen.value = false;
-    triggerFeedback('Lokasi Berhasil Disimpan', `Lokasi "${locEditName.value}" berhasil disimpan.`);
+    triggerFeedback('Location Saved', `Location "${locEditName.value}" has been saved.`);
     await fetchAllLocations();
     loadDevices();
   } catch (e: any) {
-    triggerFeedback('Gagal Mengubah Lokasi', e.response?.data?.error || 'Failed to rename location', false);
+    triggerFeedback('Failed to Update Location', e.response?.data?.error || 'Failed to update location', false);
   } finally {
     isSavingLocEdit.value = false;
   }
@@ -1370,11 +1382,11 @@ async function handleConfirmLocDelete() {
       await locationsApi.deleteLocation(locDeleteId.value);
     }
     isLocDeleteModalOpen.value = false;
-    triggerFeedback('Lokasi Dihapus', `Lokasi "${locDeleteName.value}" berhasil dihapus.`);
+    triggerFeedback('Location Deleted', `Location "${locDeleteName.value}" has been deleted.`);
     await fetchAllLocations();
     loadDevices();
   } catch (e: any) {
-    triggerFeedback('Gagal Menghapus Lokasi', e.response?.data?.error || 'Failed to delete location', false);
+    triggerFeedback('Failed to Delete Location', e.response?.data?.error || 'Failed to delete location', false);
   } finally {
     isDeletingLoc.value = false;
   }
@@ -1502,8 +1514,8 @@ async function executeBulkUpdate() {
     isBulkConfirmModalOpen.value = false;
     isBulkDrawerOpen.value = false;
     triggerFeedback(
-      'Perubahan Massal Berhasil',
-      `Berhasil memperbarui konfigurasi untuk ${res.updatedCount || selectedDeviceIds.value.length} perangkat terpilih.`,
+      'Bulk Update Successful',
+      `Successfully updated configuration for ${res.updatedCount || selectedDeviceIds.value.length} selected device(s).`,
       true
     );
     selectedDeviceIds.value = [];
@@ -1512,8 +1524,8 @@ async function executeBulkUpdate() {
     await fetchAllLocations();
   } catch (e: any) {
     triggerFeedback(
-      'Gagal Menyimpan Perubahan Massal',
-      e.response?.data?.error || 'Terjadi kesalahan sistem saat memperbarui data perangkat.',
+      'Failed to Save Bulk Changes',
+      e.response?.data?.error || 'System error while updating devices.',
       false
     );
   } finally {
@@ -1529,14 +1541,14 @@ async function triggerBulkPoll() {
   try {
     await api.post('/monitoring/refresh-now');
     triggerFeedback(
-      'ICMP Probe Terkirim',
-      `Permintaan probe instan berhasil dikirimkan ke ${selectedDeviceIds.value.length} perangkat terpilih. Data status akan terupdate secara real-time.`,
+      'ICMP Probe Sent',
+      `Instant probe request has been sent to ${selectedDeviceIds.value.length} selected device(s). Status will update in real time.`,
       true
     );
   } catch (e: any) {
     triggerFeedback(
-      'Gagal Melakukan Polling',
-      e.response?.data?.error || 'Gagal mengirim sinyal polling ke daemon monitoring.',
+      'Failed to Trigger Polling',
+      e.response?.data?.error || 'Failed to send polling signal to monitoring daemon.',
       false
     );
   } finally {
@@ -1566,8 +1578,8 @@ async function executeBulkDelete() {
     deviceStore.devices = deviceStore.devices.filter(d => !idSet.has(d.id));
     deviceStore.totalCount = Math.max(0, deviceStore.totalCount - targetCount);
     triggerFeedback(
-      'Perangkat Berhasil Dihapus',
-      `Sebanyak ${targetCount} perangkat telah dihapus permanen dari sistem inventaris.`,
+      'Device Removed',
+      `Removed ${targetCount} device(s) from Devices menu.`,
       true
     );
     selectedDeviceIds.value = [];
@@ -1576,8 +1588,8 @@ async function executeBulkDelete() {
     await fetchAllLocations();
   } catch (e: any) {
     triggerFeedback(
-      'Gagal Menghapus Perangkat',
-      e.response?.data?.error || 'Terjadi kesalahan saat menghapus data perangkat massal.',
+      'Failed to Remove Device',
+      e.response?.data?.error || 'An error occurred while removing devices in bulk.',
       false
     );
   } finally {
@@ -1662,13 +1674,13 @@ async function executeDelete() {
     deviceStore.devices = deviceStore.devices.filter(d => d.id !== devId);
     if (deviceStore.totalCount > 0) deviceStore.totalCount--;
     triggerFeedback(
-      'Perangkat Berhasil Dihapus',
-      `Perangkat ${devName} telah dihapus permanen dari sistem inventaris.`,
+      'Device Removed',
+      `Device ${devName} removed from Devices menu.`,
       true
     );
     await loadDevices();
   } catch (e: any) {
-    triggerFeedback('Gagal Menghapus Perangkat', e.response?.data?.error || 'Gagal menghapus perangkat', false);
+    triggerFeedback('Failed to Remove Device', e.response?.data?.error || 'Failed to remove device', false);
   } finally {
     isDeletingSingle.value = false;
   }

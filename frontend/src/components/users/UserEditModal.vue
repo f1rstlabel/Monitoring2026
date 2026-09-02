@@ -1,5 +1,5 @@
 <template>
-  <Modal :is-open="isOpen" title="Edit User Profile & Account Status" max-width="lg" @close="$emit('close')">
+  <Modal :is-open="isOpen" title="Edit User Profile & Account Status" max-width="max-w-2xl" @close="$emit('close')">
     <template #default>
       <form v-if="user" @submit.prevent="handleSubmit" class="space-y-5 text-xs">
         <!-- User Profile Bar -->
