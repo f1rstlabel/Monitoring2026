@@ -35,6 +35,23 @@ export const useReportStore = defineStore('reports', () => {
       .filter(d => deviceTypeFilter.value === 'All' || d.deviceType === deviceTypeFilter.value);
   });
 
+  // Filtered stats for header cards — must respect location/type filters (bug fix: previously used unfiltered totals)
+  const filteredTotalOutageEvents = computed(() => filteredRows.value.reduce((acc, r) => acc + (r.downCount || 0), 0));
+  const filteredAvgSlaUptime = computed(() => {
+    if (filteredRows.value.length === 0) return avgSlaUptime.value;
+    const totalDT = filteredRows.value.reduce((acc, r) => acc + (r.totalDowntimeMinutes || 0), 0);
+    const totalDevices = filteredRows.value.length || 1;
+    let periodMinutes = 30 * 24 * 60;
+    if (period.value === 'daily') periodMinutes = 24 * 60;
+    else if (period.value === 'weekly') periodMinutes = 7 * 24 * 60;
+    else if (period.value === 'custom' && startDate.value && endDate.value) {
+      const diffMs = new Date(endDate.value).getTime() - new Date(startDate.value).getTime();
+      periodMinutes = Math.max(60, Math.floor(diffMs / 60000));
+    }
+    const uptimePct = 100.0 - ((totalDT / (totalDevices * periodMinutes)) * 100.0);
+    return Math.max(0.0, Math.min(100.0, Number(uptimePct.toFixed(2)))) || 100.0;
+  });
+
   const uniqueLocations = computed(() => {
     const locs = new Set(rows.value.map(r => r.location).filter(Boolean));
     return ['All', ...Array.from(locs)];
@@ -168,6 +185,8 @@ export const useReportStore = defineStore('reports', () => {
     alertDeliveryRate,
     filteredRows,
     filteredFlapDevices,
+    filteredTotalOutageEvents,
+    filteredAvgSlaUptime,
     uniqueLocations,
     formatDowntime,
     fetchReport,

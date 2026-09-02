@@ -2352,27 +2352,29 @@ func (h *Handler) GetReport(c *gin.Context) {
 	periodOpt := c.Query("period")
 	startDateOpt := c.Query("startDate")
 	endDateOpt := c.Query("endDate")
+	wibLoc := time.FixedZone("WIB", 7*3600)
 
-	now := time.Now()
+	now := time.Now().In(wibLoc)
 	var from time.Time
 	if periodOpt == "daily" {
 		from = now.Add(-24 * time.Hour)
 	} else if periodOpt == "weekly" {
 		from = now.Add(-7 * 24 * time.Hour)
 	} else if periodOpt == "custom" && startDateOpt != "" {
-		if t, err := time.Parse("2006-01-02", startDateOpt); err == nil {
+		if t, err := time.ParseInLocation("2006-01-02", startDateOpt, wibLoc); err == nil {
 			from = t
 		} else {
 			from = now.Add(-30 * 24 * time.Hour)
 		}
 		if endDateOpt != "" {
-			if t, err := time.Parse("2006-01-02", endDateOpt); err == nil {
+			if t, err := time.ParseInLocation("2006-01-02", endDateOpt, wibLoc); err == nil {
 				now = t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 			}
 		}
 	} else {
 		from = now.Add(-30 * 24 * time.Hour)
 	}
+	log.Printf("[Reports] GetReport period=%s from=%s to=%s", periodOpt, from.Format(time.RFC3339), now.Format(time.RFC3339))
 
 	if h.statusRepo == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Status repository is not initialized"})
@@ -2392,27 +2394,29 @@ func (h *Handler) GetFlapDevices(c *gin.Context) {
 	periodOpt := c.Query("period")
 	startDateOpt := c.Query("startDate")
 	endDateOpt := c.Query("endDate")
+	wibLoc := time.FixedZone("WIB", 7*3600)
 
-	now := time.Now()
+	now := time.Now().In(wibLoc)
 	var from time.Time
 	if periodOpt == "daily" {
 		from = now.Add(-24 * time.Hour)
 	} else if periodOpt == "weekly" {
 		from = now.Add(-7 * 24 * time.Hour)
 	} else if periodOpt == "custom" && startDateOpt != "" {
-		if t, err := time.Parse("2006-01-02", startDateOpt); err == nil {
+		if t, err := time.ParseInLocation("2006-01-02", startDateOpt, wibLoc); err == nil {
 			from = t
 		} else {
 			from = now.Add(-30 * 24 * time.Hour)
 		}
 		if endDateOpt != "" {
-			if t, err := time.Parse("2006-01-02", endDateOpt); err == nil {
+			if t, err := time.ParseInLocation("2006-01-02", endDateOpt, wibLoc); err == nil {
 				now = t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 			}
 		}
 	} else {
 		from = now.Add(-30 * 24 * time.Hour)
 	}
+	log.Printf("[Reports] GetFlapDevices period=%s from=%s to=%s", periodOpt, from.Format(time.RFC3339), now.Format(time.RFC3339))
 
 	reports, err := h.statusRepo.GetFlapDevices(5, from, now)
 	if err != nil {
