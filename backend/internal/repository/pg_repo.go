@@ -206,8 +206,31 @@ func (r *PostgresDeviceRepository) resolveLocationID(locationName string) string
 }
 
 func (r *PostgresDeviceRepository) Create(d *domain.Device) (*domain.Device, error) {
+	// Reconnect to existing deleted device identity if same MAC or same IP was previously registered
+	var oldDevID string
+	if d.MAC != "" {
+		_ = r.db.QueryRow(`
+			SELECT device_id FROM incidents 
+			WHERE LOWER(device_mac) = LOWER($1) 
+			  AND device_id NOT IN (SELECT id FROM devices)
+			ORDER BY COALESCE(resolved_at, started_at) DESC LIMIT 1
+		`, d.MAC).Scan(&oldDevID)
+	}
+	if oldDevID == "" && d.IP != "" {
+		_ = r.db.QueryRow(`
+			SELECT device_id FROM incidents 
+			WHERE device_ip = $1 
+			  AND device_id NOT IN (SELECT id FROM devices)
+			ORDER BY COALESCE(resolved_at, started_at) DESC LIMIT 1
+		`, d.IP).Scan(&oldDevID)
+	}
+
 	if d.ID == "" {
-		d.ID = fmt.Sprintf("dev-%d", time.Now().UnixNano()/1e6)
+		if oldDevID != "" {
+			d.ID = oldDevID
+		} else {
+			d.ID = fmt.Sprintf("dev-%d", time.Now().UnixNano()/1e6)
+		}
 	}
 	if d.LocationID == "" && d.Location != "" {
 		d.LocationID = r.resolveLocationID(d.Location)
@@ -226,6 +249,26 @@ func (r *PostgresDeviceRepository) Create(d *domain.Device) (*domain.Device, err
 	_, err := r.db.Exec(query, d.ID, d.Name, d.Type, d.MAC, d.IP, d.AddressingMode, d.Model, d.Status, locID, d.Location, d.Rack, d.FailureThreshold, d.Uptime30d, d.SNMPEnabled, d.SNMPCommunity, d.SNMPPort, d.SNMPIfIndex, d.SNMPSysName, d.UseCustomThreshold, d.CustomFailureThreshold, createdBy)
 	if err != nil {
 		return nil, err
+	}
+
+	// Reconnect any orphaned historical records belonging to this device by MAC, IP, or oldDevID
+	_, _ = r.db.Exec(`
+		UPDATE incidents 
+		SET device_id = $1 
+		WHERE ((device_ip = $2 AND $2 != '') OR (device_mac != '' AND LOWER(device_mac) = LOWER($3)) OR ($4 != '' AND device_id = $4))
+		  AND device_id NOT IN (SELECT id FROM devices)
+	`, d.ID, d.IP, d.MAC, oldDevID)
+
+	_, _ = r.db.Exec(`
+		UPDATE device_status_log 
+		SET device_id = $1 
+		WHERE (($4 != '' AND device_id = $4) OR (device_name = $2 AND $2 != ''))
+		  AND device_id NOT IN (SELECT id FROM devices)
+	`, d.ID, d.Name, d.IP, oldDevID)
+
+	if oldDevID != "" && oldDevID != d.ID {
+		_, _ = r.db.Exec(`UPDATE device_metrics SET device_id = $1 WHERE device_id = $2`, d.ID, oldDevID)
+		_, _ = r.db.Exec(`UPDATE ip_change_log SET device_id = $1 WHERE device_id = $2`, d.ID, oldDevID)
 	}
 
 	if r.redis != nil {
@@ -386,12 +429,12 @@ func (r *PostgresDeviceRepository) Delete(id string) error {
 	}
 	defer tx.Rollback()
 
-	// 1. Snapshot device details (name, type, ip) into child tables before deleting the device
-	var devName, devType, devIP string
-	_ = tx.QueryRow(`SELECT name, type, last_known_ip FROM devices WHERE id = $1`, id).Scan(&devName, &devType, &devIP)
+	// 1. Snapshot device details (name, type, ip, mac) into child tables before deleting the device
+	var devName, devType, devIP, devMAC string
+	_ = tx.QueryRow(`SELECT name, type, last_known_ip, mac_address FROM devices WHERE id = $1`, id).Scan(&devName, &devType, &devIP, &devMAC)
 
 	if devName != "" {
-		_, _ = tx.Exec(`UPDATE incidents SET device_name = COALESCE(NULLIF(device_name, ''), $1), device_type = COALESCE(NULLIF(device_type, ''), $2), device_ip = COALESCE(NULLIF(device_ip, ''), $3) WHERE device_id = $4`, devName, devType, devIP, id)
+		_, _ = tx.Exec(`UPDATE incidents SET device_name = COALESCE(NULLIF(device_name, ''), $1), device_type = COALESCE(NULLIF(device_type, ''), $2), device_ip = COALESCE(NULLIF(device_ip, ''), $3), device_mac = COALESCE(NULLIF(device_mac, ''), $4) WHERE device_id = $5`, devName, devType, devIP, devMAC, id)
 		_, _ = tx.Exec(`UPDATE ip_change_log SET device_name = COALESCE(NULLIF(device_name, ''), $1) WHERE device_id = $2`, devName, id)
 		_, _ = tx.Exec(`UPDATE device_status_log SET device_name = COALESCE(NULLIF(device_name, ''), $1), device_type = COALESCE(NULLIF(device_type, ''), $2) WHERE device_id = $3`, devName, devType, id)
 	}
@@ -559,7 +602,8 @@ func (r *PostgresDeviceRepository) BulkDelete(ids []string) (int, error) {
 		UPDATE incidents i
 		SET device_name = COALESCE(NULLIF(i.device_name, ''), d.name, 'Unknown Device'),
 		    device_type = COALESCE(NULLIF(i.device_type, ''), d.type, 'Other'),
-		    device_ip = COALESCE(NULLIF(i.device_ip, ''), d.last_known_ip, '')
+		    device_ip = COALESCE(NULLIF(i.device_ip, ''), d.last_known_ip, ''),
+		    device_mac = COALESCE(NULLIF(i.device_mac, ''), d.mac_address, '')
 		FROM devices d
 		WHERE i.device_id = d.id AND i.device_id = ANY($1)
 	`, pq.Array(ids))
@@ -1140,6 +1184,19 @@ func EnsureIncidentTablesAndIndexes(db *sql.DB) {
 		ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_name VARCHAR(255) DEFAULT '';
 		ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) DEFAULT '';
 		ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_ip VARCHAR(50) DEFAULT '';
+		ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_mac VARCHAR(50) DEFAULT '';
+
+		-- Reconnect any orphaned incidents to currently registered devices by matching IP or MAC
+		UPDATE incidents i
+		SET device_id = d.id
+		FROM devices d
+		WHERE (i.device_ip = d.last_known_ip OR (i.device_mac != '' AND LOWER(i.device_mac) = LOWER(d.mac_address)))
+		  AND i.device_id NOT IN (SELECT id FROM devices);
+
+		UPDATE incidents i
+		SET device_mac = COALESCE(d.mac_address, '')
+		FROM devices d
+		WHERE i.device_id = d.id AND (i.device_mac IS NULL OR i.device_mac = '');
 
 		ALTER TABLE device_status_log ADD COLUMN IF NOT EXISTS device_name VARCHAR(255) DEFAULT '';
 		ALTER TABLE device_status_log ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) DEFAULT '';
@@ -1457,8 +1514,12 @@ func (r *PostgresIncidentRepository) GetByDeviceID(deviceID string) ([]domain.In
 		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
 		FROM incidents i
 		LEFT JOIN devices d ON i.device_id = d.id
-		WHERE i.device_id = $1
-		ORDER BY i.started_at DESC`
+		WHERE i.device_id = $1 
+		   OR (i.device_id NOT IN (SELECT id FROM devices) AND (
+		       i.device_ip = (SELECT last_known_ip FROM devices WHERE id = $1)
+		       OR (i.device_mac != '' AND LOWER(i.device_mac) = (SELECT LOWER(mac_address) FROM devices WHERE id = $1))
+		   ))
+		ORDER BY COALESCE(i.resolved_at, i.started_at) DESC`
 	rows, err := r.db.Query(query, deviceID)
 	if err != nil {
 		return nil, err
@@ -1479,7 +1540,12 @@ func (r *PostgresIncidentRepository) GetOpenByDeviceID(deviceID string) (*domain
 		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
 		FROM incidents i
 		LEFT JOIN devices d ON i.device_id = d.id
-		WHERE i.device_id = $1 AND i.status = 'ACTIVE'
+		WHERE (i.device_id = $1 OR (
+		       i.device_id NOT IN (SELECT id FROM devices) AND (
+		           i.device_ip = (SELECT last_known_ip FROM devices WHERE id = $1)
+		           OR (i.device_mac != '' AND LOWER(i.device_mac) = (SELECT LOWER(mac_address) FROM devices WHERE id = $1))
+		       )
+		)) AND i.status = 'ACTIVE'
 		ORDER BY i.started_at ASC
 		LIMIT 1`
 	rows, err := r.db.Query(query, deviceID)

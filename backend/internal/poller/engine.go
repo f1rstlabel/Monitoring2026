@@ -860,8 +860,18 @@ func (e *Engine) processPollResult(dev domain.Device, targetIP string, up bool, 
 			devMu.Lock()
 
 			notified := e.getNotifiedState(dev.ID)
-			// Only execute DOWN transition if the device was not already notified DOWN or was UP in DB
-			if notified != domain.StatusDOWN || dev.Status == domain.StatusUP {
+			hasActiveInc := false
+			if e.incidentRepo != nil {
+				if activeInc, _ := e.incidentRepo.GetOpenByDeviceID(dev.ID); activeInc != nil {
+					hasActiveInc = true
+				}
+			}
+
+			// Execute DOWN transition if:
+			// 1. Device was not already notified DOWN
+			// 2. OR device was marked UP in DB
+			// 3. OR device is DOWN but has NO active incident ticket (reconcile missing incident / reuse)
+			if notified != domain.StatusDOWN || dev.Status == domain.StatusUP || !hasActiveInc {
 				e.setNotifiedState(dev.ID, domain.StatusDOWN)
 
 				// Threshold reached — declare DOWN
