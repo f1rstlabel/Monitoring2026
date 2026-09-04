@@ -321,7 +321,7 @@ func (r *PostgresDeviceRepository) GetIPChangeLogs(page, limit int) ([]domain.IP
 	}
 
 	query := `
-		SELECT i.id, COALESCE(i.device_id, ''), COALESCE(d.name, 'Unknown Device'), i.old_ip, i.new_ip, COALESCE(i.source, 'L3_ARP') as source, i.created_at
+		SELECT i.id, COALESCE(i.device_id, ''), COALESCE(NULLIF(d.name, ''), NULLIF(i.device_name, ''), 'Unknown Device'), i.old_ip, i.new_ip, COALESCE(i.source, 'L3_ARP') as source, i.created_at
 		FROM ip_change_log i
 		LEFT JOIN devices d ON i.device_id = d.id
 		ORDER BY i.created_at DESC
@@ -386,16 +386,28 @@ func (r *PostgresDeviceRepository) Delete(id string) error {
 	}
 	defer tx.Rollback()
 
-	// Fix 023: Delete ONLY the device record. Preserve logs/history (incidents, metrics, status_log, ip_change_log)
-	// FKs are now ON DELETE SET NULL, so child rows are retained with device_id = NULL for audit/history.
-	// Only remove relationship rows (device_dependencies) which have no history value.
+	// 1. Snapshot device details (name, type, ip) into child tables before deleting the device
+	var devName, devType, devIP string
+	_ = tx.QueryRow(`SELECT name, type, last_known_ip FROM devices WHERE id = $1`, id).Scan(&devName, &devType, &devIP)
+
+	if devName != "" {
+		_, _ = tx.Exec(`UPDATE incidents SET device_name = COALESCE(NULLIF(device_name, ''), $1), device_type = COALESCE(NULLIF(device_type, ''), $2), device_ip = COALESCE(NULLIF(device_ip, ''), $3) WHERE device_id = $4`, devName, devType, devIP, id)
+		_, _ = tx.Exec(`UPDATE ip_change_log SET device_name = COALESCE(NULLIF(device_name, ''), $1) WHERE device_id = $2`, devName, id)
+		_, _ = tx.Exec(`UPDATE device_status_log SET device_name = COALESCE(NULLIF(device_name, ''), $1), device_type = COALESCE(NULLIF(device_type, ''), $2) WHERE device_id = $3`, devName, devType, id)
+	}
+
+	// 2. Automatically resolve any active incidents for this device so it doesn't stay indefinitely stuck in ACTIVE
+	_, _ = tx.Exec(`UPDATE incidents SET status = 'RESOLVED', resolved_at = CURRENT_TIMESTAMP WHERE device_id = $1 AND status = 'ACTIVE'`, id)
+
+	// 3. Remove relationship rows from legacy device_dependencies if table exists
 	if hasDepsTable {
 		if _, err := tx.Exec(`DELETE FROM device_dependencies WHERE parent_id = $1 OR child_id = $1`, id); err != nil {
 			return err
 		}
 	}
 
-	// Delete the device itself; FK SET NULL will preserve child history automatically
+	// 4. Delete the device record only.
+	// Child records in incidents, device_metrics, device_status_log, ip_change_log are preserved.
 	res, err := tx.Exec(`DELETE FROM devices WHERE id = $1`, id)
 	if err != nil {
 		return err
@@ -541,14 +553,41 @@ func (r *PostgresDeviceRepository) BulkDelete(ids []string) (int, error) {
 	}
 	defer tx.Rollback()
 
-	// Fix 023: Bulk delete ONLY devices. Preserve all history/logs via FK SET NULL.
+	// Fix 024: Bulk delete ONLY devices. Preserve all history/logs with snapshot info.
+	// 1. Snapshot device details into child tables before deleting devices
+	_, _ = tx.Exec(`
+		UPDATE incidents i
+		SET device_name = COALESCE(NULLIF(i.device_name, ''), d.name, 'Unknown Device'),
+		    device_type = COALESCE(NULLIF(i.device_type, ''), d.type, 'Other'),
+		    device_ip = COALESCE(NULLIF(i.device_ip, ''), d.last_known_ip, '')
+		FROM devices d
+		WHERE i.device_id = d.id AND i.device_id = ANY($1)
+	`, pq.Array(ids))
+	_, _ = tx.Exec(`
+		UPDATE ip_change_log i
+		SET device_name = COALESCE(NULLIF(i.device_name, ''), d.name, 'Unknown Device')
+		FROM devices d
+		WHERE i.device_id = d.id AND i.device_id = ANY($1)
+	`, pq.Array(ids))
+	_, _ = tx.Exec(`
+		UPDATE device_status_log l
+		SET device_name = COALESCE(NULLIF(l.device_name, ''), d.name, 'Unknown Device'),
+		    device_type = COALESCE(NULLIF(l.device_type, ''), d.type, 'Other')
+		FROM devices d
+		WHERE l.device_id = d.id AND l.device_id = ANY($1)
+	`, pq.Array(ids))
+
+	// 2. Automatically resolve any active incidents for these devices
+	_, _ = tx.Exec(`UPDATE incidents SET status = 'RESOLVED', resolved_at = CURRENT_TIMESTAMP WHERE device_id = ANY($1) AND status = 'ACTIVE'`, pq.Array(ids))
+
+	// 3. Remove relationship rows (device_dependencies) if table exists
 	if hasDepsTable {
 		if _, err := tx.Exec(`DELETE FROM device_dependencies WHERE parent_id = ANY($1) OR child_id = ANY($1)`, pq.Array(ids)); err != nil {
 			return 0, err
 		}
 	}
 
-	// Delete devices in single set-based query; child logs are preserved automatically
+	// 4. Delete devices in single set-based query; child logs/history are preserved
 	res, err := tx.Exec(`DELETE FROM devices WHERE id = ANY($1)`, pq.Array(ids))
 	if err != nil {
 		return 0, err
@@ -951,15 +990,15 @@ func (r *PostgresStatusLogRepository) SumDowntimeMinutes(deviceID string, from, 
 func (r *PostgresStatusLogRepository) GetFlapDevices(threshold int, from, to time.Time) ([]domain.FlapReport, error) {
 	query := `
 		SELECT COALESCE(l.device_id, '') as device_id, COUNT(*) as down_count,
-		       COALESCE(d.name, 'Unknown Device') as device_name,
-		       COALESCE(d.type, 'Access Point') as device_type,
+		       COALESCE(NULLIF(d.name, ''), NULLIF(l.device_name, ''), 'Unknown Device') as device_name,
+		       COALESCE(NULLIF(d.type, ''), NULLIF(l.device_type, ''), 'Access Point') as device_type,
 		       COALESCE(loc.name, d.location, 'Gedung Sate / NOC Server Room') as location,
-		       COALESCE(d.last_known_ip, '0.0.0.0') as ip
+		       COALESCE(NULLIF(d.last_known_ip, ''), '0.0.0.0') as ip
 		FROM device_status_log l
 		LEFT JOIN devices d ON l.device_id = d.id
 		LEFT JOIN locations loc ON d.location_id = loc.id
-		WHERE l.status='DOWN' AND l.device_id IS NOT NULL AND l.created_at >= $1 AND l.created_at <= $2
-		GROUP BY COALESCE(l.device_id, ''), d.name, d.type, loc.name, d.location, d.last_known_ip
+		WHERE l.status='DOWN' AND l.created_at >= $1 AND l.created_at <= $2
+		GROUP BY COALESCE(l.device_id, ''), d.name, l.device_name, d.type, l.device_type, loc.name, d.location, d.last_known_ip
 		HAVING COUNT(*) >= $3
 	`
 	rows, err := r.db.Query(query, from, to, threshold)
@@ -1070,7 +1109,43 @@ func EnsureIncidentTablesAndIndexes(db *sql.DB) {
 	if db == nil {
 		return
 	}
+
+	// 1. Ensure foreign key constraints on log/history tables pointing to devices are DROPPED.
+	// This guarantees that deleting a device NEVER cascades and deletes historical incidents,
+	// status logs, metrics, or IP change logs, regardless of prior migration state on any server.
 	_, _ = db.Exec(`
+		DO $$
+		DECLARE
+		    r RECORD;
+		BEGIN
+		    FOR r IN (
+		        SELECT tc.table_name, tc.constraint_name
+		        FROM information_schema.table_constraints AS tc
+		        JOIN information_schema.referential_constraints AS rc
+		          ON tc.constraint_name = rc.constraint_name
+		        WHERE tc.constraint_type = 'FOREIGN KEY'
+		          AND tc.table_name IN ('incidents', 'device_metrics', 'device_status_log', 'ip_change_log')
+		          AND rc.unique_constraint_name IN (
+		            SELECT constraint_name FROM information_schema.table_constraints
+		            WHERE table_name = 'devices' AND constraint_type = 'PRIMARY KEY'
+		          )
+		    ) LOOP
+		        EXECUTE 'ALTER TABLE ' || quote_ident(r.table_name) || ' DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
+		    END LOOP;
+		END $$;
+	`)
+
+	// 2. Ensure snapshot columns exist on incidents, device_status_log, and ip_change_log
+	_, _ = db.Exec(`
+		ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_name VARCHAR(255) DEFAULT '';
+		ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) DEFAULT '';
+		ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_ip VARCHAR(50) DEFAULT '';
+
+		ALTER TABLE device_status_log ADD COLUMN IF NOT EXISTS device_name VARCHAR(255) DEFAULT '';
+		ALTER TABLE device_status_log ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) DEFAULT '';
+
+		ALTER TABLE ip_change_log ADD COLUMN IF NOT EXISTS device_name VARCHAR(255) DEFAULT '';
+
 		CREATE TABLE IF NOT EXISTS incidents_archive (
 			id VARCHAR(64) PRIMARY KEY,
 			device_id VARCHAR(64) NOT NULL,
@@ -1108,12 +1183,19 @@ func (r *PostgresIncidentRepository) Create(inc *domain.Incident) (*domain.Incid
 		inc.ID = fmt.Sprintf("INC-%d", time.Now().UnixNano()/1e6)
 	}
 	startedAt := time.Now()
-	
+
+	devName := inc.DeviceName
+	devType := string(inc.DeviceType)
+	devIP := inc.DeviceIP
+	if devName == "" || devIP == "" {
+		_ = r.db.QueryRow(`SELECT name, type, last_known_ip FROM devices WHERE id = $1`, inc.DeviceID).Scan(&devName, &devType, &devIP)
+	}
+
 	// 2. Atomic insert with ON CONFLICT guard (supported by unique index idx_incidents_active_device)
-	_, err := r.db.Exec(`INSERT INTO incidents (id, device_id, status, packet_loss, latency_ms, affected_devices_count, dependencies_count, started_at)
-		VALUES ($1, $2, 'ACTIVE', $3, $4, $5, $6, $7)
+	_, err := r.db.Exec(`INSERT INTO incidents (id, device_id, device_name, device_type, device_ip, status, packet_loss, latency_ms, affected_devices_count, dependencies_count, started_at)
+		VALUES ($1, $2, $3, $4, $5, 'ACTIVE', $6, $7, $8, $9, $10)
 		ON CONFLICT (device_id) WHERE status = 'ACTIVE' DO NOTHING`,
-		inc.ID, inc.DeviceID, inc.PacketLoss, inc.LatencyMs, max(inc.AffectedDevicesCount, 1), inc.DependenciesCount, startedAt)
+		inc.ID, inc.DeviceID, devName, devType, devIP, inc.PacketLoss, inc.LatencyMs, max(inc.AffectedDevicesCount, 1), inc.DependenciesCount, startedAt)
 	if err != nil {
 		// Fallback: If ON CONFLICT error occurs or conflict happened, return open incident
 		if open, _ := r.GetOpenByDeviceID(inc.DeviceID); open != nil {
@@ -1127,6 +1209,9 @@ func (r *PostgresIncidentRepository) Create(inc *domain.Incident) (*domain.Incid
 		return open, nil
 	}
 
+	inc.DeviceName = devName
+	inc.DeviceType = domain.DeviceType(devType)
+	inc.DeviceIP = devIP
 	inc.Status = "ACTIVE"
 	inc.StartTime = startedAt.Format("02 Jan 2006, 15:04:05 WIB")
 	inc.StartedAt = startedAt
@@ -1138,8 +1223,8 @@ func CleanupDuplicateAndStaleIncidents(db *sql.DB) error {
 		return nil
 	}
 
-	// 1. Clean stale test mock devices if any
-	_, _ = db.Exec(`DELETE FROM incidents WHERE device_id LIKE 'mock-%' OR device_id NOT IN (SELECT id FROM devices)`)
+	// 1. Clean stale test mock devices if any (never delete real device history even if device is deleted from inventory)
+	_, _ = db.Exec(`DELETE FROM incidents WHERE device_id LIKE 'mock-%'`)
 
 	// 2. Find all devices with more than 1 ACTIVE incident
 	rows, err := db.Query(`
@@ -1251,14 +1336,22 @@ func (r *PostgresIncidentRepository) scanIncidentRows(rows *sql.Rows) ([]domain.
 		var resolvedAt sql.NullTime
 		var devType string
 		var deviceID sql.NullString
+		var devName sql.NullString
+		var devIP sql.NullString
 
-		if err := rows.Scan(&inc.ID, &deviceID, &inc.DeviceName, &devType, &inc.DeviceIP,
+		if err := rows.Scan(&inc.ID, &deviceID, &devName, &devType, &devIP,
 			&inc.Status, &inc.PacketLoss, &inc.LatencyMs, &inc.AffectedDevicesCount, &inc.DependenciesCount,
 			&startedAt, &resolvedAt); err != nil {
 			return nil, err
 		}
 		if deviceID.Valid {
 			inc.DeviceID = deviceID.String
+		}
+		if devName.Valid {
+			inc.DeviceName = devName.String
+		}
+		if devIP.Valid {
+			inc.DeviceIP = devIP.String
 		}
 		inc.DeviceType = domain.DeviceType(devType)
 		inc.StartTime = startedAt.Format("02 Jan 2006, 15:04:05 WIB")
@@ -1291,7 +1384,10 @@ func (r *PostgresIncidentRepository) GetAll() ([]domain.Incident, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
 	}
-	query := `SELECT i.id, COALESCE(i.device_id, ''), COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+	query := `SELECT i.id, COALESCE(i.device_id, ''),
+		COALESCE(NULLIF(d.name, ''), NULLIF(i.device_name, ''), 'Unknown Device'),
+		COALESCE(NULLIF(d.type, ''), NULLIF(i.device_type, ''), 'Access Point'),
+		COALESCE(NULLIF(d.last_known_ip, ''), NULLIF(i.device_ip, ''), ''),
 		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
 		FROM incidents i
 		LEFT JOIN devices d ON i.device_id = d.id
@@ -1308,7 +1404,10 @@ func (r *PostgresIncidentRepository) GetActive() ([]domain.Incident, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
 	}
-	query := `SELECT i.id, COALESCE(i.device_id, ''), COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+	query := `SELECT i.id, COALESCE(i.device_id, ''),
+		COALESCE(NULLIF(d.name, ''), NULLIF(i.device_name, ''), 'Unknown Device'),
+		COALESCE(NULLIF(d.type, ''), NULLIF(i.device_type, ''), 'Access Point'),
+		COALESCE(NULLIF(d.last_known_ip, ''), NULLIF(i.device_ip, ''), ''),
 		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
 		FROM incidents i
 		LEFT JOIN devices d ON i.device_id = d.id
@@ -1326,7 +1425,10 @@ func (r *PostgresIncidentRepository) GetByID(id string) (*domain.Incident, error
 	if r == nil || r.db == nil || id == "" {
 		return nil, nil
 	}
-	query := `SELECT i.id, COALESCE(i.device_id, ''), COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+	query := `SELECT i.id, COALESCE(i.device_id, ''),
+		COALESCE(NULLIF(d.name, ''), NULLIF(i.device_name, ''), 'Unknown Device'),
+		COALESCE(NULLIF(d.type, ''), NULLIF(i.device_type, ''), 'Access Point'),
+		COALESCE(NULLIF(d.last_known_ip, ''), NULLIF(i.device_ip, ''), ''),
 		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
 		FROM incidents i
 		LEFT JOIN devices d ON i.device_id = d.id
@@ -1348,7 +1450,10 @@ func (r *PostgresIncidentRepository) GetByDeviceID(deviceID string) ([]domain.In
 	if r == nil || r.db == nil || deviceID == "" {
 		return nil, nil
 	}
-	query := `SELECT i.id, COALESCE(i.device_id, ''), COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+	query := `SELECT i.id, COALESCE(i.device_id, ''),
+		COALESCE(NULLIF(d.name, ''), NULLIF(i.device_name, ''), 'Unknown Device'),
+		COALESCE(NULLIF(d.type, ''), NULLIF(i.device_type, ''), 'Access Point'),
+		COALESCE(NULLIF(d.last_known_ip, ''), NULLIF(i.device_ip, ''), ''),
 		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
 		FROM incidents i
 		LEFT JOIN devices d ON i.device_id = d.id
@@ -1367,7 +1472,10 @@ func (r *PostgresIncidentRepository) GetOpenByDeviceID(deviceID string) (*domain
 	if r == nil || r.db == nil || deviceID == "" {
 		return nil, nil
 	}
-	query := `SELECT i.id, COALESCE(i.device_id, ''), COALESCE(d.name, 'Unknown'), COALESCE(d.type, 'Access Point'), COALESCE(d.last_known_ip, ''),
+	query := `SELECT i.id, COALESCE(i.device_id, ''),
+		COALESCE(NULLIF(d.name, ''), NULLIF(i.device_name, ''), 'Unknown Device'),
+		COALESCE(NULLIF(d.type, ''), NULLIF(i.device_type, ''), 'Access Point'),
+		COALESCE(NULLIF(d.last_known_ip, ''), NULLIF(i.device_ip, ''), ''),
 		i.status, i.packet_loss, i.latency_ms, i.affected_devices_count, i.dependencies_count, i.started_at, i.resolved_at
 		FROM incidents i
 		LEFT JOIN devices d ON i.device_id = d.id

@@ -178,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingStore } from '../stores/settingStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -206,40 +206,55 @@ const recaptchaSiteKey = ((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as s
 const recaptchaContainer = ref<HTMLElement | null>(null);
 const recaptchaToken = ref('');
 let recaptchaWidgetId: number | null = null;
-let renderRecaptcha: (() => void) | null = null;
+
+function renderWidget() {
+  if (!recaptchaSiteKey || !recaptchaContainer.value) return;
+
+  const grecaptcha = (window as any).grecaptcha;
+  if (!grecaptcha || typeof grecaptcha.render !== 'function') return;
+
+  // Reset any existing widget before tearing down DOM
+  if (recaptchaWidgetId !== null) {
+    try {
+      grecaptcha.reset(recaptchaWidgetId);
+    } catch (e) {}
+    recaptchaWidgetId = null;
+  }
+
+  // Clear previous container contents
+  recaptchaContainer.value.innerHTML = '';
+
+  // Google reCAPTCHA v2 cannot re-render into a previously used DOM node without throwing
+  // "reCAPTCHA has already been rendered in this element". Mounting a fresh child node ensures
+  // clean re-rendering whenever the theme changes without requiring a full page refresh.
+  const slot = document.createElement('div');
+  recaptchaContainer.value.appendChild(slot);
+
+  try {
+    recaptchaWidgetId = grecaptcha.render(slot, {
+      sitekey: recaptchaSiteKey,
+      theme: themeStore.currentTheme,
+      callback: (token: string) => {
+        recaptchaToken.value = token;
+        errorMessage.value = '';
+      },
+      'expired-callback': () => {
+        recaptchaToken.value = '';
+      },
+      'error-callback': () => {
+        recaptchaToken.value = '';
+      }
+    });
+  } catch (err) {
+    console.warn('[reCAPTCHA v2] Render notice:', err);
+  }
+}
 
 onMounted(() => {
   settingStore.fetchBranding();
   if (!recaptchaSiteKey) return;
 
-  const renderWidget = () => {
-    if (!recaptchaContainer.value || recaptchaWidgetId !== null) return;
-    const grecaptcha = (window as any).grecaptcha;
-    if (grecaptcha && typeof grecaptcha.render === 'function') {
-      try {
-        recaptchaWidgetId = grecaptcha.render(recaptchaContainer.value, {
-          sitekey: recaptchaSiteKey,
-          theme: themeStore.currentTheme,
-          callback: (token: string) => {
-            recaptchaToken.value = token;
-            errorMessage.value = '';
-          },
-          'expired-callback': () => {
-            recaptchaToken.value = '';
-          },
-          'error-callback': () => {
-            recaptchaToken.value = '';
-          }
-        });
-      } catch (err) {
-        console.warn('[reCAPTCHA v2] Render notice:', err);
-      }
-    }
-  };
-
-  renderRecaptcha = renderWidget;
-
-  if ((window as any).grecaptcha && (window as any).grecaptcha.render) {
+  if ((window as any).grecaptcha && typeof (window as any).grecaptcha.render === 'function') {
     renderWidget();
   } else {
     (window as any).onloadRecaptchaCallback = () => {
@@ -256,21 +271,23 @@ onMounted(() => {
   }
 });
 
+onBeforeUnmount(() => {
+  if (recaptchaWidgetId !== null) {
+    const grecaptcha = (window as any).grecaptcha;
+    if (grecaptcha && typeof grecaptcha.reset === 'function') {
+      try {
+        grecaptcha.reset(recaptchaWidgetId);
+      } catch (e) {}
+    }
+    recaptchaWidgetId = null;
+  }
+});
+
 watch(() => themeStore.currentTheme, async () => {
-  if (!recaptchaSiteKey || !recaptchaContainer.value || recaptchaWidgetId === null) return;
-
-  const grecaptcha = (window as any).grecaptcha;
-  if (!grecaptcha) return;
-
-  try {
-    grecaptcha.reset(recaptchaWidgetId);
-  } catch (e) {}
-
-  recaptchaWidgetId = null;
+  if (!recaptchaSiteKey || !recaptchaContainer.value) return;
   recaptchaToken.value = '';
-  recaptchaContainer.value.innerHTML = '';
   await nextTick();
-  renderRecaptcha?.();
+  renderWidget();
 });
 
 function resetRecaptcha() {
