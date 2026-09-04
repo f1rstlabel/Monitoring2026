@@ -29,14 +29,16 @@ END $$;
 ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_name VARCHAR(255) DEFAULT '';
 ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) DEFAULT '';
 ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_ip VARCHAR(50) DEFAULT '';
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS device_mac VARCHAR(50) DEFAULT '';
 
 -- Backfill existing incidents with device details
 UPDATE incidents i
 SET device_name = COALESCE(d.name, 'Unknown Device'),
     device_type = COALESCE(d.type, 'Other'),
-    device_ip = COALESCE(d.last_known_ip, '')
+    device_ip = COALESCE(d.last_known_ip, ''),
+    device_mac = COALESCE(d.mac_address, '')
 FROM devices d
-WHERE i.device_id = d.id AND (i.device_name IS NULL OR i.device_name = '');
+WHERE i.device_id = d.id AND (i.device_name IS NULL OR i.device_name = '' OR i.device_mac IS NULL OR i.device_mac = '');
 
 -- 3. Add snapshot columns to device_status_log table
 ALTER TABLE device_status_log ADD COLUMN IF NOT EXISTS device_name VARCHAR(255) DEFAULT '';
@@ -55,3 +57,11 @@ UPDATE ip_change_log i
 SET device_name = COALESCE(d.name, 'Unknown Device')
 FROM devices d
 WHERE i.device_id = d.id AND (i.device_name IS NULL OR i.device_name = '');
+
+-- 5. Reconnect any orphaned incidents to currently registered devices with matching IP or MAC
+UPDATE incidents i
+SET device_id = d.id
+FROM devices d
+WHERE (i.device_ip = d.last_known_ip OR (i.device_mac != '' AND LOWER(i.device_mac) = LOWER(d.mac_address)))
+  AND i.device_id NOT IN (SELECT id FROM devices);
+
