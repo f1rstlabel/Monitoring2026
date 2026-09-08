@@ -75,8 +75,6 @@ type IncidentRepository interface {
 	GetEventsByIncidentID(incidentID string) ([]domain.IncidentEvent, error)
 }
 
-
-
 // ─── User Log Repository ──────────────────────────────────────────────────────
 
 type UserLogRepository interface {
@@ -132,13 +130,56 @@ type UserRepository interface {
 	UpdateUserPasswordByEmail(email string, newPasswordHash string) error
 }
 
-
 // ─── Device Metric Repository ──────────────────────────────────────────────────
 
 type DeviceMetricRepository interface {
 	SaveMetric(m *domain.DeviceMetric) error
 	GetMetricsByDeviceID(deviceID, metricType string, from, to time.Time) ([]domain.DeviceMetric, error)
 	PruneOldMetrics(olderThanDays int) (int64, error)
+}
+
+// ─── Public Monitoring Repository ───────────────────────────────────────────
+
+type PublicMonitorRepository interface {
+	GetAll(search, status, group string, page, limit int) ([]domain.PublicMonitor, int, error)
+	GetEnabled() ([]domain.PublicMonitor, error)
+	GetByID(id string) (*domain.PublicMonitor, error)
+	GetByIDIncludingArchived(id string) (*domain.PublicMonitor, error)
+	GetArchived(search string, page, limit int) ([]domain.PublicMonitor, int, error)
+	Create(m *domain.PublicMonitor) (*domain.PublicMonitor, error)
+	Update(m *domain.PublicMonitor) error
+	Delete(id string) error
+	Archive(id, deletedByUserID, reason string) error
+	Purge(id, purgedByUserID, reason string) error
+	Restore(id string) error
+	RecordCheck(monitorID string, status domain.PublicMonitorStatus, statusCode, latencyMs int, errorMessage string, checkedAt time.Time) (string, bool, error)
+	GetChecks(monitorID string, since time.Time, limit int) ([]domain.PublicMonitorCheck, error)
+	GetChecksPage(monitorID string, since time.Time, page, limit int) ([]domain.PublicMonitorCheck, int, error)
+	GetEvents(monitorID string, limit int) ([]domain.PublicMonitorEvent, error)
+}
+
+type PublicMonitorGroupRepository interface {
+	GetAll() ([]domain.PublicMonitorGroup, error)
+	GetByID(id string) (*domain.PublicMonitorGroup, error)
+	Create(group *domain.PublicMonitorGroup) (*domain.PublicMonitorGroup, error)
+	Update(group *domain.PublicMonitorGroup) error
+	Delete(id string) error
+}
+
+// PublicMonitorIncidentRepository owns incidents, notification delivery logs,
+// and reporting data for public endpoint monitors. It is separate from the
+// device incident repository so existing device behavior remains unchanged.
+type PublicMonitorIncidentRepository interface {
+	SyncStatus(monitor domain.PublicMonitor, status domain.PublicMonitorStatus, statusCode, latencyMs int, errorMessage string, checkedAt time.Time) (*domain.PublicMonitorIncident, bool, error)
+	ResolveForPause(monitorID string, resolvedAt time.Time) error
+	ResolveForDeletion(monitorID string, resolvedAt time.Time) error
+	GetAll(monitorID, status, search string, from, to time.Time, page, limit int) ([]domain.PublicMonitorIncident, int, error)
+	GetByID(id string) (*domain.PublicMonitorIncident, error)
+	GetEvents(incidentID string, limit int) ([]domain.PublicMonitorIncidentEvent, error)
+	AppendEvent(event *domain.PublicMonitorIncidentEvent) error
+	GetNotificationLogs(incidentID string, limit int) ([]domain.PublicMonitorNotificationLog, error)
+	AppendNotificationLog(log *domain.PublicMonitorNotificationLog) error
+	GetReport(monitorID string, from, to time.Time) (*domain.PublicMonitorReport, error)
 }
 
 // ─── Notification Targets ────────────────────────────────────────────────────
@@ -162,7 +203,6 @@ type LocationRepository interface {
 	Delete(id string) error
 	GetDeviceCount(locationIDOrName string) (int, error)
 }
-
 
 // ─── Permission Repository ───────────────────────────────────────────────────
 

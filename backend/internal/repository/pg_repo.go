@@ -156,7 +156,7 @@ func (r *PostgresDeviceRepository) GetDHCPDevices() ([]domain.Device, error) {
 		LEFT JOIN locations l ON d.location_id = l.id
 		LEFT JOIN users u ON d.created_by_user_id = u.id
 		WHERE d.addressing_mode = 'DHCP'`
-	
+
 	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -650,7 +650,6 @@ func (r *PostgresDeviceRepository) BulkDelete(ids []string) (int, error) {
 	return int(count), nil
 }
 
-
 func (r *PostgresDeviceRepository) ExistsByMAC(mac string) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM devices WHERE LOWER(mac_address) = LOWER($1))`
@@ -860,7 +859,6 @@ func (r *PostgresUserRepository) UpdateUserPasswordByEmail(email string, newPass
 	return nil
 }
 
-
 // ─── Device Metric Repository ──────────────────────────────────────────────────
 
 type PostgresDeviceMetricRepository struct {
@@ -1042,6 +1040,7 @@ func (r *PostgresStatusLogRepository) GetFlapDevices(threshold int, from, to tim
 		LEFT JOIN devices d ON l.device_id = d.id
 		LEFT JOIN locations loc ON d.location_id = loc.id
 		WHERE l.status='DOWN' AND l.created_at >= $1 AND l.created_at <= $2
+		  AND NULLIF(TRIM(COALESCE(l.device_id, '')), '') IS NOT NULL
 		GROUP BY COALESCE(l.device_id, ''), d.name, l.device_name, d.type, l.device_type, loc.name, d.location, d.last_known_ip
 		HAVING COUNT(*) >= $3
 	`
@@ -1608,8 +1607,6 @@ func (r *PostgresIncidentRepository) GetEventsByIncidentID(incidentID string) ([
 	return events, nil
 }
 
-
-
 // ─── Postgres Notification Log Repository ───────────────────────────────────
 
 type PostgresNotificationLogRepository struct {
@@ -1952,7 +1949,6 @@ func (r *PostgresLocationRepository) Delete(id string) error {
 	return err
 }
 
-
 // ─── Permission Repository PostgreSQL ───────────────────────────────────────
 
 type PostgresPermissionRepository struct {
@@ -2026,9 +2022,15 @@ func (r *PostgresPermissionRepository) HasPermission(role domain.Role, featureKe
 	err := r.db.QueryRow(`SELECT enabled FROM role_permissions WHERE role=$1 AND feature_key=$2`, string(role), featureKey).Scan(&enabled)
 	if err == sql.ErrNoRows {
 		if role == domain.RolePimpinan {
+			if strings.HasPrefix(featureKey, "public_monitoring.") {
+				return featureKey == "public_monitoring.view" || featureKey == "public_monitoring.groups.view", nil
+			}
 			return strings.HasSuffix(featureKey, ".view") || featureKey == "reports.export", nil
 		}
 		if role == domain.RoleAnggota {
+			if featureKey == "public_monitoring.delete" || featureKey == "public_monitoring.groups.delete" {
+				return false, nil
+			}
 			return !strings.HasPrefix(featureKey, "settings.") && featureKey != "devices.delete" && featureKey != "devices.import", nil
 		}
 		return true, nil
