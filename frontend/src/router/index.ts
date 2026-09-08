@@ -9,6 +9,7 @@ import SettingsView from '../views/SettingsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import UserProfileView from '../views/UserProfileView.vue';
 import DocumentationView from '../views/DocumentationView.vue';
+import PublicMonitoringView from '../views/PublicMonitoringView.vue';
 import { useAuthStore } from '../stores/authStore';
 
 const routes = [
@@ -40,6 +41,12 @@ const routes = [
     name: 'device-detail',
     component: DeviceDetailView,
     meta: { requiresAuth: true, featureKey: 'devices.view' }
+  },
+  {
+    path: '/public-monitoring',
+    name: 'public-monitoring',
+    component: PublicMonitoringView,
+    meta: { requiresAuth: true, featureKey: 'public_monitoring.view' }
   },
   {
     path: '/incidents',

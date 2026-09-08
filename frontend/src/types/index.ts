@@ -63,6 +63,167 @@ export interface DashboardSummary {
   downPercentage: number;
 }
 
+export type PublicMonitorStatus = 'UP' | 'DOWN' | 'PAUSED';
+
+export type PublicMonitorType = 'http' | 'http_keyword' | 'http_json' | 'tcp' | 'ping' | 'dns';
+
+export interface PublicMonitor {
+  id: string;
+  name: string;
+  monitorType: PublicMonitorType;
+  targetUrl: string;
+  targetHost?: string;
+  targetPort?: number;
+  dnsRecordType?: 'A' | 'AAAA' | 'CNAME' | string;
+  keyword?: string;
+  jsonPath?: string;
+  expectedValue?: string;
+  groupId?: string;
+  groupName: string;
+  intervalSeconds: number;
+  timeoutSeconds: number;
+  retryCount: number;
+  enabled: boolean;
+  notifyOnFailure: boolean;
+  status: PublicMonitorStatus;
+  uptime24h: number;
+  uptime30d: number;
+  lastStatusCode: number;
+  lastLatencyMs: number;
+  lastError?: string;
+  consecutiveFailures: number;
+  lastChecked?: string;
+  deletedAt?: string;
+  deletedByUserId?: string;
+  deletionReason?: string;
+  purgedAt?: string;
+  purgedByUserId?: string;
+  purgeReason?: string;
+}
+
+export interface PublicMonitorGroup {
+  id: string;
+  name: string;
+  description?: string;
+  displayOrder: number;
+  enabled: boolean;
+  monitorCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PublicMonitorCheck {
+  id: string;
+  monitorId: string;
+  checkedAt: string;
+  status: 'UP' | 'DOWN';
+  statusCode: number;
+  latencyMs: number;
+  errorMessage?: string;
+}
+
+export interface PublicMonitorEvent {
+  id: string;
+  monitorId: string;
+  eventType: 'down' | 'recovered' | string;
+  status: PublicMonitorStatus;
+  message: string;
+  occurredAt: string;
+}
+
+export interface PublicMonitorDetail {
+  monitor: PublicMonitor;
+  checks: PublicMonitorCheck[];
+  events: PublicMonitorEvent[];
+}
+
+export type PublicMonitorIncidentStatus = 'ACTIVE' | 'RESOLVED';
+
+export interface PublicMonitorIncident {
+  id: string;
+  monitorId: string;
+  monitorName: string;
+  monitorType?: PublicMonitorType | string;
+  targetUrl: string;
+  status: PublicMonitorIncidentStatus;
+  startedAt: string;
+  resolvedAt?: string;
+  durationSeconds: number;
+  initialStatusCode: number;
+  finalStatusCode: number;
+  firstError?: string;
+  lastError?: string;
+  resolutionReason?: string;
+}
+
+export interface PublicMonitorIncidentEvent {
+  id: string;
+  incidentId: string;
+  eventType: string;
+  channel?: string;
+  detail: string;
+  occurredAt: string;
+}
+
+export interface PublicMonitorNotificationLog {
+  id: string;
+  incidentId: string;
+  channel: string;
+  recipient: string;
+  status: string;
+  error?: string;
+  sentAt: string;
+}
+
+export interface PublicMonitorIncidentDetail {
+  incident: PublicMonitorIncident;
+  events: PublicMonitorIncidentEvent[];
+  notifications: PublicMonitorNotificationLog[];
+}
+
+export interface PublicMonitorReportPoint {
+  bucket: string;
+  upCount: number;
+  downCount: number;
+  uptimePercent: number;
+  avgLatencyMs: number;
+}
+
+export interface PublicMonitorSummary {
+  monitorId: string;
+  monitorName: string;
+  monitorType: string;
+  targetUrl: string;
+  groupName: string;
+  status: PublicMonitorStatus;
+  enabled: boolean;
+  lastChecked?: string;
+  lastLatencyMs: number;
+  lastError?: string;
+  totalChecks: number;
+  upChecks: number;
+  downChecks: number;
+  uptimePercent: number;
+  avgLatencyMs: number;
+  incidentCount: number;
+}
+
+export interface PublicMonitorReport {
+  monitorId?: string;
+  monitorName?: string;
+  from: string;
+  to: string;
+  totalChecks: number;
+  upChecks: number;
+  downChecks: number;
+  uptimePercent: number;
+  downtimeMinutes: number;
+  incidentCount: number;
+  avgLatencyMs: number;
+  points: PublicMonitorReportPoint[];
+  monitorSummaries?: PublicMonitorSummary[];
+}
+
 export interface EventTimelineItem {
   id: string;
   timestamp: string;
@@ -85,6 +246,10 @@ export interface NotificationLogRow {
 
 export interface Incident {
   id: string;
+  source?: 'DEVICE' | 'PUBLIC_MONITOR' | string;
+  sourceId?: string;
+  category?: string;
+  targetUrl?: string;
   deviceId: string;
   deviceName: string;
   deviceType: DeviceType;

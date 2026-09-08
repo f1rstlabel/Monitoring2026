@@ -71,11 +71,22 @@
           <AlertTriangle class="w-4 h-4 shrink-0" />
           <span>Incidents</span>
           <span
-            v-if="deviceStore.summary.activeIncidents > 0"
+            v-if="totalActiveIncidents > 0"
             class="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30"
           >
-            {{ deviceStore.summary.activeIncidents }}
+            {{ totalActiveIncidents }}
           </span>
+        </router-link>
+
+        <!-- Public Monitoring -->
+        <router-link
+          v-if="authStore.hasPermission('public_monitoring.view')"
+          to="/public-monitoring"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150"
+          :class="navLinkClass('/public-monitoring')"
+        >
+          <Globe2 class="w-4 h-4 shrink-0" />
+          <span>Public Monitoring</span>
         </router-link>
 
         <!-- Reports -->
@@ -154,11 +165,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useDeviceStore } from '../../stores/deviceStore';
 import { useSettingStore } from '../../stores/settingStore';
+import { usePublicMonitoringStore } from '../../stores/publicMonitoringStore';
 import {
   LayoutGrid,
   Server,
@@ -166,6 +178,7 @@ import {
   BarChart3,
   Settings,
   HelpCircle,
+  Globe2,
   LogOut,
   ShieldCheck,
   Eye,
@@ -177,9 +190,21 @@ const router = useRouter();
 const authStore = useAuthStore();
 const deviceStore = useDeviceStore();
 const settingStore = useSettingStore();
+const publicMonitoringStore = usePublicMonitoringStore();
+const publicActiveIncidents = computed(() => publicMonitoringStore.incidents.filter((incident) => incident.status === 'ACTIVE').length);
+const totalActiveIncidents = computed(() => deviceStore.summary.activeIncidents + publicActiveIncidents.value);
+let publicIncidentRefreshTimer: number | undefined;
 
 onMounted(() => {
   deviceStore.fetchSummary();
+  if (authStore.hasPermission('public_monitoring.view')) {
+    publicMonitoringStore.fetchIncidents({ status: 'ACTIVE' });
+    publicIncidentRefreshTimer = window.setInterval(() => publicMonitoringStore.fetchIncidents({ status: 'ACTIVE' }), 30000);
+  }
+});
+
+onUnmounted(() => {
+  if (publicIncidentRefreshTimer) window.clearInterval(publicIncidentRefreshTimer);
 });
 
 function navLinkClass(path: string) {

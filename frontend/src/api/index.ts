@@ -8,7 +8,11 @@ import type {
   User,
   LocationItem,
   BulkDeviceRequest,
-  BulkDeviceResponse
+  BulkDeviceResponse,
+  PublicMonitor,
+  PublicMonitorDetail,
+  PublicMonitorIncidentDetail,
+  PublicMonitorReport
 } from '../types';
 
 
@@ -152,8 +156,79 @@ export const devicesApi = {
   }
 };
 
+export const publicMonitoringApi = {
+  getMonitors: async (params?: { search?: string; status?: string; group?: string; page?: number; page_size?: number }): Promise<any> => {
+    const res = await api.get('/public-monitors', { params });
+    return res.data;
+  },
+  getArchivedMonitors: async (params?: { search?: string; page?: number; page_size?: number }): Promise<any> => {
+    const res = await api.get('/public-monitors/archived', { params });
+    return res.data;
+  },
+  getMonitorById: async (id: string): Promise<PublicMonitorDetail> => {
+    const res = await api.get(`/public-monitors/${id}`);
+    return res.data;
+  },
+  getMonitorChecks: async (id: string, params?: { page?: number; page_size?: number }): Promise<any> => {
+    const res = await api.get(`/public-monitors/${id}/checks`, { params });
+    return res.data;
+  },
+  createMonitor: async (monitor: Partial<PublicMonitor>): Promise<PublicMonitor> => {
+    const res = await api.post('/public-monitors', monitor);
+    return res.data;
+  },
+  updateMonitor: async (id: string, monitor: Partial<PublicMonitor>): Promise<PublicMonitor> => {
+    const res = await api.put(`/public-monitors/${id}`, monitor);
+    return res.data;
+  },
+  deleteMonitor: async (id: string, reason?: string): Promise<{ success: boolean }> => {
+    const res = await api.delete(`/public-monitors/${id}`, { data: { reason } });
+    return res.data;
+  },
+  purgeMonitor: async (id: string, reason: string, confirmation: string): Promise<{ success: boolean }> => {
+    const res = await api.delete(`/public-monitors/${id}/purge`, { data: { reason, confirmation } });
+    return res.data;
+  },
+  restoreMonitor: async (id: string): Promise<PublicMonitor> => {
+    const res = await api.post(`/public-monitors/${id}/restore`);
+    return res.data;
+  },
+  checkNow: async (id: string): Promise<{ status: string; statusCode: number; latencyMs: number; error?: string }> => {
+    const res = await api.post(`/public-monitors/${id}/check-now`);
+    return res.data;
+  },
+  getGroups: async (): Promise<any> => {
+    const res = await api.get('/public-monitor-groups');
+    return res.data;
+  },
+  createGroup: async (group: { name: string; description?: string; displayOrder?: number; enabled?: boolean }): Promise<any> => {
+    const res = await api.post('/public-monitor-groups', group);
+    return res.data;
+  },
+  updateGroup: async (id: string, group: { name: string; description?: string; displayOrder?: number; enabled?: boolean }): Promise<any> => {
+    const res = await api.put(`/public-monitor-groups/${id}`, group);
+    return res.data;
+  },
+  deleteGroup: async (id: string): Promise<{ success: boolean }> => {
+    const res = await api.delete(`/public-monitor-groups/${id}`);
+    return res.data;
+  },
+  getIncidents: async (params?: { monitorId?: string; status?: string; search?: string; period?: string; startDate?: string; endDate?: string; page?: number; page_size?: number }): Promise<any> => {
+    const res = await api.get('/public-monitor-incidents', { params });
+    return res.data;
+  },
+  getIncidentById: async (id: string): Promise<PublicMonitorIncidentDetail> => {
+    const res = await api.get(`/public-monitor-incidents/${id}`);
+    return res.data;
+  },
+  getReport: async (params?: { monitorId?: string; period?: string; startDate?: string; endDate?: string }): Promise<PublicMonitorReport> => {
+    const res = await api.get('/public-monitor-reports', { params });
+    return res.data;
+  }
+};
+
 export const incidentsApi = {
-  getIncidents: async (params?: { status?: string; search?: string; deviceId?: string; page?: number; page_size?: number }): Promise<any> => {
+  getIncidents: async (params?: { status?: string; search?: string; deviceId?: string; source?: string; page?: number; page_size?: number }): Promise<any> => {
     const res = await api.get('/incidents', { params });
     return res.data;
   },

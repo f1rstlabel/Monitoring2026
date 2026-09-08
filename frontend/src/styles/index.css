@@ -181,6 +181,27 @@
   }
 }
 
+/* ApexCharts renders tooltips outside component scopes. Keep tooltip text readable in both themes. */
+.apexcharts-tooltip,
+.apexcharts-xaxistooltip {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.apexcharts-tooltip-title {
+  background: var(--bg-surface) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.apexcharts-tooltip-text,
+.apexcharts-tooltip-text-y-label,
+.apexcharts-tooltip-text-y-value,
+.apexcharts-xaxistooltip-text {
+  color: var(--text-primary) !important;
+}
+
 @layer utilities {
   /* Legacy status utilities remain theme-safe while components migrate to semantic names. */
   :where(.text-red-200, .text-red-300, .text-red-400, .text-red-500) {
@@ -254,9 +275,10 @@
   html, body {
     background: #ffffff !important;
     color: #0f172a !important;
+    color-scheme: light !important;
     width: 100% !important;
     height: auto !important;
-    min-height: 0 !important;
+    min-height: 100vh !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
@@ -278,7 +300,9 @@
 
   #printable-incident-report,
   #printable-sla-audit,
-  #printable-incidents-list {
+  #printable-incidents-list,
+  #public-monitor-report,
+  #printable-public-incidents-list {
     display: block !important;
     visibility: visible !important;
     position: static !important;
@@ -292,13 +316,23 @@
     break-before: avoid !important;
   }
 
+  .public-monitor-print-page {
+    page: public-monitor;
+  }
+
   /* Prevent artificial page breaks before headings or tables in print view */
   #printable-sla-audit h3,
   #printable-incidents-list h3,
+  #public-monitor-report h1,
+  #printable-public-incidents-list h1,
   #printable-sla-audit table,
   #printable-incidents-list table,
+  #public-monitor-report table,
+  #printable-public-incidents-list table,
   #printable-sla-audit > div,
-  #printable-incidents-list > div {
+  #printable-incidents-list > div,
+  #public-monitor-report > div,
+  #public-monitor-report > table {
     page-break-before: avoid !important;
     break-before: avoid !important;
   }

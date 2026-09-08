@@ -9,12 +9,13 @@ export const useIncidentStore = defineStore('incidents', () => {
   const isLoading = ref(false);
   const totalCount = ref<number>(0);
 
-  async function fetchIncidents(params?: { page?: number; pageSize?: number; status?: string; search?: string }) {
+  async function fetchIncidents(params?: { page?: number; pageSize?: number; status?: string; search?: string; source?: string }) {
     isLoading.value = true;
     try {
       const queryParams: any = {
         status: params?.status,
-        search: params?.search
+        search: params?.search,
+        source: params?.source || 'ALL'
       };
       if (params && params.page !== undefined) {
         queryParams.page = params.page;
