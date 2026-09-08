@@ -128,8 +128,9 @@
             >
               <div class="p-2 rounded-lg bg-card border border-subtle shrink-0 mt-0.5">
                 <AlertTriangle v-if="item.type === 'INCIDENT_NEW'" class="w-3.5 h-3.5 text-status-down" />
+                <Globe2 v-else-if="item.type === 'PUBLIC_MONITOR_INCIDENT'" class="w-3.5 h-3.5 text-status-down" />
                 <Activity v-else-if="item.type === 'FLAP_ALERT'" class="w-3.5 h-3.5 text-amber-400" />
-                <CheckCircle2 v-else-if="item.type === 'INCIDENT_RESOLVED'" class="w-3.5 h-3.5 text-status-up" />
+                <CheckCircle2 v-else-if="item.type === 'INCIDENT_RESOLVED' || item.type === 'PUBLIC_MONITOR_RECOVERED'" class="w-3.5 h-3.5 text-status-up" />
                 <MessageSquare v-else class="w-3.5 h-3.5 text-brand-periwinkle" />
               </div>
 
@@ -169,6 +170,7 @@ import {
   AlertTriangle,
   Activity,
   CheckCircle2,
+  Globe2,
   MessageSquare,
   RefreshCw,
   Terminal,
@@ -211,6 +213,9 @@ const pageMeta = computed(() => {
   }
   if (path.startsWith('/incidents/')) {
     return { title: 'Incident Investigation', category: 'Operations', icon: AlertTriangle };
+  }
+  if (path === '/public-monitoring') {
+    return { title: 'Public Monitoring', category: 'Operations', icon: Globe2 };
   }
   if (path === '/incidents') {
     return { title: 'Incident Center', category: 'Operations', icon: AlertTriangle };

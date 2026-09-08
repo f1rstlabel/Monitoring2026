@@ -3,7 +3,7 @@ import api from '../api/client';
 
 export interface AppNotification {
   id: string;
-  type: 'INCIDENT_NEW' | 'INCIDENT_RESOLVED' | 'FLAP_ALERT' | 'GATEWAY_DISCONNECTED';
+  type: 'INCIDENT_NEW' | 'INCIDENT_RESOLVED' | 'PUBLIC_MONITOR_INCIDENT' | 'PUBLIC_MONITOR_RECOVERED' | 'FLAP_ALERT' | 'GATEWAY_DISCONNECTED';
   title: string;
   message: string;
   targetUrl: string;

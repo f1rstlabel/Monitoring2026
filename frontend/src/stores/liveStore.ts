@@ -10,6 +10,7 @@ let unsubscribeFn: (() => void) | null = null;
 
 export const useLiveStore = defineStore('live', () => {
   const liveFeed = ref<LiveFeedItem[]>([]);
+  const lastPublicMonitorUpdate = ref<{ monitorId: string; status: string; timestamp: string; latencyMs: number; statusCode: number; error?: string } | null>(null);
   const batchStatusMessage = ref<string>('');
   const isConnected = wsClient.isConnected;
   const lastUpdatedAgo = wsClient.lastUpdatedAgo;
@@ -26,6 +27,26 @@ export const useLiveStore = defineStore('live', () => {
 
   function handleWSMessage(data: any) {
     const deviceStore = useDeviceStore();
+
+    if (data.type === 'PUBLIC_MONITOR_UPDATE') {
+      lastPublicMonitorUpdate.value = {
+        monitorId: data.monitorId,
+        status: data.status,
+        timestamp: data.checkedAt || data.timestamp || new Date().toISOString(),
+        latencyMs: Number(data.latencyMs) || 0,
+        statusCode: Number(data.statusCode) || 0,
+        error: data.error || undefined
+      };
+      if (data.statusChanged || data.incidentChanged) {
+        pushLiveFeed({
+          id: `public-monitor-${data.monitorId || 'unknown'}-${Date.now()}`,
+          timestamp: formatWIBTime(),
+          title: data.title || 'Public monitor updated',
+          description: data.status === 'DOWN' ? 'Public endpoint is unavailable' : 'Public endpoint recovered',
+          severity: data.status === 'DOWN' ? 'critical' : 'info'
+        });
+      }
+    }
 
     if (data.type === 'STATUS_CHANGE') {
       deviceStore.updateDeviceStatus(data.deviceId, data.status, data.latencyMs);
@@ -111,6 +132,7 @@ export const useLiveStore = defineStore('live', () => {
 
   return {
     liveFeed,
+    lastPublicMonitorUpdate,
     batchStatusMessage,
     isConnected,
     lastUpdatedAgo,
