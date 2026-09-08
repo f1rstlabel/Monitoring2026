@@ -27,10 +27,10 @@ const (
 type Role string
 
 const (
-	RoleAdmin    Role = "admin"
+	RoleAdmin      Role = "admin"
 	RoleSuperAdmin Role = "admin" // alias for compatibility
-	RolePimpinan Role = "pimpinan"
-	RoleAnggota  Role = "anggota"
+	RolePimpinan   Role = "pimpinan"
+	RoleAnggota    Role = "anggota"
 )
 
 type AddressingMode string
@@ -57,37 +57,37 @@ type RolePermission struct {
 }
 
 type Device struct {
-	ID               string         `json:"id"`
-	Name             string         `json:"name"`
-	Type             DeviceType     `json:"type"`
-	IP               string         `json:"ip"`
-	MAC              string         `json:"mac"`
-	Status           DeviceStatus   `json:"status"`
-	AddressingMode   AddressingMode `json:"addressingMode"`
-	LocationID       string         `json:"locationId,omitempty"`
-	Location         string         `json:"location"`
-	Rack             string         `json:"rack,omitempty"`
-	Model            string         `json:"model,omitempty"`
-	FirmwareStatus   string         `json:"firmwareStatus,omitempty"`
-	CheckedSecondsAgo int           `json:"checkedSecondsAgo"`
-	LastChecked      string         `json:"lastChecked"`
-	Uptime30d        float64        `json:"uptime30d"`
-	FailureThreshold int            `json:"failureThreshold"`
-	DownCount7d  int `json:"downCount7d,omitempty"`
-	DownCount30d int `json:"downCount30d,omitempty"`
-	SNMPEnabled  bool `json:"snmpEnabled"`
-	SNMPCommunity string `json:"snmpCommunity,omitempty"`
-	SNMPPort     int `json:"snmpPort,omitempty"`
-	SNMPIfIndex  int `json:"snmpIfIndex,omitempty"`
-	SNMPSysName  string `json:"snmpSysName,omitempty"`
-	SNMPSysDescr string `json:"snmpSysDescr,omitempty"`
-	SNMPSysUpTime string `json:"snmpSysUpTime,omitempty"`
-	SNMPSysContact string `json:"snmpSysContact,omitempty"`
-	SNMPSysLocation string `json:"snmpSysLocation,omitempty"`
-	UseCustomThreshold     bool `json:"useCustomThreshold"`
-	CustomFailureThreshold *int `json:"customFailureThreshold,omitempty"`
-	CreatedByUserID        string `json:"createdByUserId,omitempty"`
-	CreatedByUserName      string `json:"createdByUserName,omitempty"`
+	ID                     string         `json:"id"`
+	Name                   string         `json:"name"`
+	Type                   DeviceType     `json:"type"`
+	IP                     string         `json:"ip"`
+	MAC                    string         `json:"mac"`
+	Status                 DeviceStatus   `json:"status"`
+	AddressingMode         AddressingMode `json:"addressingMode"`
+	LocationID             string         `json:"locationId,omitempty"`
+	Location               string         `json:"location"`
+	Rack                   string         `json:"rack,omitempty"`
+	Model                  string         `json:"model,omitempty"`
+	FirmwareStatus         string         `json:"firmwareStatus,omitempty"`
+	CheckedSecondsAgo      int            `json:"checkedSecondsAgo"`
+	LastChecked            string         `json:"lastChecked"`
+	Uptime30d              float64        `json:"uptime30d"`
+	FailureThreshold       int            `json:"failureThreshold"`
+	DownCount7d            int            `json:"downCount7d,omitempty"`
+	DownCount30d           int            `json:"downCount30d,omitempty"`
+	SNMPEnabled            bool           `json:"snmpEnabled"`
+	SNMPCommunity          string         `json:"snmpCommunity,omitempty"`
+	SNMPPort               int            `json:"snmpPort,omitempty"`
+	SNMPIfIndex            int            `json:"snmpIfIndex,omitempty"`
+	SNMPSysName            string         `json:"snmpSysName,omitempty"`
+	SNMPSysDescr           string         `json:"snmpSysDescr,omitempty"`
+	SNMPSysUpTime          string         `json:"snmpSysUpTime,omitempty"`
+	SNMPSysContact         string         `json:"snmpSysContact,omitempty"`
+	SNMPSysLocation        string         `json:"snmpSysLocation,omitempty"`
+	UseCustomThreshold     bool           `json:"useCustomThreshold"`
+	CustomFailureThreshold *int           `json:"customFailureThreshold,omitempty"`
+	CreatedByUserID        string         `json:"createdByUserId,omitempty"`
+	CreatedByUserName      string         `json:"createdByUserName,omitempty"`
 }
 
 type DeviceDowntimeSummary struct {
@@ -107,6 +107,184 @@ type DashboardSummary struct {
 	ActiveIncidents int     `json:"activeIncidents"`
 	UpPercentage    float64 `json:"upPercentage"`
 	DownPercentage  float64 `json:"downPercentage"`
+}
+
+// ─── Public Monitoring Objects ─────────────────────────────────────────────
+
+type PublicMonitorStatus string
+
+type PublicMonitorType string
+
+const (
+	PublicMonitorHTTP        PublicMonitorType = "http"
+	PublicMonitorHTTPKeyword PublicMonitorType = "http_keyword"
+	PublicMonitorHTTPJSON    PublicMonitorType = "http_json"
+	PublicMonitorTCP         PublicMonitorType = "tcp"
+	PublicMonitorPing        PublicMonitorType = "ping"
+	PublicMonitorDNS         PublicMonitorType = "dns"
+)
+
+const (
+	PublicMonitorUp     PublicMonitorStatus = "UP"
+	PublicMonitorDown   PublicMonitorStatus = "DOWN"
+	PublicMonitorPaused PublicMonitorStatus = "PAUSED"
+)
+
+// PublicMonitor represents an HTTP/HTTPS endpoint monitored independently
+// from the network-device inventory.
+type PublicMonitor struct {
+	ID                  string              `json:"id"`
+	Name                string              `json:"name"`
+	MonitorType         PublicMonitorType   `json:"monitorType"`
+	TargetURL           string              `json:"targetUrl"`
+	GroupName           string              `json:"groupName"`
+	GroupID             string              `json:"groupId,omitempty"`
+	TargetHost          string              `json:"targetHost,omitempty"`
+	TargetPort          int                 `json:"targetPort,omitempty"`
+	DNSRecordType       string              `json:"dnsRecordType,omitempty"`
+	Keyword             string              `json:"keyword,omitempty"`
+	JSONPath            string              `json:"jsonPath,omitempty"`
+	ExpectedValue       string              `json:"expectedValue,omitempty"`
+	IntervalSeconds     int                 `json:"intervalSeconds"`
+	TimeoutSeconds      int                 `json:"timeoutSeconds"`
+	RetryCount          int                 `json:"retryCount"`
+	Enabled             bool                `json:"enabled"`
+	NotifyOnFailure     bool                `json:"notifyOnFailure"`
+	Status              PublicMonitorStatus `json:"status"`
+	Uptime24h           float64             `json:"uptime24h"`
+	Uptime30d           float64             `json:"uptime30d"`
+	LastStatusCode      int                 `json:"lastStatusCode"`
+	LastLatencyMs       int                 `json:"lastLatencyMs"`
+	LastError           string              `json:"lastError,omitempty"`
+	ConsecutiveFailures int                 `json:"consecutiveFailures"`
+	LastChecked         string              `json:"lastChecked,omitempty"`
+	CreatedAt           string              `json:"createdAt,omitempty"`
+	UpdatedAt           string              `json:"updatedAt,omitempty"`
+	CreatedByUserID     string              `json:"createdByUserId,omitempty"`
+	DeletedAt           string              `json:"deletedAt,omitempty"`
+	DeletedByUserID     string              `json:"deletedByUserId,omitempty"`
+	DeletionReason      string              `json:"deletionReason,omitempty"`
+	PurgedAt            string              `json:"purgedAt,omitempty"`
+	PurgedByUserID      string              `json:"purgedByUserId,omitempty"`
+	PurgeReason         string              `json:"purgeReason,omitempty"`
+}
+
+type PublicMonitorGroup struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Description  string `json:"description,omitempty"`
+	DisplayOrder int    `json:"displayOrder"`
+	Enabled      bool   `json:"enabled"`
+	MonitorCount int    `json:"monitorCount"`
+	CreatedAt    string `json:"createdAt,omitempty"`
+	UpdatedAt    string `json:"updatedAt,omitempty"`
+}
+
+type PublicMonitorCheck struct {
+	ID           string              `json:"id"`
+	MonitorID    string              `json:"monitorId"`
+	CheckedAt    string              `json:"checkedAt"`
+	Status       PublicMonitorStatus `json:"status"`
+	StatusCode   int                 `json:"statusCode"`
+	LatencyMs    int                 `json:"latencyMs"`
+	ErrorMessage string              `json:"errorMessage,omitempty"`
+}
+
+type PublicMonitorEvent struct {
+	ID         string              `json:"id"`
+	MonitorID  string              `json:"monitorId"`
+	EventType  string              `json:"eventType"`
+	Status     PublicMonitorStatus `json:"status"`
+	Message    string              `json:"message"`
+	OccurredAt string              `json:"occurredAt"`
+}
+
+type PublicMonitorIncidentStatus string
+
+const (
+	PublicMonitorIncidentActive   PublicMonitorIncidentStatus = "ACTIVE"
+	PublicMonitorIncidentResolved PublicMonitorIncidentStatus = "RESOLVED"
+)
+
+// PublicMonitorIncident is deliberately separate from network-device incidents.
+// Its lifecycle is driven by an endpoint's UP/DOWN transitions.
+type PublicMonitorIncident struct {
+	ID                string                      `json:"id"`
+	MonitorID         string                      `json:"monitorId"`
+	MonitorName       string                      `json:"monitorName"`
+	MonitorType       PublicMonitorType           `json:"monitorType"`
+	TargetURL         string                      `json:"targetUrl"`
+	Status            PublicMonitorIncidentStatus `json:"status"`
+	StartedAt         string                      `json:"startedAt"`
+	ResolvedAt        string                      `json:"resolvedAt,omitempty"`
+	DurationSeconds   int64                       `json:"durationSeconds"`
+	InitialStatusCode int                         `json:"initialStatusCode"`
+	FinalStatusCode   int                         `json:"finalStatusCode"`
+	FirstError        string                      `json:"firstError,omitempty"`
+	LastError         string                      `json:"lastError,omitempty"`
+	ResolutionReason  string                      `json:"resolutionReason,omitempty"`
+}
+
+type PublicMonitorIncidentEvent struct {
+	ID         string `json:"id"`
+	IncidentID string `json:"incidentId"`
+	EventType  string `json:"eventType"`
+	Channel    string `json:"channel,omitempty"`
+	Detail     string `json:"detail"`
+	OccurredAt string `json:"occurredAt"`
+}
+
+type PublicMonitorNotificationLog struct {
+	ID         string `json:"id"`
+	IncidentID string `json:"incidentId"`
+	Channel    string `json:"channel"`
+	Recipient  string `json:"recipient"`
+	Status     string `json:"status"`
+	Error      string `json:"error,omitempty"`
+	SentAt     string `json:"sentAt"`
+}
+
+type PublicMonitorReportPoint struct {
+	Bucket        string  `json:"bucket"`
+	UpCount       int     `json:"upCount"`
+	DownCount     int     `json:"downCount"`
+	UptimePercent float64 `json:"uptimePercent"`
+	AvgLatencyMs  float64 `json:"avgLatencyMs"`
+}
+
+type PublicMonitorSummary struct {
+	MonitorID     string              `json:"monitorId"`
+	MonitorName   string              `json:"monitorName"`
+	MonitorType   PublicMonitorType   `json:"monitorType"`
+	TargetURL     string              `json:"targetUrl"`
+	GroupName     string              `json:"groupName"`
+	Status        PublicMonitorStatus `json:"status"`
+	Enabled       bool                `json:"enabled"`
+	LastChecked   string              `json:"lastChecked,omitempty"`
+	LastLatencyMs int                 `json:"lastLatencyMs"`
+	LastError     string              `json:"lastError,omitempty"`
+	TotalChecks   int                 `json:"totalChecks"`
+	UpChecks      int                 `json:"upChecks"`
+	DownChecks    int                 `json:"downChecks"`
+	UptimePercent float64             `json:"uptimePercent"`
+	AvgLatencyMs  float64             `json:"avgLatencyMs"`
+	IncidentCount int                 `json:"incidentCount"`
+}
+
+type PublicMonitorReport struct {
+	MonitorID        string                     `json:"monitorId,omitempty"`
+	MonitorName      string                     `json:"monitorName,omitempty"`
+	From             string                     `json:"from"`
+	To               string                     `json:"to"`
+	TotalChecks      int                        `json:"totalChecks"`
+	UpChecks         int                        `json:"upChecks"`
+	DownChecks       int                        `json:"downChecks"`
+	UptimePercent    float64                    `json:"uptimePercent"`
+	DowntimeMinutes  int                        `json:"downtimeMinutes"`
+	IncidentCount    int                        `json:"incidentCount"`
+	AvgLatencyMs     float64                    `json:"avgLatencyMs"`
+	Points           []PublicMonitorReportPoint `json:"points"`
+	MonitorSummaries []PublicMonitorSummary     `json:"monitorSummaries,omitempty"`
 }
 
 type EventTimelineItem struct {
@@ -130,6 +308,10 @@ type NotificationLogRow struct {
 
 type Incident struct {
 	ID                   string               `json:"id"`
+	Source               string               `json:"source,omitempty"` // DEVICE or PUBLIC_MONITOR
+	SourceID             string               `json:"sourceId,omitempty"`
+	Category             string               `json:"category,omitempty"`
+	TargetURL            string               `json:"targetUrl,omitempty"`
 	DeviceID             string               `json:"deviceId"`
 	DeviceName           string               `json:"deviceName"`
 	DeviceType           DeviceType           `json:"deviceType"`
@@ -150,14 +332,14 @@ type Incident struct {
 }
 
 type UserLog struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"userId"`
-	UserName  string    `json:"userName,omitempty"`
-	Action    string    `json:"action"` // 'login' | 'logout' | 'action'
-	Detail    string    `json:"detail"`
-	IPAddress string    `json:"ipAddress"`
-	UserAgent string    `json:"userAgent"`
-	SessionID string    `json:"sessionId"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"userId"`
+	UserName   string    `json:"userName,omitempty"`
+	Action     string    `json:"action"` // 'login' | 'logout' | 'action'
+	Detail     string    `json:"detail"`
+	IPAddress  string    `json:"ipAddress"`
+	UserAgent  string    `json:"userAgent"`
+	SessionID  string    `json:"sessionId"`
 	OccurredAt time.Time `json:"occurredAt"`
 }
 
@@ -212,12 +394,12 @@ type NotificationJob struct {
 
 // AggregatedIncident is the batched payload produced by the aggregation buffer.
 type AggregatedIncident struct {
-	BatchID      string         `json:"batchId"`
-	RootDeviceID string         `json:"rootDeviceId"`
-	RootDevice   *Device        `json:"rootDevice,omitempty"`
-	Devices      []Device       `json:"devices"`
-	DetectedAt   time.Time      `json:"detectedAt"`
-	DebouncedAt  time.Time      `json:"debouncedAt"`
+	BatchID      string    `json:"batchId"`
+	RootDeviceID string    `json:"rootDeviceId"`
+	RootDevice   *Device   `json:"rootDevice,omitempty"`
+	Devices      []Device  `json:"devices"`
+	DetectedAt   time.Time `json:"detectedAt"`
+	DebouncedAt  time.Time `json:"debouncedAt"`
 }
 
 // FlapReport summarises recurring-down devices for the daily technician cron.
@@ -244,10 +426,10 @@ const (
 )
 
 type ImportResult struct {
-	RowIndex int             `json:"rowIndex"`
-	Status   string          `json:"status"` // "imported" | "skipped" | "failed"
-	Reason   string          `json:"reason,omitempty"`
-	DeviceID string          `json:"deviceId,omitempty"`
+	RowIndex int    `json:"rowIndex"`
+	Status   string `json:"status"` // "imported" | "skipped" | "failed"
+	Reason   string `json:"reason,omitempty"`
+	DeviceID string `json:"deviceId,omitempty"`
 }
 
 type ImportSummary struct {
@@ -285,7 +467,7 @@ type SystemSettings struct {
 	} `json:"channels"`
 	RateLimitMaxMsgPerMin  int `json:"rateLimitMaxMsgPerMin"`
 	FlapReuseWindowMinutes int `json:"flapReuseWindowMinutes"`
-	Thresholds            []struct {
+	Thresholds             []struct {
 		Type                DeviceType `json:"type"`
 		ConsecutiveFailures int        `json:"consecutiveFailures"`
 	} `json:"thresholds"`
@@ -308,7 +490,6 @@ type BrandingSettings struct {
 	FaviconURL  string `json:"faviconUrl"`
 	FooterText  string `json:"footerText"`
 }
-
 
 type BulkDeviceUpdates struct {
 	LocationID             string          `json:"locationId,omitempty"`
@@ -348,7 +529,6 @@ type LocationRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }
-
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 
