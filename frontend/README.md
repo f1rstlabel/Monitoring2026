@@ -53,3 +53,9 @@ Bagian frontend dari proyek SANOC dibangun menggunakan framework modern untuk me
 - `src/stores/`: Konfigurasi *state management* (Pinia) untuk menyimpan status global seperti notifikasi, perangkat, dan preferensi AI.
 - `src/api/`: Definisi layanan klien API Axios (HTTP Requests).
 - `src/router/`: Pemetaan rute aplikasi.
+
+## Public Monitoring UI
+
+The **Public Monitoring** view is a dedicated workspace for external endpoint checks. It contains monitor cards, groups, archived monitors, monitor detail charts, paginated check history, and public incident links. The browser refreshes this workspace every 30 seconds; the actual probe execution remains on the backend.
+
+Reports expose two separate public tabs: **Incident Reports** and **Monitor Summary**. CSV/XLS exports use structured data and PDF exports render through dedicated white A4 landscape print components so wide public-monitor tables remain readable.

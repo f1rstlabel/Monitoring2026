@@ -73,3 +73,11 @@ Bagian backend dari proyek SANOC dibangun menggunakan bahasa Go (Golang). Backen
 - `internal/handler/`: *Controller* logika aplikasi, menangani request HTTP dan WebSocket.
 - `internal/domain/`: Struktur model (*structs*) yang menjadi entitas logika bisnis utama.
 - `wa-sidecar/`: *Service* independen (Node.js) untuk menjembatani komunikasi ke ekosistem WhatsApp (menggunakan Baileys/Puppeteer).
+
+## Public Monitoring API
+
+Public Monitoring is implemented as a separate monitoring source. The backend owns the checks so results are measured from the SANOC host rather than from an operator browser. Current probe types are HTTP(s), HTTP Keyword, HTTP JSON, TCP Port, Ping, and DNS.
+
+The API includes monitor and group management, manual check, paginated check history, public incident timeline, notification audit, and public report endpoints. Active incidents are resolved by the backend after a successful recovery check. Archive operations preserve history; privileged purge operations are governed by the retention and permission rules.
+
+
