@@ -27,6 +27,12 @@ Membangun sebuah sistem pintar (*Smart Agent*) yang melakukan *polling* status p
 ## Result
 Sistem ini memungkinkan tim NOC (Network Operations Center) memantau infrastruktur berskala besar secara proaktif dari satu dasbor *real-time*. Ketika suatu jaringan atau perangkat terputus, insiden langsung terekam lengkap dengan *timeline*-nya, notifikasi terdistribusi ke ponsel teknisi dalam hitungan detik (via WA/Telegram), dan asisten AI secara signifikan mempercepat proses analisis sehingga *downtime* jaringan dapat diminimalisir dengan efektif.
 
+## Public Monitoring
+
+Public Monitoring provides a separate workspace for external websites and services checked from the SANOC backend. It supports HTTP(s), HTTP Keyword, HTTP JSON, TCP Port, Ping, and DNS monitors, with groups, automatic incident resolution, notification audit, pagination, and dedicated Incident Reports and Monitor Summary exports. The browser workspace auto-refreshes every 30 seconds, while the backend scheduler performs the actual endpoint checks.
+
+Detailed workflows and diagrams are available in [`docs/19-public-monitoring-user-guide.md`](./docs/19-public-monitoring-user-guide.md) and [`docs/20-public-monitoring-architecture.md`](./docs/20-public-monitoring-architecture.md).
+
 ## Cara Menggunakan Aplikasi Web
 1. **Login ke Sistem**
    Akses antarmuka web melalui peramban web (browser). Masukkan kredensial administrator Anda (Email dan Kata Sandi), dan klik/centang kotak verifikasi reCAPTCHA jika diminta, kemudian tekan **Masuk**.

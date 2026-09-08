@@ -238,6 +238,30 @@
               </ul>
             </div>
           </div>
+
+          <!-- Guide Card 5: Public Monitoring -->
+          <div class="bg-surface border border-subtle rounded-2xl p-6 space-y-4 shadow-xl">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                <Activity class="w-5 h-5" />
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-text-main font-mono">5. {{ t.guide5Title }}</h3>
+                <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ t.guide5Sub }}</p>
+              </div>
+            </div>
+
+            <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
+              <p>{{ t.guide5Desc }}</p>
+              <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
+                <li><strong class="text-text-main font-mono">Monitor setup:</strong> {{ t.guide5Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">Monitor types:</strong> {{ t.guide5Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">Incident lifecycle:</strong> {{ t.guide5Bullet3 }}</li>
+                <li><strong class="text-text-main font-mono">Reports:</strong> {{ t.guide5Bullet4 }}</li>
+                <li><strong class="text-text-main font-mono">Archive and delete:</strong> {{ t.guide5Bullet5 }}</li>
+              </ul>
+            </div>
+          </div>
         </section>
 
         <!-- ══════════════════════════════════════════════════════════════════════
@@ -647,6 +671,14 @@ const dict = {
     guide4Bullet1: 'Hubungkan akun WhatsApp NOC dengan menekan tombol QR Reconnect lalu scan kode QR di aplikasi WhatsApp smartphone Anda.',
     guide4Bullet2: 'Masukkan Bot Token dan Channel Chat ID. Jika WhatsApp terkendala, sistem otomatis mengalihkan alert ke Telegram.',
     guide4Bullet3: 'Buka menu Profile -> klik Enable 2FA -> scan QR code dengan Google Authenticator -> masukkan 6-digit kode verifikasi.',
+    guide5Title: 'Public Monitoring & Public Reports',
+    guide5Sub: 'Monitor external endpoints, manage groups, and investigate public outages.',
+    guide5Desc: 'Public Monitoring is a separate endpoint monitoring workspace for websites and network services that must be checked from the SANOC backend:',
+    guide5Bullet1: 'Open Public Monitoring and use Add monitor. Give the monitor a clear name, select its type, configure the target, timeout, retry policy, and check interval, then save it.',
+    guide5Bullet2: 'Supported checks include HTTP(s), HTTP Keyword, HTTP JSON, TCP Port, Ping, and DNS. Use Groups to organize monitors by service, department, or environment.',
+    guide5Bullet3: 'A public incident is opened after the configured consecutive failures are reached and is automatically resolved after a successful recovery check. Its timeline and notification audit remain available for review.',
+    guide5Bullet4: 'Use Reports > Public Monitoring to switch between Incident Reports and Monitor Summary. Each tab has its own metrics, pagination, CSV/XLS export, and print-ready PDF layout.',
+    guide5Bullet5: 'Archive temporarily removes a monitor from the active list while preserving history. Purge is a privileged retention action and must be confirmed; it is not the normal way to remove a monitor from daily operations.',
     faqHeader: 'FREQUENTLY ASKED QUESTIONS (FAQ & QNA)',
     faqSubheader: 'Jawaban atas pertanyaan umum seputar pengoperasian dan fitur sistem SANOC.',
     faqCounterLabel: 'Tanya Jawab',
@@ -738,6 +770,14 @@ const dict = {
     guide4Bullet1: 'Pair the NOC WhatsApp account by clicking QR Reconnect and scanning the QR code with your smartphone WhatsApp app.',
     guide4Bullet2: 'Specify Bot Token and Chat ID. When WhatsApp is unavailable, alert dispatches seamlessly failover to Telegram.',
     guide4Bullet3: 'Navigate to Profile -> click Enable 2FA -> scan the QR code with Google Authenticator -> submit the 6-digit OTP.',
+    guide5Title: 'Public Monitoring & Public Reports',
+    guide5Sub: 'Monitor external endpoints, manage groups, and investigate public outages.',
+    guide5Desc: 'Public Monitoring is a separate endpoint monitoring workspace for websites and network services checked from the SANOC backend:',
+    guide5Bullet1: 'Open Public Monitoring and click Add monitor. Enter a clear name, choose the monitor type, configure the target, timeout, retry policy, and interval, then save.',
+    guide5Bullet2: 'Supported checks include HTTP(s), HTTP Keyword, HTTP JSON, TCP Port, Ping, and DNS. Use Groups to organize monitors by service, department, or environment.',
+    guide5Bullet3: 'A public incident opens after the configured consecutive failures are reached and automatically resolves after a successful recovery check. The timeline and notification audit remain available.',
+    guide5Bullet4: 'Go to Reports > Public Monitoring and choose Incident Reports or Monitor Summary. Each tab provides its own metrics, pagination, CSV/XLS export, and print-ready PDF layout.',
+    guide5Bullet5: 'Archive removes a monitor from the active workspace while preserving history. Purge is a privileged retention action and requires confirmation; it is not the standard daily removal action.',
     faqHeader: 'FREQUENTLY ASKED QUESTIONS (FAQ & QNA)',
     faqSubheader: 'Clear answers to common questions regarding SANOC operations and system behaviors.',
     faqCounterLabel: 'Q&As',
@@ -1007,6 +1047,33 @@ const faqList: FAQItem[] = [
       `
     },
     tag: { id: 'Perangkat', en: 'Devices' }
+  },
+  {
+    key: 'public-monitoring-reports',
+    tagKey: 'laporan',
+    question: {
+      id: 'Bagaimana cara membaca insiden dan laporan Public Monitoring?',
+      en: 'How do I read Public Monitoring incidents and reports?'
+    },
+    answer: {
+      id: `
+        <p class="font-medium text-text-main mb-1.5">Public Monitoring memiliki alur laporan yang terpisah dari monitoring perangkat:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
+          <li>Pilih <strong>Incidents</strong> untuk melihat outage public endpoint, timeline, status notifikasi, dan proses auto-resolve.</li>
+          <li>Pilih <strong>Reports</strong> lalu scope <strong>PUBLIC MONITORING</strong>. Tab <strong>Incident Reports</strong> berisi outage, sedangkan <strong>Monitor Summary</strong> berisi status dan metrik setiap monitor.</li>
+          <li>Gunakan pagination untuk daftar panjang. Export CSV/XLS mengambil seluruh hasil sesuai scope dan PDF menggunakan layout cetak khusus public monitoring.</li>
+        </ul>
+      `,
+      en: `
+        <p class="font-medium text-text-main mb-1.5">Public Monitoring keeps endpoint reporting separate from device monitoring:</p>
+        <ul class="list-disc list-inside space-y-1 text-text-secondary">
+          <li>Open <strong>Incidents</strong> to review public endpoint outages, timelines, notification status, and auto-resolution.</li>
+          <li>Open <strong>Reports</strong> and choose the <strong>PUBLIC MONITORING</strong> scope. <strong>Incident Reports</strong> lists outages, while <strong>Monitor Summary</strong> lists each monitor's status and metrics.</li>
+          <li>Use pagination for long lists. CSV/XLS exports include the complete scope, and PDF uses a dedicated public monitoring print layout.</li>
+        </ul>
+      `
+    },
+    tag: { id: 'Laporan SLA', en: 'SLA Reports' }
   },
   {
     key: 'export-reports',
