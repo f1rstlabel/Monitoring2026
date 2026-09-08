@@ -51,3 +51,11 @@ Public Monitoring provides a separate workspace for external websites and servic
 > **Informasi Modul Spesifik**:
 > - Lihat **[Frontend README](./frontend/README.md)** untuk panduan teknis UI, konfigurasi `.env`, dan instalasi Node.js (Vite).
 > - Lihat **[Backend README](./backend/README.md)** untuk panduan instalasi Golang, konfigurasi Database, dan *startup* WA Sidecar.
+
+## Copyright & License
+
+Copyright © 2026 Tim SANOC — Universitas Teknologi Bandung (UTB). All rights reserved.
+
+SANOC and its source code are proprietary project materials. No part of this project may be copied, modified, distributed, published, or used for commercial purposes without prior written permission from the project owner.
+
+Third-party dependencies remain subject to their respective licenses.
