@@ -57,7 +57,7 @@
     <!-- Main Sub-Sidebar & Content Layout -->
     <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
       <!-- Sub-Sidebar Navigation (Left Column) -->
-      <aside class="lg:col-span-1 bg-surface border border-subtle rounded-2xl p-3.5 space-y-1.5 shadow-xl sticky top-4">
+      <aside class="lg:col-span-1 bg-surface border border-subtle rounded-2xl p-3.5 space-y-1.5 shadow-xl lg:sticky lg:top-4">
         <div class="px-3 py-2 border-b border-subtle/60 mb-2">
           <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-text-secondary">Settings Categories</span>
         </div>
@@ -402,7 +402,7 @@
             </div>
 
             <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs text-text-secondary">
+              <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
                 <thead class="bg-card font-mono text-[10px] uppercase text-text-secondary">
                   <tr>
                     <th class="py-2.5 px-4">Device Category</th>
@@ -412,8 +412,8 @@
                 </thead>
                 <tbody class="divide-y divide-subtle">
                   <tr v-for="t in settingStore.settings.thresholds" :key="t.type" class="hover:bg-card">
-                    <td class="py-2.5 px-4 font-bold text-text-main font-mono">{{ t.type }}</td>
-                    <td class="py-2.5 px-4">
+                    <td data-label="Device Category" class="py-2.5 px-4 font-bold text-text-main font-mono">{{ t.type }}</td>
+                    <td data-label="Consecutive ICMP Checks" class="py-2.5 px-4">
                       <div class="flex items-center gap-2">
                         <input
                           type="number"
@@ -425,7 +425,7 @@
                         <span class="text-[11px] font-mono text-text-muted">checks</span>
                       </div>
                     </td>
-                    <td class="py-2.5 px-4 font-mono text-amber-400 text-xs font-semibold">
+                    <td data-label="Effective Debounce Duration" class="py-2.5 px-4 font-mono text-amber-400 text-xs font-semibold">
                       {{ (t.consecutiveFailures || 3) * (settingStore.settings.polling.intervalSeconds || 15) }} seconds
                     </td>
                   </tr>
@@ -603,7 +603,7 @@
 
           <div class="bg-surface border border-subtle rounded-2xl p-5 space-y-4 shadow-xl">
             <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs text-text-secondary">
+              <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
                 <thead class="bg-card font-mono text-[10px] uppercase text-text-secondary">
                   <tr>
                     <th class="py-3 px-4">Location Name</th>
@@ -620,17 +620,17 @@
                     <td colspan="4" class="py-4 text-center text-text-muted font-mono text-xs">No locations registered</td>
                   </tr>
                   <tr v-else v-for="loc in locationsList" :key="loc.id" class="hover:bg-card">
-                    <td class="py-3 px-4 font-bold text-text-main font-mono flex items-center gap-2">
+                    <td data-label="Location Name" class="py-3 px-4 font-bold text-text-main font-mono flex items-center gap-2">
                       <MapPin class="w-3.5 h-3.5 text-brand-periwinkle" />
                       <span>{{ loc.name }}</span>
                     </td>
-                    <td class="py-3 px-4 text-text-secondary font-mono">{{ loc.description || '-' }}</td>
-                    <td class="py-3 px-4 font-mono">
+                    <td data-label="Description" class="py-3 px-4 text-text-secondary font-mono">{{ loc.description || '-' }}</td>
+                    <td data-label="Assigned Devices" class="py-3 px-4 font-mono">
                       <span class="px-2 py-0.5 rounded text-[10px] font-bold" :class="loc.deviceCount ? 'bg-brand-periwinkle/10 text-brand-periwinkle' : 'bg-gray-500/10 text-text-secondary'">
                         {{ loc.deviceCount || 0 }} devices
                       </span>
                     </td>
-                    <td class="py-3 px-4 text-right">
+                    <td data-label="Actions" class="py-3 px-4 text-right">
                       <div class="flex items-center justify-end gap-2">
                         <button
                           @click="openEditLocationModal(loc)"
@@ -677,7 +677,7 @@
 
           <div class="bg-surface border border-subtle rounded-2xl p-5 space-y-4 shadow-xl">
             <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs text-text-secondary">
+              <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
                 <thead class="bg-card font-mono text-[10px] uppercase text-text-secondary">
                   <tr>
                     <th class="py-3 px-4">User</th>
@@ -695,7 +695,7 @@
                     <td colspan="5" class="py-4 text-center text-text-muted font-mono text-xs">No user accounts registered</td>
                   </tr>
                   <tr v-else v-for="usr in paginatedUsers" :key="usr.id" class="hover:bg-card">
-                    <td class="py-3 px-4 flex items-center gap-3">
+                    <td data-label="User" class="py-3 px-4 flex items-center gap-3">
                       <!-- User Profile Picture with Initials Fallback -->
                       <img
                         v-if="usr.avatarUrl"
@@ -717,19 +717,19 @@
                         <p class="text-[10px] font-mono text-text-muted">{{ usr.email }}</p>
                       </div>
                     </td>
-                    <td class="py-3 px-4">
+                    <td data-label="Role" class="py-3 px-4">
                       <span class="px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase bg-brand-periwinkle/15 text-brand-periwinkle border border-brand-periwinkle/30">
                         {{ usr.role }}
                       </span>
                     </td>
-                    <td class="py-3 px-4">
+                    <td data-label="Status" class="py-3 px-4">
                       <span class="inline-flex items-center gap-1.5 text-xs text-status-up">
                         <span class="w-1.5 h-1.5 rounded-full bg-status-up"></span>
                         {{ usr.status }}
                       </span>
                     </td>
-                    <td class="py-3 px-4 font-mono text-text-muted text-[11px]">{{ usr.lastActive }}</td>
-                    <td class="py-3 px-4 text-right">
+                    <td data-label="Last Active" class="py-3 px-4 font-mono text-text-muted text-[11px]">{{ usr.lastActive }}</td>
+                    <td data-label="Actions" class="py-3 px-4 text-right">
                       <div class="flex items-center justify-end gap-2">
                         <button
                           @click="openEditUser(usr)"
@@ -788,7 +788,7 @@
             </div>
 
             <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs text-text-secondary">
+              <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
                 <thead class="bg-card font-mono text-[10px] uppercase text-text-muted">
                   <tr>
                     <th class="py-2.5 px-3">User</th>
@@ -806,8 +806,8 @@
                     <td colspan="5" class="py-4 text-center text-text-muted font-mono text-xs">No activity logs recorded yet</td>
                   </tr>
                   <tr v-else v-for="log in userLogs" :key="log.id" class="hover:bg-card">
-                    <td class="py-2.5 px-3 font-semibold text-text-main">{{ log.userName || log.userId }}</td>
-                    <td class="py-2.5 px-3">
+                    <td data-label="User" class="py-2.5 px-3 font-semibold text-text-main">{{ log.userName || log.userId }}</td>
+                    <td data-label="Action" class="py-2.5 px-3">
                       <span
                         class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
                         :class="[
@@ -819,9 +819,9 @@
                         {{ log.action }}
                       </span>
                     </td>
-                    <td class="py-2.5 px-3 font-mono text-text-secondary text-[11px]">{{ log.detail }}</td>
-                    <td class="py-2.5 px-3 font-mono text-text-secondary text-[10px]">{{ log.ipAddress || '127.0.0.1' }}</td>
-                    <td class="py-2.5 px-3 text-right font-mono text-text-muted text-[10px]">
+                    <td data-label="Detail" class="py-2.5 px-3 font-mono text-text-secondary text-[11px]">{{ log.detail }}</td>
+                    <td data-label="IP Address" class="py-2.5 px-3 font-mono text-text-secondary text-[10px]">{{ log.ipAddress || '127.0.0.1' }}</td>
+                    <td data-label="Occurred At" class="py-2.5 px-3 text-right font-mono text-text-muted text-[10px]">
                       {{ new Date(log.occurredAt || log.timestamp || Date.now()).toLocaleString('id-ID', { hour12: false }) }}
                     </td>
                   </tr>
@@ -898,7 +898,7 @@
               </button>
             </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-left text-sm whitespace-nowrap">
+              <table class="responsive-data-table w-full text-left text-sm whitespace-nowrap">
                 <thead class="bg-card border-b border-subtle text-text-secondary text-xs font-mono uppercase tracking-wider">
                   <tr>
                     <th class="px-5 py-3 font-semibold">Device</th>
@@ -921,8 +921,8 @@
 
                   <template v-if="!isFetchingDHCPLogs && dhcpLogs.length > 0">
                     <tr v-for="log in dhcpLogs" :key="log.id || Math.random()" class="hover:bg-subtle/30 transition-colors">
-                      <td class="px-5 py-3 font-medium text-text-main">{{ log.deviceName || log.deviceId }}</td>
-                      <td class="px-5 py-3">
+                       <td data-label="Device" class="px-5 py-3 font-medium text-text-main">{{ log.deviceName || log.deviceId }}</td>
+                       <td data-label="Source" class="px-5 py-3">
                         <span
                           v-if="log.source === 'KEA_DHCP'"
                           class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 inline-flex items-center gap-1"
@@ -938,9 +938,9 @@
                           L3 CORE ARP
                         </span>
                       </td>
-                      <td class="px-5 py-3 font-mono text-xs text-red-400 line-through decoration-red-400/50">{{ log.oldIp || '-' }}</td>
-                      <td class="px-5 py-3 font-mono text-xs text-status-up">{{ log.newIp }}</td>
-                      <td class="px-5 py-3 text-xs text-text-secondary">{{ log.timestamp ? new Date(log.timestamp).toLocaleString() : '-' }}</td>
+                       <td data-label="Old IP" class="px-5 py-3 font-mono text-xs text-red-400 line-through decoration-red-400/50">{{ log.oldIp || '-' }}</td>
+                       <td data-label="New IP" class="px-5 py-3 font-mono text-xs text-status-up">{{ log.newIp }}</td>
+                       <td data-label="Timestamp" class="px-5 py-3 text-xs text-text-secondary">{{ log.timestamp ? new Date(log.timestamp).toLocaleString() : '-' }}</td>
                     </tr>
                   </template>
                 </tbody>

@@ -34,7 +34,7 @@
               v-if="searchQuery"
               @click="searchQuery = ''"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary cursor-pointer p-0.5 rounded"
-              title="Clear search"
+              :title="t.clearSearchTitle"
             >
               <X class="w-3.5 h-3.5" />
             </button>
@@ -68,12 +68,12 @@
     <!-- Main Layout: 2-Column Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
       <!-- Left Sub-Sidebar Navigation -->
-      <aside class="lg:col-span-1 bg-surface border border-subtle rounded-2xl p-3 space-y-1.5 shadow-xl sticky top-20">
+      <aside class="lg:col-span-1 bg-surface border border-subtle rounded-2xl p-3 space-y-1.5 shadow-xl lg:sticky lg:top-20">
         <div class="px-3 py-2 border-b border-subtle/60 mb-2">
           <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-text-secondary">{{ t.navHeader }}</span>
         </div>
 
-        <nav class="space-y-1" aria-label="Documentation Sections">
+        <nav class="space-y-1" :aria-label="t.documentationSectionsLabel">
           <button
             v-for="cat in categories"
             :key="cat.id"
@@ -121,11 +121,46 @@
 
       <!-- Right Main Content -->
       <main class="lg:col-span-3 space-y-6 min-w-0">
+
+        <!-- Global Help Center Search Results -->
+        <section v-if="searchQuery.trim()" class="space-y-6 animate-fadeIn">
+          <div class="flex items-center justify-between border-b border-subtle pb-3">
+            <div>
+              <h2 class="text-sm font-extrabold text-text-main font-mono flex items-center gap-2">
+                <Search class="w-4 h-4 text-brand-periwinkle" />
+                {{ t.searchResultsTitle }}
+              </h2>
+              <p class="text-xs text-text-secondary mt-0.5 font-sans">{{ searchResults.length }} {{ t.searchResultsCount }} “{{ searchQuery }}”</p>
+            </div>
+            <button type="button" class="text-xs font-mono text-brand-periwinkle hover:underline cursor-pointer" @click="searchQuery = ''">{{ t.clearSearch }}</button>
+          </div>
+
+          <div v-if="searchResults.length" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              v-for="result in searchResults"
+              :key="result.id"
+              type="button"
+              class="bg-surface border border-subtle rounded-2xl p-5 text-left space-y-2 transition-colors hover:border-brand-periwinkle/40 hover:bg-card cursor-pointer"
+              @click="openSearchResult(result.section)"
+            >
+              <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-periwinkle">{{ result.category }}</span>
+              <h3 class="text-sm font-bold text-text-main">{{ result.title }}</h3>
+              <p class="text-xs text-text-secondary leading-relaxed">{{ result.description }}</p>
+              <span class="inline-flex items-center gap-1 text-[10px] font-mono text-text-muted">{{ t.openResult }} <ChevronDown class="w-3 h-3 -rotate-90" /></span>
+            </button>
+          </div>
+
+          <div v-else class="p-12 text-center bg-surface border border-subtle rounded-2xl space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-card border border-subtle flex items-center justify-center text-text-muted mx-auto"><Search class="w-6 h-6" /></div>
+            <h4 class="text-sm font-bold text-text-main font-mono">{{ t.noResultTitle }}</h4>
+            <p class="text-xs text-text-muted max-w-sm mx-auto font-sans">{{ t.noResultDesc }}</p>
+          </div>
+        </section>
         
         <!-- ══════════════════════════════════════════════════════════════════════
              SECTION 1: User Guides (Panduan Pengguna)
              ══════════════════════════════════════════════════════════════════════ -->
-        <section v-if="activeSection === 'guides'" class="space-y-6 animate-fadeIn">
+        <section v-else-if="activeSection === 'guides'" class="space-y-6 animate-fadeIn">
           <div class="flex items-center justify-between border-b border-subtle pb-3">
             <div>
               <h2 class="text-sm font-extrabold text-text-main font-mono flex items-center gap-2">
@@ -151,10 +186,10 @@
             <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide1Desc }}</p>
               <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
-                <li><strong class="text-text-main font-mono">Summary Metrics:</strong> {{ t.guide1Bullet1 }}</li>
-                <li><strong class="text-text-main font-mono">Live Activity Feed:</strong> {{ t.guide1Bullet2 }}</li>
-                <li><strong class="text-text-main font-mono">Top Flapping Devices:</strong> {{ t.guide1Bullet3 }}</li>
-                <li><strong class="text-text-main font-mono">Refresh Now:</strong> {{ t.guide1Bullet4 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide1Label1 }}:</strong> {{ t.guide1Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide1Label2 }}:</strong> {{ t.guide1Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide1Label3 }}:</strong> {{ t.guide1Bullet3 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide1Label4 }}:</strong> {{ t.guide1Bullet4 }}</li>
               </ul>
             </div>
           </div>
@@ -209,10 +244,10 @@
             <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide3Desc }}</p>
               <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
-                <li><strong class="text-text-main font-mono">DOWN Confirmation:</strong> {{ t.guide3Bullet1 }}</li>
-                <li><strong class="text-text-main font-mono">Auto-Resolution (UP):</strong> {{ t.guide3Bullet2 }}</li>
-                <li><strong class="text-text-main font-mono">Flap Reuse Window:</strong> {{ t.guide3Bullet3 }}</li>
-                <li><strong class="text-text-main font-mono">Audit Log &amp; Fallback:</strong> {{ t.guide3Bullet4 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide3Label1 }}:</strong> {{ t.guide3Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide3Label2 }}:</strong> {{ t.guide3Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide3Label3 }}:</strong> {{ t.guide3Bullet3 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide3Label4 }}:</strong> {{ t.guide3Bullet4 }}</li>
               </ul>
             </div>
           </div>
@@ -232,9 +267,9 @@
             <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide4Desc }}</p>
               <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
-                <li><strong class="text-text-main font-mono">WhatsApp QR Gateway:</strong> {{ t.guide4Bullet1 }}</li>
-                <li><strong class="text-text-main font-mono">Telegram Fallback Bot:</strong> {{ t.guide4Bullet2 }}</li>
-                <li><strong class="text-text-main font-mono">Two-Factor Authentication:</strong> {{ t.guide4Bullet3 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide4Label1 }}:</strong> {{ t.guide4Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide4Label2 }}:</strong> {{ t.guide4Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide4Label3 }}:</strong> {{ t.guide4Bullet3 }}</li>
               </ul>
             </div>
           </div>
@@ -254,11 +289,11 @@
             <div class="space-y-3 text-xs text-text-secondary leading-relaxed font-sans pt-2 border-t border-subtle">
               <p>{{ t.guide5Desc }}</p>
               <ul class="list-disc list-inside space-y-1.5 pl-2 text-text-secondary font-sans text-xs">
-                <li><strong class="text-text-main font-mono">Monitor setup:</strong> {{ t.guide5Bullet1 }}</li>
-                <li><strong class="text-text-main font-mono">Monitor types:</strong> {{ t.guide5Bullet2 }}</li>
-                <li><strong class="text-text-main font-mono">Incident lifecycle:</strong> {{ t.guide5Bullet3 }}</li>
-                <li><strong class="text-text-main font-mono">Reports:</strong> {{ t.guide5Bullet4 }}</li>
-                <li><strong class="text-text-main font-mono">Archive and delete:</strong> {{ t.guide5Bullet5 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide5Label1 }}:</strong> {{ t.guide5Bullet1 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide5Label2 }}:</strong> {{ t.guide5Bullet2 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide5Label3 }}:</strong> {{ t.guide5Bullet3 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide5Label4 }}:</strong> {{ t.guide5Bullet4 }}</li>
+                <li><strong class="text-text-main font-mono">{{ t.guide5Label5 }}:</strong> {{ t.guide5Bullet5 }}</li>
               </ul>
             </div>
           </div>
@@ -375,7 +410,7 @@
                 @click="searchQuery = ''; selectedFaqTag = 'all'"
                 class="px-4 py-2 rounded-xl bg-brand-periwinkle/10 border border-brand-periwinkle/30 text-brand-periwinkle text-xs font-mono font-semibold hover:bg-brand-periwinkle/20 cursor-pointer"
               >
-                Reset Filter Pencarian
+                {{ t.resetSearch }}
               </button>
             </div>
           </div>
@@ -431,8 +466,8 @@
             </div>
 
             <!-- Architecture Details Table -->
-            <div class="overflow-x-auto pt-2">
-              <table class="w-full text-left text-xs text-text-secondary">
+            <div class="responsive-table-wrap overflow-x-auto pt-2">
+              <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
                 <thead class="bg-card font-mono text-[10px] uppercase text-text-secondary">
                   <tr>
                     <th class="py-2.5 px-3">{{ t.thComponent }}</th>
@@ -442,34 +477,34 @@
                 </thead>
                 <tbody class="divide-y divide-subtle font-sans text-xs">
                   <tr>
-                    <td class="py-3 px-3 font-bold text-text-main font-mono">Frontend Web</td>
-                    <td class="py-3 px-3 text-brand-periwinkle font-mono">Vue 3 + Vite + Tailwind</td>
-                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow1 }}</td>
+                    <td data-label="Component" class="py-3 px-3 font-bold text-text-main font-mono">{{ t.archComponent1 }}</td>
+                    <td data-label="Technology" class="py-3 px-3 text-brand-periwinkle font-mono">Vue 3 + Vite + Tailwind</td>
+                    <td data-label="Responsibility" class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow1 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-text-main font-mono">Backend Engine</td>
-                    <td class="py-3 px-3 text-emerald-400 font-mono">Golang (Gin Framework)</td>
-                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow2 }}</td>
+                    <td data-label="Component" class="py-3 px-3 font-bold text-text-main font-mono">{{ t.archComponent2 }}</td>
+                    <td data-label="Technology" class="py-3 px-3 text-emerald-400 font-mono">Golang (Gin Framework)</td>
+                    <td data-label="Responsibility" class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow2 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-text-main font-mono">Database</td>
-                    <td class="py-3 px-3 text-sky-400 font-mono">PostgreSQL</td>
-                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow3 }}</td>
+                    <td data-label="Component" class="py-3 px-3 font-bold text-text-main font-mono">{{ t.archComponent3 }}</td>
+                    <td data-label="Technology" class="py-3 px-3 text-sky-400 font-mono">PostgreSQL</td>
+                    <td data-label="Responsibility" class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow3 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-text-main font-mono">WhatsApp Gateway</td>
-                    <td class="py-3 px-3 text-status-up font-mono">Node.js (Baileys)</td>
-                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow4 }}</td>
+                    <td data-label="Component" class="py-3 px-3 font-bold text-text-main font-mono">{{ t.archComponent4 }}</td>
+                    <td data-label="Technology" class="py-3 px-3 text-status-up font-mono">Node.js (Baileys)</td>
+                    <td data-label="Responsibility" class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow4 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-text-main font-mono">Queue &amp; Rate-Limiter</td>
-                    <td class="py-3 px-3 text-red-400 font-mono">Redis (Asynq)</td>
-                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow5 }}</td>
+                    <td data-label="Component" class="py-3 px-3 font-bold text-text-main font-mono">{{ t.archComponent5 }}</td>
+                    <td data-label="Technology" class="py-3 px-3 text-red-400 font-mono">Redis (Asynq)</td>
+                    <td data-label="Responsibility" class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow5 }}</td>
                   </tr>
                   <tr>
-                    <td class="py-3 px-3 font-bold text-text-main font-mono">DHCP &amp; ARP Engine</td>
-                    <td class="py-3 px-3 text-brand-periwinkle font-mono">Kea MySQL + L3 SNMP ARP</td>
-                    <td class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow6 }}</td>
+                    <td data-label="Component" class="py-3 px-3 font-bold text-text-main font-mono">{{ t.archComponent6 }}</td>
+                    <td data-label="Technology" class="py-3 px-3 text-brand-periwinkle font-mono">Kea MySQL + L3 SNMP ARP</td>
+                    <td data-label="Responsibility" class="py-3 px-3 text-text-secondary leading-relaxed">{{ t.archRow6 }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -634,6 +669,13 @@ const dict = {
     title: 'Pusat Bantuan & Panduan Pengguna',
     subtitle: 'Dokumentasi lengkap operasional sistem monitoring infrastruktur jaringan SANOC Jawa Barat, panduan alur kerja (User Guides), FAQ, arsitektur alert gateway, serta penanganan masalah (Troubleshooting).',
     searchPlaceholder: 'Cari panduan, topik, atau FAQ...',
+    searchResultsTitle: 'Hasil Pencarian Help Center',
+    searchResultsCount: 'hasil untuk',
+    clearSearch: 'Hapus pencarian',
+    clearSearchTitle: 'Hapus pencarian',
+    openResult: 'Buka bagian',
+    documentationSectionsLabel: 'Bagian dokumentasi',
+    resetSearch: 'Reset filter pencarian',
     navHeader: 'Daftar Materi',
     quickHelpTitle: 'Butuh Bantuan Cepat?',
     quickHelpDesc: 'Hubungi Tim On-Call NOC Diskominfo Jabar 24/7 untuk eskalasi darurat.',
@@ -647,6 +689,10 @@ const dict = {
     guide1Bullet2: 'Memperbarui perubahan status perangkat (state transition) dan pengiriman notifikasi secara instan via WebSocket tanpa reload.',
     guide1Bullet3: 'Menampilkan daftar node yang sering berganti status dalam 7 hari terakhir sebagai indikasi gangguan intermiten atau kabel loss.',
     guide1Bullet4: 'Menjalankan siklus polling ICMP manual seketika ke seluruh perangkat tanpa menunggu jeda scheduler.',
+    guide1Label1: 'Ringkasan metrik',
+    guide1Label2: 'Feed aktivitas langsung',
+    guide1Label3: 'Perangkat yang sering flapping',
+    guide1Label4: 'Refresh sekarang',
     guide2Title: 'Manajemen Perangkat & Fitur Kelola Massal',
     guide2Sub: 'Penambahan node, import data batch, dan konfigurasi massal.',
     guide2Desc: 'Pada menu Devices, Anda dapat mengelola seluruh perangkat jaringan:',
@@ -665,20 +711,32 @@ const dict = {
     guide3Bullet2: 'Saat node kembali online, tiket insiden otomatis diselesaikan (RESOLVED) dan durasi downtime dicatat.',
     guide3Bullet3: 'Jika node yang baru saja pulih kembali down dalam rentang waktu singkat (default: 10 menit), sistem menyambungkan timeline tiket sebelumnya.',
     guide3Bullet4: 'Pada halaman detail insiden, tabel Notification Audit Log mencatat rincian pengiriman pesan ke WhatsApp dan status fallback Telegram.',
+    guide3Label1: 'Konfirmasi DOWN',
+    guide3Label2: 'Penyelesaian otomatis (UP)',
+    guide3Label3: 'Jendela reuse flapping',
+    guide3Label4: 'Log audit & fallback',
     guide4Title: 'Konfigurasi Alert Gateway & Autentikasi 2FA',
     guide4Sub: 'Integrasi WhatsApp Baileys, Telegram Bot, rate limit, dan Two-Factor Auth.',
     guide4Desc: 'Pengaturan gateway dan keamanan dapat disesuaikan pada halaman Settings dan Profil Pengguna:',
     guide4Bullet1: 'Hubungkan akun WhatsApp NOC dengan menekan tombol QR Reconnect lalu scan kode QR di aplikasi WhatsApp smartphone Anda.',
     guide4Bullet2: 'Masukkan Bot Token dan Channel Chat ID. Jika WhatsApp terkendala, sistem otomatis mengalihkan alert ke Telegram.',
     guide4Bullet3: 'Buka menu Profile -> klik Enable 2FA -> scan QR code dengan Google Authenticator -> masukkan 6-digit kode verifikasi.',
-    guide5Title: 'Public Monitoring & Public Reports',
-    guide5Sub: 'Monitor external endpoints, manage groups, and investigate public outages.',
-    guide5Desc: 'Public Monitoring is a separate endpoint monitoring workspace for websites and network services that must be checked from the SANOC backend:',
-    guide5Bullet1: 'Open Public Monitoring and use Add monitor. Give the monitor a clear name, select its type, configure the target, timeout, retry policy, and check interval, then save it.',
-    guide5Bullet2: 'Supported checks include HTTP(s), HTTP Keyword, HTTP JSON, TCP Port, Ping, and DNS. Use Groups to organize monitors by service, department, or environment.',
-    guide5Bullet3: 'A public incident is opened after the configured consecutive failures are reached and is automatically resolved after a successful recovery check. Its timeline and notification audit remain available for review.',
-    guide5Bullet4: 'Use Reports > Public Monitoring to switch between Incident Reports and Monitor Summary. Each tab has its own metrics, pagination, CSV/XLS export, and print-ready PDF layout.',
-    guide5Bullet5: 'Archive temporarily removes a monitor from the active list while preserving history. Purge is a privileged retention action and must be confirmed; it is not the normal way to remove a monitor from daily operations.',
+    guide4Label1: 'Gateway QR WhatsApp',
+    guide4Label2: 'Bot fallback Telegram',
+    guide4Label3: 'Autentikasi dua faktor',
+    guide5Title: 'Monitoring Publik & Laporan Publik',
+    guide5Sub: 'Pantau endpoint eksternal, kelola grup, dan telusuri gangguan layanan publik.',
+    guide5Desc: 'Public Monitoring adalah ruang kerja pemantauan endpoint terpisah untuk website dan layanan jaringan yang diperiksa dari backend SANOC:',
+    guide5Bullet1: 'Buka Public Monitoring dan pilih Add monitor. Berikan nama yang jelas, pilih tipe monitor, atur target, timeout, kebijakan percobaan ulang, dan interval pemeriksaan, lalu simpan.',
+    guide5Bullet2: 'Pemeriksaan yang tersedia meliputi HTTP(s), HTTP Keyword, HTTP JSON, TCP Port, Ping, dan DNS. Gunakan Groups untuk mengelompokkan monitor berdasarkan layanan, departemen, atau lingkungan.',
+    guide5Bullet3: 'Insiden publik dibuat setelah jumlah kegagalan berturut-turut mencapai konfigurasi dan otomatis diselesaikan setelah pemeriksaan pemulihan berhasil. Timeline dan audit notifikasinya tetap tersedia untuk ditinjau.',
+    guide5Bullet4: 'Buka Reports > Public Monitoring untuk berpindah antara Incident Reports dan Monitor Summary. Setiap tab memiliki metrik, pagination, ekspor CSV/XLS, dan layout PDF siap cetak masing-masing.',
+    guide5Bullet5: 'Archive menyembunyikan monitor sementara dari daftar aktif dengan tetap mempertahankan riwayat. Purge adalah tindakan retensi khusus dan harus dikonfirmasi; ini bukan cara normal untuk menghapus monitor dari operasi harian.',
+    guide5Label1: 'Penyiapan monitor',
+    guide5Label2: 'Tipe monitor',
+    guide5Label3: 'Siklus hidup insiden',
+    guide5Label4: 'Laporan',
+    guide5Label5: 'Archive dan hapus',
     faqHeader: 'FREQUENTLY ASKED QUESTIONS (FAQ & QNA)',
     faqSubheader: 'Jawaban atas pertanyaan umum seputar pengoperasian dan fitur sistem SANOC.',
     faqCounterLabel: 'Tanya Jawab',
@@ -703,6 +761,12 @@ const dict = {
     archRow4: 'Sidecar socket gateway untuk broadcast notifikasi instan ke grup/nomor operator.',
     archRow5: 'Antrean pesan asinkron, retry backoff, dan pembatasan frekuensi pengiriman pesan.',
     archRow6: 'Sinkronisasi sewa resmi dari database Kea MySQL dan auto-healing pemetaan MAC ke IP secara real-time via Core Switch SNMP ARP.',
+    archComponent1: 'Aplikasi Web Frontend',
+    archComponent2: 'Mesin Backend',
+    archComponent3: 'Basis Data',
+    archComponent4: 'Gateway WhatsApp',
+    archComponent5: 'Antrean & Pembatas Laju',
+    archComponent6: 'Mesin DHCP & ARP',
     troubleHeader: 'PANDUAN TROUBLESHOOTING & PENANGANAN KENDALA',
     troubleSubheader: 'Solusi cepat saat menghadapi kendala operasional atau error status.',
     causeLabel: 'Penyebab',
@@ -733,6 +797,13 @@ const dict = {
     title: 'Help Center & User Guides',
     subtitle: 'Comprehensive documentation for SANOC West Java network infrastructure monitoring system, workflow user guides, FAQs, alert gateway architecture, and troubleshooting procedures.',
     searchPlaceholder: 'Search guides, topics, or FAQs...',
+    searchResultsTitle: 'Help Center Search Results',
+    searchResultsCount: 'results for',
+    clearSearch: 'Clear search',
+    clearSearchTitle: 'Clear search',
+    openResult: 'Open section',
+    documentationSectionsLabel: 'Documentation sections',
+    resetSearch: 'Reset search filter',
     navHeader: 'Table of Contents',
     quickHelpTitle: 'Need Quick Support?',
     quickHelpDesc: 'Contact the 24/7 West Java Diskominfo NOC On-Call Team for emergency escalation.',
@@ -746,6 +817,10 @@ const dict = {
     guide1Bullet2: 'Streams real-time state transitions and alert dispatches instantly via WebSocket without browser reloads.',
     guide1Bullet3: 'Highlights nodes with frequent state changes over the last 7 days to isolate intermittent physical link issues.',
     guide1Bullet4: 'Triggers an immediate manual ICMP probe cycle across all devices without waiting for the scheduler.',
+    guide1Label1: 'Summary metrics',
+    guide1Label2: 'Live activity feed',
+    guide1Label3: 'Top flapping devices',
+    guide1Label4: 'Refresh now',
     guide2Title: 'Devices Management & Bulk Operations',
     guide2Sub: 'Node provisioning, batch spreadsheet imports, and bulk configuration drawer.',
     guide2Desc: 'Manage your comprehensive infrastructure inventory under the Devices menu:',
@@ -764,12 +839,19 @@ const dict = {
     guide3Bullet2: 'When a node recovers, the incident ticket is automatically RESOLVED and the total outage duration is computed.',
     guide3Bullet3: 'If a recently recovered node goes DOWN again within a short time window (default: 10 minutes), the previous incident timeline is continued rather than duplicated.',
     guide3Bullet4: 'On the Incident Detail page, the Notification Audit Log displays WhatsApp delivery receipts and Telegram fallback statuses (including Skipped status).',
+    guide3Label1: 'DOWN confirmation',
+    guide3Label2: 'Automatic resolution (UP)',
+    guide3Label3: 'Flap reuse window',
+    guide3Label4: 'Audit log & fallback',
     guide4Title: 'Alert Gateways & 2FA Security Configuration',
     guide4Sub: 'WhatsApp Baileys, Telegram Bot fallback, rate limiting, and Two-Factor Authentication.',
     guide4Desc: 'Configure notification routing and account security in Settings and User Profile:',
     guide4Bullet1: 'Pair the NOC WhatsApp account by clicking QR Reconnect and scanning the QR code with your smartphone WhatsApp app.',
     guide4Bullet2: 'Specify Bot Token and Chat ID. When WhatsApp is unavailable, alert dispatches seamlessly failover to Telegram.',
     guide4Bullet3: 'Navigate to Profile -> click Enable 2FA -> scan the QR code with Google Authenticator -> submit the 6-digit OTP.',
+    guide4Label1: 'WhatsApp QR gateway',
+    guide4Label2: 'Telegram fallback bot',
+    guide4Label3: 'Two-factor authentication',
     guide5Title: 'Public Monitoring & Public Reports',
     guide5Sub: 'Monitor external endpoints, manage groups, and investigate public outages.',
     guide5Desc: 'Public Monitoring is a separate endpoint monitoring workspace for websites and network services checked from the SANOC backend:',
@@ -778,6 +860,11 @@ const dict = {
     guide5Bullet3: 'A public incident opens after the configured consecutive failures are reached and automatically resolves after a successful recovery check. The timeline and notification audit remain available.',
     guide5Bullet4: 'Go to Reports > Public Monitoring and choose Incident Reports or Monitor Summary. Each tab provides its own metrics, pagination, CSV/XLS export, and print-ready PDF layout.',
     guide5Bullet5: 'Archive removes a monitor from the active workspace while preserving history. Purge is a privileged retention action and requires confirmation; it is not the standard daily removal action.',
+    guide5Label1: 'Monitor setup',
+    guide5Label2: 'Monitor types',
+    guide5Label3: 'Incident lifecycle',
+    guide5Label4: 'Reports',
+    guide5Label5: 'Archive and delete',
     faqHeader: 'FREQUENTLY ASKED QUESTIONS (FAQ & QNA)',
     faqSubheader: 'Clear answers to common questions regarding SANOC operations and system behaviors.',
     faqCounterLabel: 'Q&As',
@@ -802,6 +889,12 @@ const dict = {
     archRow4: 'Sidecar socket gateway for broadcasting instant outage alerts to operator groups.',
     archRow5: 'Asynchronous task queue, retry backoff, and transmission rate-limiting spacing.',
     archRow6: 'Synchronizes authoritative leases from Kea MySQL database and performs real-time MAC-to-IP auto-healing via Core Switch SNMP ARP.',
+    archComponent1: 'Frontend Web Application',
+    archComponent2: 'Backend Engine',
+    archComponent3: 'Database',
+    archComponent4: 'WhatsApp Gateway',
+    archComponent5: 'Queue & Rate Limiter',
+    archComponent6: 'DHCP & ARP Engine',
     troubleHeader: 'TROUBLESHOOTING & DIAGNOSTIC GUIDE',
     troubleSubheader: 'Actionable solutions for resolving common operational anomalies and errors.',
     causeLabel: 'Root Cause',
@@ -1161,6 +1254,50 @@ const faqList: FAQItem[] = [
     tag: { id: 'Hak Akses RBAC', en: 'RBAC Access' }
   }
 ];
+
+interface HelpSearchResult {
+  id: string;
+  section: SectionKey;
+  category: string;
+  title: string;
+  description: string;
+  content: string;
+}
+
+const helpSearchIndex = computed<HelpSearchResult[]>(() => {
+  const categoryLabel = (section: SectionKey) => categories.find((category) => category.id === section)?.label[lang.value] || section;
+  const guide = (id: string, title: string, description: string, content: string): HelpSearchResult => ({ id, section: 'guides', category: categoryLabel('guides'), title, description, content });
+  return [
+    guide('dashboard', t.value.guide1Title, t.value.guide1Sub, `${t.value.guide1Desc} ${t.value.guide1Bullet1} ${t.value.guide1Bullet2} ${t.value.guide1Bullet3} ${t.value.guide1Bullet4}`),
+    guide('devices', t.value.guide2Title, t.value.guide2Sub, `${t.value.guide2Desc} ${t.value.guide2Card1Desc} ${t.value.guide2Card2Desc} ${t.value.guide2Card3Desc} ${t.value.guide2Card4Desc}`),
+    guide('incidents', t.value.guide3Title, t.value.guide3Sub, `${t.value.guide3Desc} ${t.value.guide3Bullet1} ${t.value.guide3Bullet2} ${t.value.guide3Bullet3} ${t.value.guide3Bullet4}`),
+    guide('gateways', t.value.guide4Title, t.value.guide4Sub, `${t.value.guide4Desc} ${t.value.guide4Bullet1} ${t.value.guide4Bullet2} ${t.value.guide4Bullet3}`),
+    guide('public-monitoring', t.value.guide5Title, t.value.guide5Sub, `${t.value.guide5Desc} ${t.value.guide5Bullet1} ${t.value.guide5Bullet2} ${t.value.guide5Bullet3} ${t.value.guide5Bullet4} ${t.value.guide5Bullet5}`),
+    ...faqList.map((faq) => ({
+      id: `faq-${faq.key}`,
+      section: 'faq' as SectionKey,
+      category: categoryLabel('faq'),
+      title: faq.question[lang.value],
+      description: faq.tag[lang.value],
+      content: `${faq.question[lang.value]} ${faq.answer[lang.value].replace(/<[^>]*>/g, ' ')}`
+    })),
+    { id: 'architecture', section: 'architecture', category: categoryLabel('architecture'), title: t.value.archHeader, description: t.value.archSubheader, content: `${t.value.archFlowTitle} ${t.value.archStep1Desc} ${t.value.archStep2Desc} ${t.value.archStep3Desc} ${t.value.archRow1} ${t.value.archRow2} ${t.value.archRow3}` },
+    { id: 'troubleshooting', section: 'troubleshooting', category: categoryLabel('troubleshooting'), title: t.value.troubleHeader, description: t.value.troubleSubheader, content: `${t.value.trouble1Title} ${t.value.trouble1Cause} ${t.value.trouble2Title} ${t.value.trouble2Cause} ${t.value.trouble3Title} ${t.value.trouble3Cause}` },
+    { id: 'contact', section: 'contact', category: categoryLabel('contact'), title: t.value.contactHeader, description: t.value.contactSubheader, content: `${t.value.contact1Title} ${t.value.contact1Desc} ${t.value.contact2Title} ${t.value.contact2Desc}` }
+  ];
+});
+
+const searchResults = computed(() => {
+  const query = searchQuery.value.trim().toLocaleLowerCase();
+  if (!query) return [];
+  return helpSearchIndex.value.filter((result) => `${result.title} ${result.description} ${result.content}`.toLocaleLowerCase().includes(query));
+});
+
+function openSearchResult(section: SectionKey) {
+  activeSection.value = section;
+  searchQuery.value = '';
+  if (section === 'faq') selectedFaqTag.value = 'all';
+}
 
 const filteredFaqs = computed(() => {
   let list = faqList;

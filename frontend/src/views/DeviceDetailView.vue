@@ -279,8 +279,8 @@
         </router-link>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs text-text-secondary">
+      <div class="responsive-table-wrap overflow-x-auto">
+        <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
           <thead class="bg-card font-mono text-[10px] uppercase text-text-muted">
             <tr>
               <th class="py-2.5 px-3">Date &amp; Time</th>
@@ -296,12 +296,12 @@
               @click="$router.push(`/incidents/${inc.id}`)"
               class="hover:bg-card cursor-pointer group transition-colors"
             >
-              <td class="py-3 px-3 font-mono text-text-secondary group-hover:text-text-main font-medium flex items-center gap-2">
+               <td data-label="Date & Time" class="py-3 px-3 font-mono text-text-secondary group-hover:text-text-main font-medium flex items-center gap-2">
                 <AlertTriangle class="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 <span>{{ inc.date }}</span>
               </td>
-              <td class="py-3 px-3 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
-              <td class="py-3 px-3">
+               <td data-label="Downtime Duration" class="py-3 px-3 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
+               <td data-label="Resolution Status" class="py-3 px-3">
                 <span
                   class="px-2 py-0.5 rounded text-[10px] font-mono font-medium"
                   :class="inc.status === 'RESOLVED' ? 'bg-status-up/10 text-status-up border border-status-up/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'"
@@ -309,7 +309,7 @@
                   {{ inc.resolution }}
                 </span>
               </td>
-              <td class="py-3 px-3 text-right">
+               <td data-label="Action" class="py-3 px-3 text-right">
                 <span class="text-xs font-mono text-brand-periwinkle group-hover:text-brand-periwinkle-hover inline-flex items-center gap-1 font-semibold">
                   View Incident &rarr;
                 </span>

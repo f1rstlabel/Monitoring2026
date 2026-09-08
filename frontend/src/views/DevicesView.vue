@@ -220,8 +220,8 @@
         </div>
 
         <!-- Group Devices Table / Grid (Drill Down) -->
-        <div v-if="expandedGroups[group.locationName] !== false" class="overflow-x-auto">
-          <table class="w-full text-left text-xs text-text-secondary">
+        <div v-if="expandedGroups[group.locationName] !== false" class="responsive-table-wrap overflow-x-auto">
+          <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
             <thead class="bg-surface font-mono text-[10px] uppercase text-text-muted border-b border-subtle">
               <tr>
                 <th v-if="isBulkMode" class="py-3 px-4 w-10">
@@ -252,7 +252,7 @@
                 }"
                 @click="router.push(`/devices/${device.id}`)"
               >
-                <td v-if="isBulkMode" class="py-3 px-4" @click.stop>
+                <td v-if="isBulkMode" data-label="Select" class="py-3 px-4" @click.stop>
                   <input
                     type="checkbox"
                     :value="device.id"
@@ -260,7 +260,7 @@
                     class="rounded border-subtle bg-main text-brand-periwinkle focus:ring-0 cursor-pointer"
                   />
                 </td>
-                <td class="py-3 px-4 font-bold text-text-main group-hover:text-brand-periwinkle">
+                <td data-label="Device Name" class="py-3 px-4 font-bold text-text-main group-hover:text-brand-periwinkle">
                   <div class="flex items-center gap-2">
                     <span>{{ device.name }}</span>
                     <span v-if="device.snmpEnabled" class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-status-up/10 text-status-up border border-status-up/30 flex items-center gap-1" title="SNMP Polling Active">
@@ -269,12 +269,12 @@
                     </span>
                   </div>
                 </td>
-                <td class="py-3 px-4 font-mono text-text-secondary">{{ device.type }}</td>
-                <td class="py-3 px-4 font-mono text-text-main">{{ device.ip }}</td>
-                <td class="py-3 px-4 font-mono text-text-muted text-[11px]">{{ device.mac }}</td>
-                <td class="py-3 px-4 font-mono text-text-secondary text-[11px]">{{ device.rack || '—' }}</td>
-                <td class="py-3 px-4"><StatusPill :status="device.status" /></td>
-                <td class="py-3 px-4 text-right" @click.stop>
+                <td data-label="Type" class="py-3 px-4 font-mono text-text-secondary">{{ device.type }}</td>
+                <td data-label="IP Address" class="py-3 px-4 font-mono text-text-main">{{ device.ip }}</td>
+                <td data-label="MAC Address" class="py-3 px-4 font-mono text-text-muted text-[11px]">{{ device.mac }}</td>
+                <td data-label="Rack" class="py-3 px-4 font-mono text-text-secondary text-[11px]">{{ device.rack || '—' }}</td>
+                <td data-label="Status" class="py-3 px-4"><StatusPill :status="device.status" /></td>
+                <td data-label="Actions" class="py-3 px-4 text-right" @click.stop>
                   <div class="flex items-center justify-end gap-1">
                     <button
                       v-if="authStore.canEditDevice"
@@ -308,8 +308,8 @@
     </div>
 
     <!-- Flat List Table View -->
-    <div v-else class="bg-surface border border-subtle rounded-lg overflow-hidden shadow-xl">
-      <table class="w-full text-left text-xs text-text-secondary">
+    <div v-else class="responsive-table-wrap bg-surface border border-subtle rounded-lg overflow-hidden shadow-xl">
+      <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
         <thead class="bg-card border-b border-subtle font-mono text-[10px] uppercase text-text-secondary sticky top-0">
           <tr>
             <th v-if="isBulkMode" class="py-3.5 px-4 w-10">
@@ -342,7 +342,7 @@
               }"
               @click="router.push(`/devices/${device.id}`)"
             >
-              <td v-if="isBulkMode" class="py-3 px-4" @click.stop>
+              <td v-if="isBulkMode" data-label="Select" class="py-3 px-4" @click.stop>
                 <input
                   type="checkbox"
                   :value="device.id"
@@ -350,7 +350,7 @@
                   class="rounded border-subtle bg-main text-brand-periwinkle focus:ring-0 cursor-pointer"
                 />
               </td>
-              <td class="py-3 px-4">
+              <td data-label="Device Name" class="py-3 px-4">
                 <div class="flex items-center gap-2">
                   <span class="font-bold text-text-main group-hover:text-brand-periwinkle transition-colors">
                     {{ device.name }}
@@ -361,19 +361,19 @@
                   </span>
                 </div>
               </td>
-              <td class="py-3 px-4">
+              <td data-label="Type" class="py-3 px-4">
                 <span class="font-mono text-text-secondary">{{ device.type }}</span>
               </td>
-              <td class="py-3 px-4">
+              <td data-label="IP Address" class="py-3 px-4">
                 <span class="font-mono text-text-main">{{ device.ip }}</span>
               </td>
-              <td class="py-3 px-4">
+              <td data-label="MAC Address" class="py-3 px-4">
                 <span class="font-mono text-text-muted text-[11px]">{{ device.mac }}</span>
               </td>
-              <td class="py-3 px-4">
+              <td data-label="Location / Site" class="py-3 px-4">
                 <span class="text-text-secondary font-medium truncate max-w-[150px] inline-block">{{ device.location || 'Unassigned' }}</span>
               </td>
-              <td class="py-3 px-4">
+              <td data-label="IP Mode" class="py-3 px-4">
                 <span
                   class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border"
                   :class="device.addressingMode === 'DHCP'
@@ -383,10 +383,10 @@
                   {{ device.addressingMode || 'STATIC' }}
                 </span>
               </td>
-              <td class="py-3 px-4">
+              <td data-label="Status" class="py-3 px-4">
                 <StatusPill :status="device.status" />
               </td>
-              <td class="py-3 px-4 text-right" @click.stop>
+              <td data-label="Actions" class="py-3 px-4 text-right" @click.stop>
                 <div class="flex items-center justify-end gap-1">
                   <button
                     @click.stop="openDiagnosticsForDevice(device)"

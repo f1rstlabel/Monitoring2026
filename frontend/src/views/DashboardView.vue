@@ -194,8 +194,8 @@
         <!-- List View -->
         <template v-else-if="deviceStore.viewMode === 'list'">
           <SkeletonTable v-if="deviceStore.isLoading && deviceStore.devices.length === 0" :rows="6" :cols="6" />
-          <div v-else class="bg-surface border border-subtle rounded-xl overflow-hidden shadow-xl">
-            <table class="w-full text-left text-xs text-text-secondary">
+          <div v-else class="responsive-table-wrap bg-surface border border-subtle rounded-xl overflow-hidden shadow-xl">
+            <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
               <thead class="bg-card border-b border-subtle font-mono text-[10px] uppercase text-text-secondary">
                 <tr>
                   <th class="py-3 px-4">Device Name</th>
@@ -215,12 +215,12 @@
                     class="hover:bg-card cursor-pointer transition-colors"
                     :class="{ 'bg-status-down/5': device.status === 'DOWN' }"
                   >
-                    <td class="py-3 px-4 font-semibold text-text-main">{{ device.name }}</td>
-                    <td class="py-3 px-4 font-mono text-text-secondary">{{ device.type }}</td>
-                    <td class="py-3 px-4 font-mono text-text-secondary">{{ device.ip }}</td>
-                    <td class="py-3 px-4 text-text-secondary">{{ device.location }}</td>
-                    <td class="py-3 px-4"><StatusPill :status="device.status" /></td>
-                    <td class="py-3 px-4 text-right font-mono text-text-muted">{{ device.checkedSecondsAgo }}s ago</td>
+                    <td data-label="Device Name" class="py-3 px-4 font-semibold text-text-main">{{ device.name }}</td>
+                    <td data-label="Type" class="py-3 px-4 font-mono text-text-secondary">{{ device.type }}</td>
+                    <td data-label="IP Address" class="py-3 px-4 font-mono text-text-secondary">{{ device.ip }}</td>
+                    <td data-label="Location" class="py-3 px-4 text-text-secondary">{{ device.location }}</td>
+                    <td data-label="Status" class="py-3 px-4"><StatusPill :status="device.status" /></td>
+                    <td data-label="Checked" class="py-3 px-4 text-right font-mono text-text-muted">{{ device.checkedSecondsAgo }}s ago</td>
                   </tr>
                 </template>
                 <tr v-else>
