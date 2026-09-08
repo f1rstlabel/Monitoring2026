@@ -31,7 +31,6 @@ Sistem ini memungkinkan tim NOC (Network Operations Center) memantau infrastrukt
 
 Public Monitoring provides a separate workspace for external websites and services checked from the SANOC backend. It supports HTTP(s), HTTP Keyword, HTTP JSON, TCP Port, Ping, and DNS monitors, with groups, automatic incident resolution, notification audit, pagination, and dedicated Incident Reports and Monitor Summary exports. The browser workspace auto-refreshes every 30 seconds, while the backend scheduler performs the actual endpoint checks.
 
-Detailed workflows and diagrams are available in [`docs/19-public-monitoring-user-guide.md`](./docs/19-public-monitoring-user-guide.md) and [`docs/20-public-monitoring-architecture.md`](./docs/20-public-monitoring-architecture.md).
 
 ## Cara Menggunakan Aplikasi Web
 1. **Login ke Sistem**
