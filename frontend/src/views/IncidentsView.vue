@@ -67,6 +67,10 @@
       </div>
     </div>
 
+    <nav class="flex flex-wrap gap-1 border-b border-subtle pb-1" aria-label="Incident source">
+      <button v-for="scope in incidentScopes" :key="scope.value" type="button" class="source-tab" :class="sourceFilter === scope.value ? 'source-tab-active' : ''" @click="sourceFilter = scope.value">{{ scope.label }}</button>
+    </nav>
+
     <!-- Filter Bar -->
     <div class="bg-surface border border-subtle rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3 flex-1 min-w-[320px]">
@@ -89,6 +93,7 @@
         </select>
         <select
           v-model="groupingMode"
+          v-if="sourceFilter !== 'PUBLIC_MONITOR'"
           class="bg-card border border-subtle rounded-lg px-3 py-1.5 text-xs text-text-main focus:outline-none focus:border-brand-periwinkle font-mono"
         >
           <option value="none">No Grouping / Flat List</option>
@@ -185,17 +190,17 @@
               <tr
                 v-for="inc in group.items"
                 :key="inc.id"
-                @click="router.push(`/incidents/${inc.id}`)"
+                @click="openIncident(inc)"
                 class="hover:bg-card transition-colors cursor-pointer group"
                 :class="{
                   'border-l-2 border-l-[#F16565] bg-red-500/5': inc.status === 'ACTIVE'
                 }"
               >
                 <td class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
-                  {{ inc.id }}
+                  {{ formatIncidentId(inc.id, inc.source) }}
                 </td>
                 <td class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
-                <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceType }}</td>
+                <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.source === 'PUBLIC_MONITOR' ? publicMonitorTypeLabel(String(inc.deviceType)) : (inc.category || inc.deviceType) }}</td>
                 <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
                 <td class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
                 <td class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
@@ -212,7 +217,7 @@
                 <td class="py-3.5 px-4 text-right" @click.stop>
                   <div class="flex items-center justify-end gap-1">
                     <button
-                      @click.stop="router.push(`/incidents/${inc.id}`)"
+                      @click.stop="openIncident(inc)"
                       class="p-1.5 rounded-lg text-text-secondary hover:text-text-main hover:bg-subtle transition-colors"
                     >
                       <ChevronRight class="w-4 h-4" />
@@ -251,17 +256,17 @@
             <tr
               v-for="inc in filteredIncidents"
               :key="inc.id"
-              @click="router.push(`/incidents/${inc.id}`)"
+              @click="openIncident(inc)"
               class="hover:bg-card transition-colors cursor-pointer group"
               :class="{
                 'border-l-2 border-l-[#F16565] bg-red-500/5': inc.status === 'ACTIVE'
               }"
             >
               <td class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
-                {{ inc.id }}
+                {{ formatIncidentId(inc.id, inc.source) }}
               </td>
               <td class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
-              <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceType }}</td>
+              <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.source === 'PUBLIC_MONITOR' ? publicMonitorTypeLabel(String(inc.deviceType)) : (inc.category || inc.deviceType) }}</td>
               <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
               <td class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
               <td class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
@@ -278,7 +283,7 @@
               <td class="py-3.5 px-4 text-right" @click.stop>
                 <div class="flex items-center justify-end gap-1">
                   <button
-                    @click.stop="router.push(`/incidents/${inc.id}`)"
+                    @click.stop="openIncident(inc)"
                     class="p-1.5 rounded-lg text-text-secondary hover:text-text-main hover:bg-subtle transition-colors"
                   >
                     <ChevronRight class="w-4 h-4" />
@@ -309,10 +314,14 @@
 
     <!-- Hidden Printable Report element for PDF output -->
     <PrintableIncidentsList
-      v-if="isPrintRendered"
+      v-if="isPrintRendered && sourceFilter !== 'PUBLIC_MONITOR'"
       :incidents="filteredIncidents"
       :groupingMode="groupingMode"
       :groupedIncidents="groupedIncidents"
+    />
+    <PrintablePublicIncidentList
+      v-if="isPrintRendered && sourceFilter === 'PUBLIC_MONITOR'"
+      :incidents="filteredIncidents"
     />
   </div>
 </template>
@@ -326,8 +335,10 @@ import SkeletonTable from '../components/common/SkeletonTable.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import PaginationControl from '../components/common/PaginationControl.vue';
 import PrintableIncidentsList from '../components/reports/PrintableIncidentsList.vue';
+import PrintablePublicIncidentList from '../components/reports/PrintablePublicIncidentList.vue';
 import { ChevronRight, CheckCircle, FileText, Printer, Search, ChevronDown, FileSpreadsheet } from 'lucide-vue-next';
 import { downloadCSV, downloadXLS } from '../utils/exportUtils';
+import { publicMonitorTypeLabel } from '../utils/publicMonitorLabels';
 import type { Incident } from '../types';
 
 const currentPage = ref(1);
@@ -340,6 +351,8 @@ const authStore = useAuthStore();
 
 const searchQuery = ref('');
 const statusFilter = ref('ALL');
+const sourceFilter = ref('DEVICE');
+const incidentScopes = [{ value: 'DEVICE', label: 'DEVICE MONITORING' }, { value: 'PUBLIC_MONITOR', label: 'PUBLIC MONITORING' }];
 const groupingMode = ref<'none' | 'location' | 'device' | 'status'>('none');
 const expandedGroups = ref<Record<string, boolean>>({});
 const showExportDropdown = ref(false);
@@ -347,10 +360,10 @@ const isPrintRendered = ref(false);
 
 function exportIncidentsData(format: 'csv' | 'xls' = 'xls') {
   const headers = ['Ticket ID', 'Nama Perangkat', 'Tipe Perangkat', 'IP Address', 'Durasi Outage', 'Jumlah Terdampak', 'Status Tiket'];
-  const rows = filteredIncidents.value.map((i: Incident) => [
+    const rows = filteredIncidents.value.map((i: Incident) => [
     i.id,
     i.deviceName,
-    i.deviceType,
+    i.source === 'PUBLIC_MONITOR' ? publicMonitorTypeLabel(String(i.deviceType)) : (i.category || i.deviceType),
     i.deviceIp,
     i.duration,
     i.affectedDevicesCount,
@@ -387,12 +400,16 @@ const filteredIncidents = computed(() => {
     if (statusFilter.value !== 'ALL' && inc.status !== statusFilter.value) {
       return false;
     }
+    if ((inc.source || 'DEVICE') !== sourceFilter.value) {
+      return false;
+    }
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.trim().toLowerCase();
       const matchId = (inc.id || '').toLowerCase().includes(q);
       const matchName = (inc.deviceName || '').toLowerCase().includes(q);
       const matchIp = (inc.deviceIp || '').toLowerCase().includes(q);
-      if (!matchId && !matchName && !matchIp) return false;
+      const matchURL = (inc.targetUrl || '').toLowerCase().includes(q);
+      if (!matchId && !matchName && !matchIp && !matchURL) return false;
     }
     return true;
   });
@@ -461,20 +478,35 @@ function loadIncidents() {
       pageSize: pageSize.value,
       status: statusFilter.value !== 'ALL' ? statusFilter.value : undefined,
       search: searchQuery.value || undefined
+      ,source: sourceFilter.value
     });
   } else {
     // Grouped mode requires the full matching dataset
     incidentStore.fetchIncidents({
       status: statusFilter.value !== 'ALL' ? statusFilter.value : undefined,
       search: searchQuery.value || undefined
+      ,source: sourceFilter.value
     });
   }
 }
 
 onMounted(() => {
   statusFilter.value = (route.query.status as string) || 'ALL';
+  sourceFilter.value = route.query.source === 'PUBLIC_MONITOR' ? 'PUBLIC_MONITOR' : 'DEVICE';
   loadIncidents();
 });
+
+function openIncident(incident: Incident) {
+  if (incident.source === 'PUBLIC_MONITOR') {
+    router.push({ path: `/incidents/${incident.id}`, query: { source: 'PUBLIC_MONITOR' } });
+    return;
+  }
+  router.push(`/incidents/${incident.id}`);
+}
+
+function formatIncidentId(id: string, source?: string) {
+  return source === 'PUBLIC_MONITOR' || id.toLowerCase().startsWith('pinc-') ? id.toUpperCase() : id;
+}
 
 watch([currentPage, pageSize], () => {
   loadIncidents();
@@ -484,13 +516,19 @@ watch(
   () => route.query,
   (newQ) => {
     statusFilter.value = (newQ.status as string) || 'ALL';
+    sourceFilter.value = newQ.source === 'PUBLIC_MONITOR' ? 'PUBLIC_MONITOR' : 'DEVICE';
   }
 );
+
+watch(sourceFilter, (value) => {
+  if (value === 'PUBLIC_MONITOR') groupingMode.value = 'none';
+});
 
 watch(
   () => [
     groupingMode.value,
     statusFilter.value,
+    sourceFilter.value,
     searchQuery.value
   ],
   () => {
@@ -499,3 +537,8 @@ watch(
   }
 );
 </script>
+
+<style scoped>
+.source-tab { @apply rounded-lg border border-transparent px-3 py-2 text-[10px] font-mono font-semibold tracking-wide text-text-muted transition-colors hover:bg-surface hover:text-text-main; }
+.source-tab-active { @apply border-brand-periwinkle/30 bg-brand-periwinkle/10 text-brand-periwinkle; }
+</style>

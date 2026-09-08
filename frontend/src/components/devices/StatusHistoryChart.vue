@@ -1,14 +1,14 @@
 <template>
-  <div class="bg-surface border border-subtle rounded-xl p-5 space-y-4 shadow-xl">
+  <div class="device-chart-shell">
     <!-- Header with Metric Tabs, Presentation Views & Range Selector -->
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-subtle pb-3">
+    <div class="device-chart-header">
       <div class="flex items-center gap-3">
         <div>
           <h3 class="text-xs font-bold text-text-main uppercase font-mono tracking-wider flex items-center gap-2">
             <Activity class="w-4 h-4 text-brand-periwinkle" />
-            Telemetry &amp; Performance Analytics
+            Availability and response
           </h3>
-          <p class="text-[11px] text-text-secondary font-mono mt-0.5">Real-time ICMP &amp; SNMP Telemetry Time-Series</p>
+          <p class="text-[11px] text-text-secondary font-mono mt-0.5">Uptime and latency for the selected device</p>
         </div>
         <!-- Realtime Live Stream Badge -->
         <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400">
@@ -32,61 +32,61 @@
           </button>
         </div>
 
-        <!-- Presentation View Mode Toggle (Area, Step, Bar, Donut, Gauge) — Available for ALL metrics including Combined! -->
-        <div class="flex items-center bg-card border border-subtle rounded-lg p-0.5 text-xs font-mono">
+        <!-- Presentation View Mode Toggle (Area, Step, Bar, Donut, Gauge) -->
+        <div class="chart-mode-switcher" role="group" aria-label="Chart view mode">
           <!-- Area Chart -->
           <button
             @click="viewMode = 'area'"
             title="Area Time-Series Chart"
-            class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'area' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
+            class="chart-mode-button"
+            :class="viewMode === 'area' ? 'chart-mode-active' : ''"
           >
             <Activity class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">Area</span>
+            <span class="chart-mode-label">Area</span>
           </button>
 
           <!-- Stepline / Line Chart -->
           <button
             @click="viewMode = 'stepline'"
             title="Stepline Chart"
-            class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'stepline' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
+            class="chart-mode-button"
+            :class="viewMode === 'stepline' ? 'chart-mode-active' : ''"
           >
             <TrendingUp class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">Step</span>
+            <span class="chart-mode-label">Stepline</span>
           </button>
 
           <!-- Bar / Column Chart -->
           <button
             @click="viewMode = 'bar'"
             title="Bar / Column Chart"
-            class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'bar' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
+            class="chart-mode-button"
+            :class="viewMode === 'bar' ? 'chart-mode-active' : ''"
           >
             <BarChart3 class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">Bar</span>
+            <span class="chart-mode-label">Bar</span>
           </button>
 
           <!-- Donut Breakdown -->
           <button
             @click="viewMode = 'donut'"
             title="Proportion Breakdown (Selected Range)"
-            class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'donut' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
+            class="chart-mode-button"
+            :class="viewMode === 'donut' ? 'chart-mode-active' : ''"
           >
             <PieChart class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">Donut</span>
+            <span class="chart-mode-label">Donut</span>
           </button>
 
           <!-- RadialBar Gauge (Snapshot) -->
           <button
             @click="viewMode = 'gauge'"
             title="Current Snapshot Gauge"
-            class="px-2 py-1 rounded transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
-            :class="viewMode === 'gauge' ? 'bg-subtle text-text-main font-bold' : 'text-text-secondary hover:text-text-main'"
+            class="chart-mode-button"
+            :class="viewMode === 'gauge' ? 'chart-mode-active' : ''"
           >
             <Gauge class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">Gauge</span>
+            <span class="chart-mode-label">Gauge</span>
           </button>
         </div>
 
@@ -105,6 +105,21 @@
       </div>
     </div>
 
+    <div v-if="isDeviceDown" class="device-down-banner" role="status">
+      <div class="device-down-banner-main">
+        <div class="device-down-icon"><Zap class="w-4 h-4" /></div>
+        <div>
+          <span class="device-down-eyebrow">Current state</span>
+          <strong>Device is down</strong>
+          <p>No response was recorded on the latest poll. Latency is unavailable until the device responds again.</p>
+        </div>
+      </div>
+      <div class="device-down-meta">
+        <span>Last sample</span>
+        <strong>{{ latestRecordedAt }}</strong>
+      </div>
+    </div>
+
     <!-- Custom Date Range Picker -->
     <div v-if="activeRange === 'custom' && viewMode !== 'gauge'" class="flex flex-wrap items-center gap-3 bg-card border border-subtle rounded-lg p-2.5 text-xs font-mono">
       <div class="flex items-center gap-2">
@@ -120,8 +135,31 @@
       </button>
     </div>
 
-    <!-- Quick Stats Telemetry Strip (Current, Average, Peak, Min) -->
-    <div v-if="!isEmpty && activeMetric !== 'all'" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+    <!-- Availability KPI strip -->
+    <div v-if="!isEmpty && activeMetric === 'status'" class="metric-strip">
+      <div class="metric-card">
+        <span>Current latency</span>
+        <strong class="text-brand-periwinkle">
+          <template v-if="latestStatusLatency !== null">{{ latestStatusLatency.toFixed(1) }}<small>ms</small></template>
+          <template v-else>Unavailable</template>
+        </strong>
+      </div>
+      <div class="metric-card">
+        <span>Uptime</span>
+        <strong class="text-status-up">{{ uptimeValue.toFixed(2) }}<small>%</small></strong>
+      </div>
+      <div class="metric-card">
+        <span>Average latency</span>
+        <strong>{{ avgMetricVal.toFixed(1) }}<small>ms</small></strong>
+      </div>
+      <div class="metric-card">
+        <span>Down checks</span>
+        <strong :class="downCount > 0 ? 'text-status-down' : 'text-status-up'">{{ downCount }}</strong>
+      </div>
+    </div>
+
+    <!-- Resource KPI strip -->
+    <div v-if="!isEmpty && activeMetric !== 'all' && activeMetric !== 'status'" class="metric-strip">
       <div class="bg-card border border-subtle rounded-lg px-3 py-2">
         <span class="text-[10px] uppercase font-mono text-text-secondary block font-semibold">Current Live</span>
         <span class="text-sm font-bold font-mono text-text-main flex items-center gap-1.5 mt-0.5">
@@ -187,10 +225,10 @@
     </div>
 
     <!-- ApexCharts Graph Container -->
-    <div class="relative w-full" :class="viewMode === 'gauge' || viewMode === 'donut' ? 'h-72' : 'h-64'">
+    <div class="device-chart-canvas" :class="viewMode === 'gauge' || viewMode === 'donut' ? 'device-chart-canvas-tall' : ''">
       <apexchart
         v-if="!isEmpty"
-        :key="`${viewMode}-${activeMetric}-${activeRange}-${rawMetricsKey}`"
+        :key="`${viewMode}-${activeMetric}-${activeRange}`"
         width="100%"
         :height="viewMode === 'gauge' || viewMode === 'donut' ? 280 : 250"
         :type="apexChartType"
@@ -257,9 +295,13 @@
 
     <!-- Line/Area Legend -->
     <div v-if="activeMetric === 'status' && (viewMode === 'area' || viewMode === 'stepline') && !isEmpty" class="flex items-center justify-center gap-6 text-[10px] font-mono text-text-secondary pt-1 border-t border-subtle/40 mt-1">
-      <span class="flex items-center gap-1.5 text-text-secondary font-semibold">
+      <span class="flex items-center gap-1.5 text-status-up font-semibold">
         <span class="w-3.5 h-1 bg-status-up inline-block rounded"></span>
-        Solid Green Line = ICMP Ping Latency
+        Uptime (%)
+      </span>
+      <span class="flex items-center gap-1.5 text-brand-periwinkle font-semibold">
+        <span class="w-3.5 h-1 bg-brand-periwinkle inline-block rounded"></span>
+        Latency (ms)
       </span>
       <span v-if="downPeriods.length > 0" class="flex items-center gap-1.5 text-red-400 font-semibold">
         <span class="w-3 h-3 bg-status-down/20 border border-status-down/50 inline-block rounded-sm"></span>
@@ -307,6 +349,7 @@ const apexchart = VueApexCharts;
 
 const props = defineProps<{
   deviceId?: string;
+  deviceStatus?: string;
 }>();
 
 const themeStore = useThemeStore();
@@ -332,19 +375,110 @@ const rawLatencyMetrics = ref<{ value: number; recordedAt: string }[]>([]);
 const rawCpuMetrics = ref<{ value: number; recordedAt: string }[]>([]);
 const rawMemMetrics = ref<{ value: number; recordedAt: string }[]>([]);
 
-const rawMetricsKey = computed(() => {
-  return `${rawLatencyMetrics.value.length}-${rawCpuMetrics.value.length}-${rawMemMetrics.value.length}`;
+const latestRecordedAt = computed(() => {
+  const latest = rawLatencyMetrics.value[rawLatencyMetrics.value.length - 1]?.recordedAt;
+  return latest ? new Date(latest).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : 'Unavailable';
+});
+const isDeviceDown = computed(() => {
+  if (props.deviceStatus === 'DOWN') return true;
+  const latest = rawLatencyMetrics.value[rawLatencyMetrics.value.length - 1];
+  return Boolean(latest && latest.value === 0);
+});
+
+const MAX_RENDER_POINTS = 180;
+
+interface AvailabilityBucket {
+  recordedAt: string;
+  uptimePercent: number;
+  latencyMs: number | null;
+  totalChecks: number;
+  upChecks: number;
+  downChecks: number;
+}
+
+function compactMetrics(items: { value: number; recordedAt: string }[], maxPoints = MAX_RENDER_POINTS, preserveZero = false) {
+  if (items.length <= maxPoints) return items;
+
+  const bucketSize = Math.ceil(items.length / maxPoints);
+  const compacted: { value: number; recordedAt: string }[] = [];
+
+  for (let start = 0; start < items.length; start += bucketSize) {
+    const bucket = items.slice(start, Math.min(start + bucketSize, items.length));
+    const downPoint = preserveZero ? bucket.find(item => item.value === 0) : undefined;
+
+    if (downPoint) {
+      compacted.push(downPoint);
+      continue;
+    }
+
+    const average = bucket.reduce((sum, item) => sum + item.value, 0) / bucket.length;
+    compacted.push({
+      value: average,
+      recordedAt: bucket[Math.floor(bucket.length / 2)].recordedAt
+    });
+  }
+
+  return compacted;
+}
+
+const renderLatencyMetrics = computed(() => compactMetrics(rawLatencyMetrics.value, MAX_RENDER_POINTS, true));
+const renderCpuMetrics = computed(() => compactMetrics(rawCpuMetrics.value));
+const renderMemMetrics = computed(() => compactMetrics(rawMemMetrics.value));
+const chartLatencyMetrics = computed(() => viewMode.value === 'bar' ? compactMetrics(rawLatencyMetrics.value, 48, true) : renderLatencyMetrics.value);
+const chartCpuMetrics = computed(() => viewMode.value === 'bar' ? compactMetrics(rawCpuMetrics.value, 48) : renderCpuMetrics.value);
+const chartMemMetrics = computed(() => viewMode.value === 'bar' ? compactMetrics(rawMemMetrics.value, 48) : renderMemMetrics.value);
+
+function availabilityBucketSize() {
+  if (activeRange.value === '1h') return 5 * 60 * 1000;
+  if (activeRange.value === '24h') return 60 * 60 * 1000;
+  if (activeRange.value === '7d') return 6 * 60 * 60 * 1000;
+  if (activeRange.value === '30d') return 24 * 60 * 60 * 1000;
+
+  const from = customFrom.value ? new Date(`${customFrom.value}T00:00:00`).getTime() : Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const to = customTo.value ? new Date(`${customTo.value}T23:59:59`).getTime() : Date.now();
+  const rangeMs = Math.max(1, to - from);
+  return rangeMs <= 24 * 60 * 60 * 1000 ? 5 * 60 * 1000 : rangeMs <= 7 * 24 * 60 * 60 * 1000 ? 6 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+}
+
+const availabilityBuckets = computed<AvailabilityBucket[]>(() => {
+  const bucketSize = availabilityBucketSize();
+  const buckets = new Map<number, { totalChecks: number; upChecks: number; downChecks: number; latencyTotal: number; latencyChecks: number }>();
+
+  for (const item of rawLatencyMetrics.value) {
+    const timestamp = new Date(item.recordedAt).getTime();
+    if (!Number.isFinite(timestamp)) continue;
+    const bucketStart = Math.floor(timestamp / bucketSize) * bucketSize;
+    const current = buckets.get(bucketStart) || { totalChecks: 0, upChecks: 0, downChecks: 0, latencyTotal: 0, latencyChecks: 0 };
+    current.totalChecks += 1;
+    if (item.value > 0) {
+      current.upChecks += 1;
+      current.latencyTotal += item.value;
+      current.latencyChecks += 1;
+    } else {
+      current.downChecks += 1;
+    }
+    buckets.set(bucketStart, current);
+  }
+
+  return [...buckets.entries()].sort(([a], [b]) => a - b).map(([bucketStart, bucket]) => ({
+    recordedAt: new Date(bucketStart).toISOString(),
+    uptimePercent: bucket.totalChecks ? Number(((bucket.upChecks / bucket.totalChecks) * 100).toFixed(2)) : 0,
+    latencyMs: bucket.latencyChecks ? Number((bucket.latencyTotal / bucket.latencyChecks).toFixed(2)) : null,
+    totalChecks: bucket.totalChecks,
+    upChecks: bucket.upChecks,
+    downChecks: bucket.downChecks
+  }))
 });
 
 const metricOptions = [
-  { id: 'status' as MetricMode, label: 'Latency (ICMP)', icon: Zap },
+  { id: 'status' as MetricMode, label: 'Uptime + latency', icon: Zap },
   { id: 'cpu' as MetricMode, label: 'CPU (SNMP)', icon: Cpu },
   { id: 'memory' as MetricMode, label: 'RAM (SNMP)', icon: Server },
   { id: 'all' as MetricMode, label: 'Combined', icon: Layers }
 ];
 
 const activeMetricLabel = computed(() => {
-  if (activeMetric.value === 'status') return 'Ping Latency';
+  if (activeMetric.value === 'status') return 'Uptime and latency';
   if (activeMetric.value === 'cpu') return 'SNMP CPU Load';
   if (activeMetric.value === 'memory') return 'SNMP Memory Usage';
   return 'Telemetry Metrics';
@@ -458,21 +592,39 @@ const latestValue = computed(() => {
   return list[list.length - 1].value;
 });
 
+const latestStatusLatency = computed(() => {
+  if (rawLatencyMetrics.value.length === 0) return null;
+  const latest = rawLatencyMetrics.value[rawLatencyMetrics.value.length - 1];
+  return latest.value > 0 ? latest.value : null;
+});
+
+const statisticalList = computed(() => {
+  if (activeMetric.value === 'status') {
+    return currentActiveList.value.filter(item => item.value > 0);
+  }
+  return currentActiveList.value;
+});
+
+const uptimeValue = computed(() => {
+  const total = upCount.value + downCount.value;
+  return total === 0 ? 0 : (upCount.value / total) * 100;
+});
+
 const avgMetricVal = computed(() => {
-  const list = currentActiveList.value;
+  const list = statisticalList.value;
   if (list.length === 0) return 0;
   const sum = list.reduce((acc, m) => acc + m.value, 0);
   return sum / list.length;
 });
 
 const maxMetricVal = computed(() => {
-  const list = currentActiveList.value;
+  const list = statisticalList.value;
   if (list.length === 0) return 0;
   return Math.max(...list.map(m => m.value));
 });
 
 const minMetricVal = computed(() => {
-  const list = currentActiveList.value;
+  const list = statisticalList.value;
   if (list.length === 0) return 0;
   return Math.min(...list.map(m => m.value));
 });
@@ -542,7 +694,7 @@ const downPeriods = computed(() => {
     }
   }
 
-  return periods;
+  return periods.length > 80 ? periods.slice(-80) : periods;
 });
 
 const apexChartType = computed((): 'area' | 'bar' | 'radialBar' | 'donut' => {
@@ -568,7 +720,7 @@ const apexSeries = computed((): any => {
         Math.min(100, Math.max(0, Math.round(latestMem.value)))
       ];
     }
-    const val = latestValue.value;
+    const val = activeMetric.value === 'status' ? uptimeValue.value : latestValue.value;
     return [Math.min(100, Math.max(0, Math.round(val)))];
   }
 
@@ -595,24 +747,44 @@ const apexSeries = computed((): any => {
     return [
       {
         name: 'Ping Latency (ms)',
-        data: rawLatencyMetrics.value.map(i => ({ x: new Date(i.recordedAt).getTime(), y: i.value }))
+        data: chartLatencyMetrics.value.map(i => ({ x: new Date(i.recordedAt).getTime(), y: i.value }))
       },
       {
         name: 'CPU Load (%)',
-        data: rawCpuMetrics.value.map(i => ({ x: new Date(i.recordedAt).getTime(), y: i.value }))
+        data: chartCpuMetrics.value.map(i => ({ x: new Date(i.recordedAt).getTime(), y: i.value }))
       },
       {
         name: 'RAM Usage (%)',
-        data: rawMemMetrics.value.map(i => ({ x: new Date(i.recordedAt).getTime(), y: i.value }))
+        data: chartMemMetrics.value.map(i => ({ x: new Date(i.recordedAt).getTime(), y: i.value }))
       }
     ];
   }
 
-  const seriesData = currentActiveList.value.map(item => ({
+  if (activeMetric.value === 'status') {
+    return [
+      {
+        name: 'Uptime (%)',
+        data: availabilityBuckets.value.map(bucket => ({
+          x: new Date(bucket.recordedAt).getTime(),
+          y: bucket.uptimePercent
+        }))
+      },
+      {
+        name: 'Latency (ms)',
+        data: availabilityBuckets.value.map(bucket => ({
+          x: new Date(bucket.recordedAt).getTime(),
+          // A fully failed bucket has no response time.
+          y: bucket.latencyMs
+        }))
+      }
+    ];
+  }
+
+  const seriesData = compactMetrics(currentActiveList.value).map(item => ({
     x: new Date(item.recordedAt).getTime(),
     y: item.value
   }));
-  const label = activeMetric.value === 'status' ? 'Latency (ms)' : activeMetric.value === 'cpu' ? 'CPU Load (%)' : 'RAM Usage (%)';
+  const label = activeMetric.value === 'cpu' ? 'CPU Load (%)' : 'RAM Usage (%)';
   return [{ name: label, data: seriesData }];
 });
 
@@ -631,7 +803,7 @@ const apexOptions = computed((): any => {
   if (viewMode.value === 'gauge') {
     const isMulti = activeMetric.value === 'all';
     const gaugeColors = isMulti ? [statusUp, accent, warning] : [accentColor.value];
-    const gaugeLabels = isMulti ? ['Ping (ms)', 'CPU (%)', 'RAM (%)'] : [metricLabel];
+    const gaugeLabels = isMulti ? ['Ping (ms)', 'CPU (%)', 'RAM (%)'] : [activeMetric.value === 'status' ? 'Uptime' : metricLabel];
 
     return {
       chart: {
@@ -781,7 +953,8 @@ const apexOptions = computed((): any => {
 
   // Area / Bar / Stepline Options
   const isMulti = activeMetric.value === 'all';
-  const colors = isMulti ? [statusUp, accent, warning] : [accentColor.value];
+  const isStatus = activeMetric.value === 'status';
+  const colors = isMulti ? [statusUp, accent, warning] : isStatus ? [statusUp, accent] : [accentColor.value];
 
   return {
     chart: {
@@ -817,15 +990,17 @@ const apexOptions = computed((): any => {
     },
     colors,
     stroke: {
+      // Area remains smooth for trend reading; Stepline preserves each poll transition.
       curve: viewMode.value === 'stepline' ? 'stepline' : 'smooth',
-      width: viewMode.value === 'stepline' ? 3.5 : 3,
+      width: isStatus ? [2.5, 2.5] : (viewMode.value === 'stepline' ? 3.5 : 3),
       connectNulls: false
     },
     markers: {
-      size: viewMode.value === 'bar' ? 0 : (viewMode.value === 'stepline' ? (currentActiveList.value.length < 80 ? 4 : 2) : (currentActiveList.value.length < 50 ? 4 : 0)),
-      strokeWidth: 2,
+      // Match Public Monitoring: keep the graph clean and reveal a point only on hover.
+      size: 0,
+      strokeWidth: 0,
       strokeColors: cardBackground,
-      hover: { size: 6.5 }
+      hover: { size: 5, sizeOffset: 2 }
     },
     plotOptions: {
       bar: {
@@ -833,17 +1008,9 @@ const apexOptions = computed((): any => {
         borderRadius: 2
       }
     },
-    fill: {
-      type: viewMode.value === 'bar' ? 'solid' : 'gradient',
-      gradient: {
-        shade: 'dark',
-        type: 'vertical',
-        shadeIntensity: 0.8,
-        opacityFrom: viewMode.value === 'stepline' ? 0.65 : 0.55,
-        opacityTo: viewMode.value === 'stepline' ? 0.15 : 0.08,
-        stops: [0, 90, 100]
-      }
-    },
+    // Public Monitoring uses a clean line treatment without the heavy fill
+    // gradient. Keep only a solid fill for bars.
+    fill: { type: 'solid', opacity: viewMode.value === 'bar' ? 0.82 : 0 },
     dataLabels: { enabled: false },
     xaxis: {
       type: 'datetime',
@@ -853,7 +1020,24 @@ const apexOptions = computed((): any => {
       axisBorder: { color: chartGrid },
       axisTicks: { color: chartGrid }
     },
-    yaxis: isMulti
+    yaxis: isStatus
+      ? [
+          {
+            seriesName: 'Uptime (%)',
+            title: { text: 'Uptime', style: { color: statusUp, fontSize: '10px' } },
+            labels: { formatter: (v: number) => `${v.toFixed(0)}%`, style: { colors: statusUp } },
+            min: 0,
+            max: 100
+          },
+          {
+            seriesName: 'Latency (ms)',
+            opposite: true,
+            title: { text: 'Latency', style: { color: accent, fontSize: '10px' } },
+            labels: { formatter: (v: number) => `${v.toFixed(0)} ms`, style: { colors: accent } },
+            min: 0
+          }
+        ]
+      : isMulti
       ? [
           {
             title: { text: 'Ping (ms)', style: { color: statusUp, fontSize: '10px' } },
@@ -878,7 +1062,13 @@ const apexOptions = computed((): any => {
     grid: { borderColor: chartGrid, strokeDashArray: 3 },
     tooltip: {
       theme: themeStore.currentTheme,
-      x: { format: 'dd MMM HH:mm:ss' }
+      x: { format: 'dd MMM HH:mm:ss' },
+      y: isStatus
+        ? [
+            { formatter: (value: number | null) => value === null ? 'Unavailable (DOWN)' : `${value.toFixed(0)}%` },
+            { formatter: (value: number | null) => value === null ? 'Unavailable (DOWN)' : `${value.toFixed(1)} ms` }
+          ]
+        : undefined
     }
   };
 });
@@ -940,3 +1130,75 @@ onUnmounted(() => {
   }
 });
 </script>
+
+<style scoped>
+.device-chart-shell {
+  @apply min-w-0 rounded-xl border border-subtle bg-surface p-5;
+}
+
+.device-chart-header {
+  @apply flex flex-wrap items-center justify-between gap-3 border-b border-subtle pb-3;
+}
+
+.chart-mode-switcher {
+  @apply flex flex-wrap items-center gap-1 rounded-lg border border-subtle bg-card p-1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chart-mode-button {
+  @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-mono text-text-secondary transition-colors hover:bg-hover hover:text-text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-periwinkle/60;
+  min-width: 62px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chart-mode-label {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.chart-mode-active {
+  @apply bg-subtle font-bold text-text-main;
+}
+
+.metric-strip {
+  @apply grid grid-cols-2 gap-2 pt-1 sm:grid-cols-4;
+}
+
+.metric-card {
+  @apply rounded-lg border border-subtle bg-card px-3 py-2;
+}
+
+.metric-card span {
+  @apply block text-[10px] font-mono font-semibold uppercase text-text-secondary;
+}
+
+.metric-card strong {
+  @apply mt-1 block text-sm font-mono font-bold text-text-main;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card small {
+  @apply ml-0.5 text-[10px] font-normal text-text-muted;
+}
+
+.device-chart-canvas {
+  @apply relative min-h-[250px] w-full;
+}
+
+.device-chart-canvas-tall {
+  @apply min-h-[280px];
+}
+.device-down-banner { @apply flex flex-wrap items-center justify-between gap-4 rounded-xl border border-status-down/35 bg-status-down/10 px-4 py-3; }
+.device-down-banner-main { @apply flex min-w-0 items-center gap-3; }
+.device-down-icon { @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-status-down/40 bg-status-down/15 text-status-down; }
+.device-down-eyebrow { @apply block text-[9px] font-mono uppercase tracking-wider text-status-down/80; }
+.device-down-banner strong { @apply mt-0.5 block text-sm font-bold text-text-main; }
+.device-down-banner p { @apply mt-1 max-w-xl text-[10px] leading-4 text-text-secondary; }
+.device-down-meta { @apply shrink-0 border-l border-status-down/25 pl-4 text-right; }
+.device-down-meta span { @apply block text-[9px] font-mono uppercase tracking-wider text-text-muted; }
+.device-down-meta strong { @apply mt-1 block text-[10px] font-mono text-text-main; }
+</style>
