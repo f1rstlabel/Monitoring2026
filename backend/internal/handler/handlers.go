@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"sanoc/backend/internal/domain"
 	"sanoc/backend/internal/mailer"
 	"sanoc/backend/internal/middleware"
+	"sanoc/backend/internal/monitoring"
 	"sanoc/backend/internal/notifier"
 	"sanoc/backend/internal/poller"
 	"sanoc/backend/internal/repository"
@@ -60,27 +62,32 @@ func getDefaultSettings() domain.SystemSettings {
 	return s
 }
 
-
 type Handler struct {
-	hub          *ws.Hub
-	poller       interface {
+	hub    *ws.Hub
+	poller interface {
 		TriggerPollNow() (int, time.Time)
 		UpdateConfig(cfg poller.EngineConfig)
 	}
-	pipeline     *notifier.Pipeline
-	settingsRepo *repository.SettingsRepository
-	userRepo     repository.UserRepository
-	deviceRepo   repository.DeviceRepository
-	statusRepo   repository.StatusLogRepository
-	metricRepo   repository.DeviceMetricRepository
-	incidentRepo repository.IncidentRepository
-	userLogRepo  repository.UserLogRepository
-	notifLogRepo repository.NotificationLogRepository
-	locationRepo       repository.LocationRepository
-	permRepo           repository.PermissionRepository
-	whatsappTargetRepo repository.WhatsAppTargetRepository
-	mailer             *mailer.Mailer
-	aiService          *ai.Service
+	pipeline                  *notifier.Pipeline
+	settingsRepo              *repository.SettingsRepository
+	userRepo                  repository.UserRepository
+	deviceRepo                repository.DeviceRepository
+	statusRepo                repository.StatusLogRepository
+	metricRepo                repository.DeviceMetricRepository
+	incidentRepo              repository.IncidentRepository
+	userLogRepo               repository.UserLogRepository
+	notifLogRepo              repository.NotificationLogRepository
+	locationRepo              repository.LocationRepository
+	permRepo                  repository.PermissionRepository
+	whatsappTargetRepo        repository.WhatsAppTargetRepository
+	publicMonitorRepo         repository.PublicMonitorRepository
+	publicMonitorGroupRepo    repository.PublicMonitorGroupRepository
+	publicMonitorIncidentRepo repository.PublicMonitorIncidentRepository
+	publicMonitorWorker       interface {
+		CheckNow(context.Context, domain.PublicMonitor) (monitoring.CheckResult, error)
+	}
+	mailer    *mailer.Mailer
+	aiService *ai.Service
 }
 
 func NewHandler(hub *ws.Hub, settingsRepo *repository.SettingsRepository, userRepo repository.UserRepository, deviceRepo repository.DeviceRepository, statusRepo repository.StatusLogRepository) *Handler {
@@ -119,6 +126,24 @@ func (h *Handler) SetPermissionRepo(repo repository.PermissionRepository) {
 
 func (h *Handler) SetWhatsAppTargetRepo(repo repository.WhatsAppTargetRepository) {
 	h.whatsappTargetRepo = repo
+}
+
+func (h *Handler) SetPublicMonitorRepo(repo repository.PublicMonitorRepository) {
+	h.publicMonitorRepo = repo
+}
+
+func (h *Handler) SetPublicMonitorGroupRepo(repo repository.PublicMonitorGroupRepository) {
+	h.publicMonitorGroupRepo = repo
+}
+
+func (h *Handler) SetPublicMonitorIncidentRepo(repo repository.PublicMonitorIncidentRepository) {
+	h.publicMonitorIncidentRepo = repo
+}
+
+func (h *Handler) SetPublicMonitorWorker(worker interface {
+	CheckNow(context.Context, domain.PublicMonitor) (monitoring.CheckResult, error)
+}) {
+	h.publicMonitorWorker = worker
 }
 
 func (h *Handler) SetPoller(p interface {
@@ -363,7 +388,7 @@ func (h *Handler) Login(c *gin.Context) {
 	if user != nil && passwordHash != "" {
 		hashToCompare = passwordHash
 	}
-	
+
 	errHash := bcrypt.CompareHashAndPassword([]byte(hashToCompare), []byte(inputPass))
 
 	if err != nil || user == nil || errHash != nil {
@@ -707,8 +732,6 @@ func (h *Handler) GetMe(c *gin.Context) {
 	})
 }
 
-
-
 func (h *Handler) GetSummary(c *gin.Context) {
 	devices, err := h.deviceRepo.GetAll("", "", "")
 	if err != nil {
@@ -966,7 +989,6 @@ func (h *Handler) AutoDetect(c *gin.Context) {
 	})
 }
 
-
 func (h *Handler) GetStatusHistory(c *gin.Context) {
 	deviceID := c.Param("id")
 	rangeParam := c.Query("range")
@@ -1034,11 +1056,37 @@ func (h *Handler) GetIncidents(c *gin.Context) {
 	deviceID := strings.TrimSpace(c.Query("deviceId"))
 	status := strings.TrimSpace(c.Query("status"))
 	search := strings.ToLower(strings.TrimSpace(c.Query("search")))
+	source := strings.ToUpper(strings.TrimSpace(c.Query("source")))
+	if source == "" {
+		source = "ALL"
+	}
+	if source == "PUBLIC_MONITOR" && h.publicMonitorIncidentRepo != nil {
+		page := parsePositiveInt(c.Query("page"), 1)
+		pageSize := parsePositiveInt(c.Query("page_size"), 10)
+		if pageSize > 100 {
+			pageSize = 100
+		}
+		publicIncidents, total, err := h.publicMonitorIncidentRepo.GetAll("", status, search, time.Time{}, time.Time{}, page, pageSize)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public monitor incidents"})
+			return
+		}
+		items := make([]domain.Incident, 0, len(publicIncidents))
+		for _, incident := range publicIncidents {
+			items = append(items, publicIncidentAsIncident(incident))
+		}
+		totalPages := (total + pageSize - 1) / pageSize
+		if totalPages == 0 {
+			totalPages = 1
+		}
+		c.JSON(http.StatusOK, gin.H{"items": items, "data": items, "total": total, "page": page, "pageSize": pageSize, "totalPages": totalPages})
+		return
+	}
 
-	if h.incidentRepo != nil {
+	items := make([]domain.Incident, 0)
+	if source != "PUBLIC_MONITOR" && h.incidentRepo != nil {
 		var incidents []domain.Incident
 		var err error
-
 		if deviceID != "" {
 			incidents, err = h.incidentRepo.GetByDeviceID(deviceID)
 		} else if status == "ACTIVE" {
@@ -1046,28 +1094,63 @@ func (h *Handler) GetIncidents(c *gin.Context) {
 		} else {
 			incidents, err = h.incidentRepo.GetAll()
 		}
-
 		if err == nil {
-			var filtered []domain.Incident
-			for _, inc := range incidents {
-				if status != "" && status != "ALL" && !strings.EqualFold(inc.Status, status) {
-					continue
-				}
-				if search != "" {
-					matchID := strings.Contains(strings.ToLower(inc.ID), search)
-					matchName := strings.Contains(strings.ToLower(inc.DeviceName), search)
-					matchIP := strings.Contains(strings.ToLower(inc.DeviceIP), search)
-					if !matchID && !matchName && !matchIP {
-						continue
-					}
-				}
-				filtered = append(filtered, inc)
-			}
-			paginateSlice(c, filtered)
-			return
+			items = append(items, incidents...)
 		}
 	}
-	paginateSlice(c, []domain.Incident{})
+	if deviceID == "" && source != "DEVICE" && h.publicMonitorIncidentRepo != nil {
+		publicIncidents, _, err := h.publicMonitorIncidentRepo.GetAll("", status, "", time.Time{}, time.Time{}, 1, 100)
+		if err == nil {
+			for _, inc := range publicIncidents {
+				items = append(items, publicIncidentAsIncident(inc))
+			}
+		}
+	}
+
+	filtered := make([]domain.Incident, 0, len(items))
+	for _, inc := range items {
+		if status != "" && status != "ALL" && !strings.EqualFold(inc.Status, status) {
+			continue
+		}
+		if search != "" {
+			matchID := strings.Contains(strings.ToLower(inc.ID), search)
+			matchName := strings.Contains(strings.ToLower(inc.DeviceName), search)
+			matchIP := strings.Contains(strings.ToLower(inc.DeviceIP), search)
+			matchURL := strings.Contains(strings.ToLower(inc.TargetURL), search)
+			if !matchID && !matchName && !matchIP && !matchURL {
+				continue
+			}
+		}
+		filtered = append(filtered, inc)
+	}
+	paginateSlice(c, filtered)
+}
+
+func publicIncidentAsIncident(incident domain.PublicMonitorIncident) domain.Incident {
+	return domain.Incident{
+		ID: incident.ID, Source: "PUBLIC_MONITOR", SourceID: incident.MonitorID, Category: "PUBLIC MONITORING",
+		TargetURL: incident.TargetURL, DeviceName: incident.MonitorName, DeviceType: domain.DeviceType(incident.MonitorType),
+		DeviceIP: incident.TargetURL, Location: "PUBLIC MONITORING", Status: string(incident.Status),
+		StartTime: incident.StartedAt, Duration: publicIncidentDuration(incident.DurationSeconds),
+		AffectedDevicesCount: 1, StartedAt: parseIncidentTime(incident.StartedAt), ResolvedAt: incident.ResolvedAt,
+		LatencyMs: 0,
+	}
+}
+
+func publicIncidentDuration(seconds int64) string {
+	if seconds < 60 {
+		return fmt.Sprintf("%ds", seconds)
+	}
+	minutes := seconds / 60
+	if minutes < 60 {
+		return fmt.Sprintf("%dm", minutes)
+	}
+	return fmt.Sprintf("%dh %dm", minutes/60, minutes%60)
+}
+
+func parseIncidentTime(value string) time.Time {
+	t, _ := time.Parse(time.RFC3339, value)
+	return t
 }
 
 func (h *Handler) GetIncidentByID(c *gin.Context) {
@@ -1305,13 +1388,13 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 						Severity:    "info",
 						Channel:     "WhatsApp",
 					})
-					
+
 					allWAFailedOrSkipped := true
 					for i, log := range waLogs {
 						statusIcon := "✅"
 						statusText := "Delivered successfully"
 						severity := "info"
-						
+
 						if strings.EqualFold(log.Status, "Failed") {
 							statusIcon = "❌"
 							statusText = "Failed to deliver"
@@ -1323,7 +1406,7 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 						} else {
 							allWAFailedOrSkipped = false
 						}
-						
+
 						timelineItems = append(timelineItems, domain.EventTimelineItem{
 							ID:          fmt.Sprintf("evt-wa-res-%d", i+1),
 							Timestamp:   inc.StartTime,
@@ -1333,7 +1416,7 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 							Channel:     "WhatsApp",
 						})
 					}
-					
+
 					if len(tgLogs) > 0 {
 						if allWAFailedOrSkipped {
 							timelineItems = append(timelineItems, domain.EventTimelineItem{
@@ -1344,7 +1427,7 @@ func (h *Handler) GetIncidentByID(c *gin.Context) {
 								Severity:    "warning",
 								Channel:     "Telegram",
 							})
-							
+
 							for i, log := range tgLogs {
 								statusIcon := "✅"
 								severity := "info"
@@ -1446,7 +1529,6 @@ func (h *Handler) GetIncidentEvents(c *gin.Context) {
 	c.JSON(http.StatusOK, []domain.IncidentEvent{})
 }
 
-
 func (h *Handler) AddIncidentNote(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
@@ -1485,7 +1567,6 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "settings": settings})
 }
-
 
 func (h *Handler) UpdateThresholds(c *gin.Context) {
 	var req struct {
@@ -2680,7 +2761,6 @@ func (h *Handler) BulkDeviceAction(c *gin.Context) {
 
 	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action. Supported actions: update, delete"})
 }
-
 
 // ─── Permission Handlers ─────────────────────────────────────────────────────
 

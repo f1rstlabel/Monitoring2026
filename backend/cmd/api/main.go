@@ -15,8 +15,9 @@ import (
 	"sanoc/backend/internal/config"
 	"sanoc/backend/internal/domain"
 	"sanoc/backend/internal/handler"
-	"sanoc/backend/internal/middleware"
 	"sanoc/backend/internal/mailer"
+	"sanoc/backend/internal/middleware"
+	"sanoc/backend/internal/monitoring"
 	"sanoc/backend/internal/notifier"
 	"sanoc/backend/internal/poller"
 	"sanoc/backend/internal/repository"
@@ -69,7 +70,6 @@ func main() {
 	}
 	log.Println("[SANOC] Database migrations applied successfully.")
 
-
 	redisClient, err := repository.InitRedis(cfg)
 	if err != nil {
 		log.Printf("[WARN] Redis connection issue: %v. Continuing with in-memory fallback cache.", err)
@@ -117,6 +117,9 @@ func main() {
 	userLogRepo := repository.NewPostgresUserLogRepository(db)
 	locationRepo := repository.NewPostgresLocationRepository(db)
 	permRepo := repository.NewPostgresPermissionRepository(db)
+	publicMonitorRepo := repository.NewPostgresPublicMonitorRepository(db)
+	publicMonitorGroupRepo := repository.NewPostgresPublicMonitorGroupRepository(db)
+	publicMonitorIncidentRepo := repository.NewPostgresPublicMonitorIncidentRepository(db)
 
 	// ─── Settings Repository (Postgres-backed, auto-creates table) ─────────────
 	settingsRepo := repository.NewSettingsRepository(db)
@@ -182,13 +185,13 @@ func main() {
 	pipeline := notifier.NewPipeline(cfg.WhatsAppGatewayURL, cfg.WASidecarToken, tgBotToken, tgChatID, cfg.WhatsAppTargetNumber, 60, whatsappTargetRepo, redisClient, asynqClient)
 	pipeline.SetNotifLogRepo(notifLogRepo)
 	pipeline.SetIncidentRepo(incidentRepo)
+	pipeline.SetPublicMonitorIncidentRepo(publicMonitorIncidentRepo)
 	pipeline.SetSettingsRepo(settingsRepo)
 	pipeline.SetDeviceRepo(deviceRepo)
 
 	notifyQueue := notifier.NewNotifyQueue(pipeline, notifLogRepo)
 	defer notifyQueue.Stop()
 	pipeline.SetNotifyQueue(notifyQueue)
-
 
 	// ─── Asynq Server Worker Setup ───────────────────────────────────────────
 	asynqServer := asynq.NewServer(
@@ -268,6 +271,12 @@ func main() {
 	dhcpSyncWorker.Start()
 	defer dhcpSyncWorker.Stop()
 
+	// Public HTTP monitoring runs independently from the network-device poller.
+	publicMonitorWorker := monitoring.NewWorker(publicMonitorRepo, hub)
+	publicMonitorWorker.SetPipeline(pipeline)
+	publicMonitorWorker.SetIncidentRepo(publicMonitorIncidentRepo)
+	publicMonitorWorker.Start()
+	defer publicMonitorWorker.Stop()
 
 	log.Printf("[Settings] Loaded startup configuration:")
 	log.Printf("[Settings]   • Polling Interval: %ds", pollCfg.IntervalSeconds)
@@ -287,16 +296,21 @@ func main() {
 	h.SetLocationRepo(locationRepo)
 	h.SetPermissionRepo(permRepo)
 	h.SetWhatsAppTargetRepo(whatsappTargetRepo)
+	h.SetPublicMonitorRepo(publicMonitorRepo)
+	h.SetPublicMonitorGroupRepo(publicMonitorGroupRepo)
+	h.SetPublicMonitorIncidentRepo(publicMonitorIncidentRepo)
+	h.SetPublicMonitorWorker(publicMonitorWorker)
 	h.SetMailer(mailer.NewMailer(cfg))
 	// ─── AI Service (Google Gemini) ─────────────────────────────────────────────
 	aiService := ai.NewService(cfg.GeminiAPIKey, cfg.GeminiModel, deviceRepo, incidentRepo, statusRepo)
+	aiService.SetPublicMonitorIncidentRepo(publicMonitorIncidentRepo)
 	h.SetAIService(aiService)
 	if aiService.IsConfigured() {
 		log.Printf("[SANOC] Gemini AI Copilot initialized successfully (Model: %s)", aiService.GetModel())
 	} else {
 		log.Printf("[SANOC] Gemini AI Copilot: GEMINI_API_KEY not configured in .env (Copilot ready on key provision)")
 	}
-	
+
 	// ─── Flap Report Job (Weekly Scheduler) ──────────────────────────────────
 	flapReportJob := scheduler.NewFlapReportJob(statusRepo, deviceRepo, pipeline, aiService)
 	flapReportJob.RunWeekly()
@@ -353,6 +367,7 @@ func main() {
 
 	// Notifications log & audit
 	notifH := handler.NewNotificationsHandler(incidentRepo)
+	notifH.SetPublicMonitorIncidentRepo(publicMonitorIncidentRepo)
 	v1.GET("/notifications", notifH.GetNotifications)
 	v1.GET("/notifications/logs", notifH.GetNotificationLogs)
 	v1.PATCH("/notifications/read-all", notifH.MarkAllAsRead)
@@ -388,6 +403,31 @@ func main() {
 		devices.GET("/auto-detect", middleware.RequirePermission(permRepo, "devices.view", "admin", "anggota"), h.AutoDetect)
 	}
 
+	// Incidents
+	// Public HTTP monitors intentionally use their own storage and worker.
+	publicMonitors := v1.Group("/public-monitors")
+	{
+		publicMonitors.GET("", middleware.RequirePermission(permRepo, "public_monitoring.view", "admin", "anggota", "pimpinan"), h.GetPublicMonitors)
+		publicMonitors.GET("/archived", middleware.RequirePermission(permRepo, "public_monitoring.view", "admin", "anggota", "pimpinan"), h.GetArchivedPublicMonitors)
+		publicMonitors.GET("/:id", middleware.RequirePermission(permRepo, "public_monitoring.view", "admin", "anggota", "pimpinan"), h.GetPublicMonitorByID)
+		publicMonitors.GET("/:id/checks", middleware.RequirePermission(permRepo, "public_monitoring.view", "admin", "anggota", "pimpinan"), h.GetPublicMonitorChecks)
+		publicMonitors.POST("", middleware.RequirePermission(permRepo, "public_monitoring.create", "admin", "anggota"), h.CreatePublicMonitor)
+		publicMonitors.PUT("/:id", middleware.RequirePermission(permRepo, "public_monitoring.edit", "admin", "anggota"), h.UpdatePublicMonitor)
+		publicMonitors.DELETE("/:id/purge", middleware.RequirePermission(permRepo, "public_monitoring.delete", "admin"), h.PurgePublicMonitor)
+		publicMonitors.DELETE("/:id", middleware.RequirePermission(permRepo, "public_monitoring.delete", "admin"), h.DeletePublicMonitor)
+		publicMonitors.POST("/:id/restore", middleware.RequirePermission(permRepo, "public_monitoring.edit", "admin", "anggota"), h.RestorePublicMonitor)
+		publicMonitors.POST("/:id/check-now", middleware.RequirePermission(permRepo, "public_monitoring.edit", "admin", "anggota"), h.CheckPublicMonitorNow)
+		publicMonitorGroups := v1.Group("/public-monitor-groups")
+		publicMonitorGroups.GET("", middleware.RequirePermission(permRepo, "public_monitoring.groups.view", "admin", "anggota", "pimpinan"), h.GetPublicMonitorGroups)
+		publicMonitorGroups.POST("", middleware.RequirePermission(permRepo, "public_monitoring.groups.create", "admin", "anggota"), h.CreatePublicMonitorGroup)
+		publicMonitorGroups.PUT("/:id", middleware.RequirePermission(permRepo, "public_monitoring.groups.edit", "admin", "anggota"), h.UpdatePublicMonitorGroup)
+		publicMonitorGroups.DELETE("/:id", middleware.RequirePermission(permRepo, "public_monitoring.groups.delete", "admin"), h.DeletePublicMonitorGroup)
+		publicMonitorIncidents := v1.Group("/public-monitor-incidents")
+		publicMonitorIncidents.GET("", middleware.RequirePermission(permRepo, "public_monitoring.view", "admin", "anggota", "pimpinan"), h.GetPublicMonitorIncidents)
+		publicMonitorIncidents.GET("/:id", middleware.RequirePermission(permRepo, "public_monitoring.view", "admin", "anggota", "pimpinan"), h.GetPublicMonitorIncidentByID)
+		publicMonitorReports := v1.Group("/public-monitor-reports")
+		publicMonitorReports.GET("", middleware.RequirePermission(permRepo, "public_monitoring.view", "admin", "anggota", "pimpinan"), h.GetPublicMonitorReport)
+	}
 
 	// Incidents
 	incidents := v1.Group("/incidents")
@@ -465,7 +505,6 @@ func main() {
 		integrations.POST("/telegram/config", integH.TelegramConfig)
 		integrations.POST("/telegram/test", integH.TelegramTest)
 	}
-
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.ServerPort,
