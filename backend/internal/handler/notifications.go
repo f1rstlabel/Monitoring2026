@@ -23,6 +23,7 @@ type NotificationItem struct {
 
 type NotificationsHandler struct {
 	incidentRepo repository.IncidentRepository
+	publicMonitorIncidentRepo repository.PublicMonitorIncidentRepository
 	notifLogRepo repository.NotificationLogRepository
 	mu           sync.RWMutex
 	liveNotifs   []NotificationItem
@@ -41,6 +42,10 @@ func (h *NotificationsHandler) SetIncidentRepo(repo repository.IncidentRepositor
 
 func (h *NotificationsHandler) SetNotifLogRepo(repo repository.NotificationLogRepository) {
 	h.notifLogRepo = repo
+}
+
+func (h *NotificationsHandler) SetPublicMonitorIncidentRepo(repo repository.PublicMonitorIncidentRepository) {
+	h.publicMonitorIncidentRepo = repo
 }
 
 func (h *NotificationsHandler) AddRealtimeNotification(item NotificationItem) {
@@ -94,6 +99,37 @@ func (h *NotificationsHandler) GetNotifications(c *gin.Context) {
 		}
 	}
 
+	if h.publicMonitorIncidentRepo != nil {
+		publicIncidents, _, err := h.publicMonitorIncidentRepo.GetAll("", "", "", time.Now().UTC().Add(-30*24*time.Hour), time.Now().UTC(), 1, 50)
+		if err == nil {
+			for _, inc := range publicIncidents {
+				notifType := "PUBLIC_MONITOR_INCIDENT"
+				title := fmt.Sprintf("Public monitor down: %s", inc.MonitorName)
+				message := inc.LastError
+				if message == "" {
+					message = "Endpoint tidak merespons sesuai health check"
+				}
+				if inc.Status == "RESOLVED" {
+					notifType = "PUBLIC_MONITOR_RECOVERED"
+					title = fmt.Sprintf("Public monitor recovered: %s", inc.MonitorName)
+					message = fmt.Sprintf("Endpoint kembali UP setelah %s", formatPublicIncidentDuration(inc.DurationSeconds))
+				}
+				timestamp := inc.StartedAt
+				if inc.Status == "RESOLVED" && inc.ResolvedAt != "" {
+					timestamp = inc.ResolvedAt
+				}
+				tTime, parseErr := time.Parse(time.RFC3339, timestamp)
+				if parseErr != nil {
+					tTime = time.Now()
+				}
+				items = append(items, NotificationItem{
+					ID: "public-notif-" + inc.ID, Type: notifType, Title: title, Message: message,
+					TargetURL: "/incidents/" + inc.ID + "?source=PUBLIC_MONITOR", IsUnread: inc.Status == "ACTIVE", Timestamp: tTime,
+				})
+			}
+		}
+	}
+
 	h.mu.RLock()
 	for _, liveItem := range h.liveNotifs {
 		if !seen[liveItem.ID] {
@@ -124,6 +160,13 @@ func (h *NotificationsHandler) GetNotifications(c *gin.Context) {
 		"notifications": formatted,
 		"unreadCount":   unreadCount,
 	})
+}
+
+func formatPublicIncidentDuration(seconds int64) string {
+	if seconds < 60 {
+		return fmt.Sprintf("%ds", seconds)
+	}
+	return fmt.Sprintf("%dm", seconds/60)
 }
 
 // PATCH /api/v1/notifications/read-all

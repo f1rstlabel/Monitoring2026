@@ -17,11 +17,12 @@ import (
 const TypeWhatsAppDispatch = "notification:dispatch"
 
 type WhatsAppDispatchPayload struct {
-	Message     string    `json:"message"`
-	IncidentIDs []string  `json:"incidentIds"`
-	CreatedAt   time.Time `json:"createdAt"`
-	TaskType    string    `json:"taskType"` // "DOWN" or "RECOVERED"
-	Direct      bool      `json:"direct"`
+	Message           string    `json:"message"`
+	IncidentIDs       []string  `json:"incidentIds"`
+	PublicIncidentIDs []string  `json:"publicIncidentIds"`
+	CreatedAt         time.Time `json:"createdAt"`
+	TaskType          string    `json:"taskType"` // "DOWN" or "RECOVERED"
+	Direct            bool      `json:"direct"`
 }
 
 // Lua script to atomically read and advance the next allowed send timestamp in Redis
@@ -93,6 +94,13 @@ func HandleWhatsAppDispatchTask(p *Pipeline) asynq.HandlerFunc {
 					cutoff = 30 * time.Minute // wider threshold for fallback
 				}
 			}
+			if taskTime.IsZero() && len(pld.PublicIncidentIDs) > 0 && p.publicMonitorIncidentRepo != nil {
+				if inc, err := p.publicMonitorIncidentRepo.GetByID(pld.PublicIncidentIDs[0]); err == nil && inc != nil {
+					if parsed, parseErr := time.Parse(time.RFC3339, inc.StartedAt); parseErr == nil {
+						taskTime = parsed
+					}
+				}
+			}
 		}
 
 		if !taskTime.IsZero() && time.Since(taskTime) > cutoff {
@@ -155,13 +163,35 @@ func HandleWhatsAppDispatchTask(p *Pipeline) asynq.HandlerFunc {
 			validIncidentIDs = append(validIncidentIDs, incID)
 		}
 
-		if len(validIncidentIDs) == 0 {
-			log.Printf("[Notifier] Discarding task (all %d incidents are no longer relevant)", len(pld.IncidentIDs))
+		var validPublicIncidentIDs []string
+		for _, incID := range pld.PublicIncidentIDs {
+			if p.publicMonitorIncidentRepo == nil {
+				validPublicIncidentIDs = append(validPublicIncidentIDs, incID)
+				continue
+			}
+			inc, err := p.publicMonitorIncidentRepo.GetByID(incID)
+			if err != nil || inc == nil {
+				log.Printf("[Notifier] Public monitor incident %s not found in DB, skipping", incID)
+				continue
+			}
+			if isDownAlert && inc.Status != domain.PublicMonitorIncidentActive {
+				log.Printf("[Notifier] Discarding stale public DOWN alert for incident %s", incID)
+				continue
+			}
+			if !isDownAlert && inc.Status == domain.PublicMonitorIncidentActive {
+				log.Printf("[Notifier] Discarding stale public RECOVERY alert for incident %s", incID)
+				continue
+			}
+			validPublicIncidentIDs = append(validPublicIncidentIDs, incID)
+		}
+
+		if len(validIncidentIDs) == 0 && len(validPublicIncidentIDs) == 0 {
+			log.Printf("[Notifier] Discarding task (all incidents are no longer relevant)")
 			return nil
 		}
 
 		// 3. Aggregation Routing (Requirement 2.4)
-		if !pld.Direct && p.notifyQueue != nil {
+		if len(validPublicIncidentIDs) == 0 && !pld.Direct && p.notifyQueue != nil {
 			log.Printf("[Notifier] Routing %d valid incidents back through Aggregator Queue for consolidation...", len(validIncidentIDs))
 			for _, incID := range validIncidentIDs {
 				inc, err := p.incidentRepo.GetByID(incID)
@@ -204,7 +234,7 @@ func HandleWhatsAppDispatchTask(p *Pipeline) asynq.HandlerFunc {
 
 		log.Printf("[Asynq Worker] Executing task %s, payload len=%d", t.Type(), len(pld.Message))
 
-		err := p.dispatchActualWithErr(ctx, pld.Message, validIncidentIDs)
+		err := p.dispatchActualWithErr(ctx, pld.Message, validIncidentIDs, validPublicIncidentIDs)
 		if err != nil {
 			log.Printf("[Asynq Worker] Task execution failed: %v", err)
 			return err // Return non-nil error so Asynq schedules automatic retry

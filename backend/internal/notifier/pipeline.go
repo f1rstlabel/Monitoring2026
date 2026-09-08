@@ -218,8 +218,8 @@ func (w *WhatsAppClient) IsHealthy() bool {
 // ─── Telegram Client ──────────────────────────────────────────────────────────
 
 type TelegramClient struct {
-	botToken string
-	chatID   string
+	botToken   string
+	chatID     string
 	httpClient *http.Client
 }
 
@@ -232,6 +232,9 @@ func NewTelegramClient(botToken, chatID string) *TelegramClient {
 }
 
 func (t *TelegramClient) Send(message string) error {
+	if t == nil || strings.TrimSpace(t.botToken) == "" || strings.TrimSpace(t.chatID) == "" {
+		return fmt.Errorf("telegram is not configured")
+	}
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", t.botToken)
 	payload := map[string]string{
 		"chat_id":    t.chatID,
@@ -255,10 +258,10 @@ func (t *TelegramClient) Send(message string) error {
 // AggregationBuffer collects device-down events within a window and emits
 // a single batched notification after the window expires.
 type AggregationBuffer struct {
-	mu          sync.Mutex
-	window      time.Duration
-	buckets     map[string]*bucket // keyed by parentDeviceID or "orphan"
-	onEmit      func(devices []DeviceInfo, rootKey string, detectedAt time.Time)
+	mu      sync.Mutex
+	window  time.Duration
+	buckets map[string]*bucket // keyed by parentDeviceID or "orphan"
+	onEmit  func(devices []DeviceInfo, rootKey string, detectedAt time.Time)
 }
 
 type bucket struct {
@@ -267,7 +270,7 @@ type bucket struct {
 	timer      *time.Timer
 }
 
-func NewAggregationBuffer(window time.Duration, onEmit func(devices []DeviceInfo, rootKey string, detectedAt time.Time) ) *AggregationBuffer {
+func NewAggregationBuffer(window time.Duration, onEmit func(devices []DeviceInfo, rootKey string, detectedAt time.Time)) *AggregationBuffer {
 	return &AggregationBuffer{
 		window:  window,
 		buckets: make(map[string]*bucket),
@@ -306,28 +309,30 @@ func (ab *AggregationBuffer) Add(parentKey string, dev DeviceInfo) {
 // ─── Notification Pipeline ────────────────────────────────────────────────────
 
 type NotificationLog struct {
-	IncidentIDs []string
-	Channel     string
-	Recipient   string
-	Status      string // "delivered" | "failed"
-	Error       string
-	Timestamp   time.Time
+	IncidentIDs       []string
+	PublicIncidentIDs []string
+	Channel           string
+	Recipient         string
+	Status            string // "delivered" | "failed"
+	Error             string
+	Timestamp         time.Time
 }
 
 type Pipeline struct {
-	whatsApp            *WhatsAppClient
-	telegram            *TelegramClient
-	limiter             *TokenBucket
-	logChan             chan NotificationLog
-	whatsAppTargetRepo  repository.WhatsAppTargetRepository
-	notifLogRepo        repository.NotificationLogRepository
-	incidentRepo        repository.IncidentRepository
-	settingsRepo        *repository.SettingsRepository
-	deviceRepo          repository.DeviceRepository
-	notifyQueue         *NotifyQueue
-	defaultTargetNumber string
-	redisClient         *repository.RedisClient
-	asynqClient         *asynq.Client
+	whatsApp                  *WhatsAppClient
+	telegram                  *TelegramClient
+	limiter                   *TokenBucket
+	logChan                   chan NotificationLog
+	whatsAppTargetRepo        repository.WhatsAppTargetRepository
+	notifLogRepo              repository.NotificationLogRepository
+	incidentRepo              repository.IncidentRepository
+	publicMonitorIncidentRepo repository.PublicMonitorIncidentRepository
+	settingsRepo              *repository.SettingsRepository
+	deviceRepo                repository.DeviceRepository
+	notifyQueue               *NotifyQueue
+	defaultTargetNumber       string
+	redisClient               *repository.RedisClient
+	asynqClient               *asynq.Client
 }
 
 func NewPipeline(whatsAppURL, whatsAppToken, telegramToken, telegramChatID, defaultTargetNumber string, maxMsgPerMin int, whatsAppTargetRepo repository.WhatsAppTargetRepository, redisClient *repository.RedisClient, asynqClient *asynq.Client) *Pipeline {
@@ -357,7 +362,6 @@ func (p *Pipeline) SetNotifyQueue(nq *NotifyQueue) {
 	}
 }
 
-
 func (p *Pipeline) SetSettingsRepo(repo *repository.SettingsRepository) {
 	if p != nil {
 		p.settingsRepo = repo
@@ -373,6 +377,12 @@ func (p *Pipeline) SetNotifLogRepo(repo repository.NotificationLogRepository) {
 func (p *Pipeline) SetIncidentRepo(repo repository.IncidentRepository) {
 	if p != nil {
 		p.incidentRepo = repo
+	}
+}
+
+func (p *Pipeline) SetPublicMonitorIncidentRepo(repo repository.PublicMonitorIncidentRepository) {
+	if p != nil {
+		p.publicMonitorIncidentRepo = repo
 	}
 }
 
@@ -402,6 +412,19 @@ func (p *Pipeline) writeEvent(incidentID, eventType, channel, detail string) {
 	}
 }
 
+func (p *Pipeline) writePublicEvent(incidentID, eventType, channel, detail string) {
+	if p.publicMonitorIncidentRepo == nil || incidentID == "" {
+		return
+	}
+	_ = p.publicMonitorIncidentRepo.AppendEvent(&domain.PublicMonitorIncidentEvent{
+		IncidentID: incidentID,
+		EventType:  eventType,
+		Channel:    channel,
+		Detail:     detail,
+		OccurredAt: time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
 // Send dispatches a message via the Asynq scheduled task queue to enforce the configured rate limit.
 func (p *Pipeline) GetRateLimitMaxMsgPerMin() int {
 	if p.settingsRepo != nil {
@@ -420,9 +443,24 @@ func (p *Pipeline) Send(ctx context.Context, message string, incidentIDs []strin
 }
 
 func (p *Pipeline) SendExt(ctx context.Context, message string, incidentIDs []string, direct bool) {
+	p.enqueueDispatch(ctx, message, incidentIDs, nil, direct)
+}
+
+// SendPublic uses the same WhatsApp/Telegram gateway and rate limiter as
+// device incidents, while carrying a public-monitor incident ID for separate
+// delivery history and stale-alert validation.
+func (p *Pipeline) SendPublic(ctx context.Context, message, publicIncidentID string) {
+	if publicIncidentID == "" {
+		return
+	}
+	p.writePublicEvent(publicIncidentID, "notification_queued", "", "Notification queued for WhatsApp primary delivery with Telegram fallback")
+	p.enqueueDispatch(ctx, message, nil, []string{publicIncidentID}, true)
+}
+
+func (p *Pipeline) enqueueDispatch(ctx context.Context, message string, incidentIDs, publicIncidentIDs []string, direct bool) {
 	if p.asynqClient == nil || p.redisClient == nil || p.redisClient.Client == nil {
 		log.Println("[Notifier] Asynq client or Redis is not initialized. Sending alert synchronously...")
-		_ = p.dispatchActualWithErr(ctx, message, incidentIDs)
+		_ = p.dispatchActualWithErr(ctx, message, incidentIDs, publicIncidentIDs)
 		return
 	}
 
@@ -440,18 +478,19 @@ func (p *Pipeline) SendExt(ctx context.Context, message string, incidentIDs []st
 	scheduledTime, err := GetNextAllowedTime(ctx, p.redisClient.Client, spacingSec)
 	if err != nil {
 		log.Printf("[Notifier] Failed to calculate scheduled time via Redis: %v. Sending synchronously...", err)
-		_ = p.dispatchActualWithErr(ctx, message, incidentIDs)
+		_ = p.dispatchActualWithErr(ctx, message, incidentIDs, publicIncidentIDs)
 		return
 	}
 
+	detail := "Rate limit OK — dispatching notification now"
+	if scheduledTime.After(time.Now().Add(1000 * time.Millisecond)) {
+		detail = fmt.Sprintf("Rate limited — notification scheduled for %s", scheduledTime.Format("15:04:05 WIB"))
+	}
 	for _, incID := range incidentIDs {
-		var detail string
-		if scheduledTime.After(time.Now().Add(1000 * time.Millisecond)) {
-			detail = fmt.Sprintf("Rate limited — notification scheduled for %s", scheduledTime.Format("15:04:05 WIB"))
-		} else {
-			detail = "Rate limit OK — dispatching notification now"
-		}
 		p.writeEvent(incID, "rate_limit_phase", "", detail)
+	}
+	for _, incID := range publicIncidentIDs {
+		p.writePublicEvent(incID, "rate_limit_phase", "", detail)
 	}
 
 	// Determine task type (DOWN or RECOVERED) based on message content
@@ -464,16 +503,17 @@ func (p *Pipeline) SendExt(ctx context.Context, message string, incidentIDs []st
 
 	// Prepare payload
 	pld := WhatsAppDispatchPayload{
-		Message:     message,
-		IncidentIDs: incidentIDs,
-		CreatedAt:   time.Now(),
-		TaskType:    taskType,
-		Direct:      direct,
+		Message:           message,
+		IncidentIDs:       incidentIDs,
+		PublicIncidentIDs: publicIncidentIDs,
+		CreatedAt:         time.Now(),
+		TaskType:          taskType,
+		Direct:            direct,
 	}
 	bytesPayload, err := json.Marshal(pld)
 	if err != nil {
 		log.Printf("[Notifier] Failed to marshal task payload: %v. Sending synchronously...", err)
-		_ = p.dispatchActualWithErr(ctx, message, incidentIDs)
+		_ = p.dispatchActualWithErr(ctx, message, incidentIDs, publicIncidentIDs)
 		return
 	}
 
@@ -483,16 +523,15 @@ func (p *Pipeline) SendExt(ctx context.Context, message string, incidentIDs []st
 	info, err := p.asynqClient.Enqueue(task, asynq.ProcessAt(scheduledTime))
 	if err != nil {
 		log.Printf("[Notifier] Failed to enqueue task: %v. Sending synchronously...", err)
-		_ = p.dispatchActualWithErr(ctx, message, incidentIDs)
+		_ = p.dispatchActualWithErr(ctx, message, incidentIDs, publicIncidentIDs)
 		return
 	}
 
 	log.Printf("[Notifier] Task %s enqueued successfully with spacing %ds. Job ID: %s. Scheduled for: %v. Direct=%t", TypeWhatsAppDispatch, spacingSec, info.ID, scheduledTime.Format("15:04:05.000"), direct)
 }
 
-
 // dispatchActualWithErr performs the actual delivery attempt and records log data, returning an error if all targets fail.
-func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, incidentIDs []string) error {
+func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, incidentIDs, publicIncidentIDs []string) error {
 	if ctx != nil {
 		select {
 		case <-ctx.Done():
@@ -534,6 +573,9 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 	for _, incID := range incidentIDs {
 		p.writeEvent(incID, "channel_attempt", "whatsapp", "Attempting WhatsApp notification...")
 	}
+	for _, incID := range publicIncidentIDs {
+		p.writePublicEvent(incID, "channel_attempt", "whatsapp", "Attempting WhatsApp notification...")
+	}
 
 	if p.whatsApp.IsHealthy() {
 		if len(targets) == 0 {
@@ -545,11 +587,11 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 			if err == nil {
 				whatsAppSent = true
 				p.logChan <- NotificationLog{
-					IncidentIDs: incidentIDs,
-					Channel:     "WhatsApp",
-					Recipient:   target.PhoneNumber, // Log with actual phone number
-					Status:      "delivered",
-					Timestamp:   time.Now(),
+					IncidentIDs: incidentIDs, PublicIncidentIDs: publicIncidentIDs,
+					Channel:   "WhatsApp",
+					Recipient: target.PhoneNumber, // Log with actual phone number
+					Status:    "delivered",
+					Timestamp: time.Now(),
 				}
 				log.Printf("[Notifier] WhatsApp message delivered to %s", target.PhoneNumber)
 				for _, incID := range incidentIDs {
@@ -558,20 +600,27 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 					if p.telegram != nil && p.telegram.chatID != "" {
 						p.writeEvent(incID, "channel_skipped", "telegram", fmt.Sprintf("Telegram skipped — WhatsApp delivered successfully to %s (no fallback needed)", target.PhoneNumber))
 					}
+					for _, incID := range publicIncidentIDs {
+						p.writePublicEvent(incID, "channel_delivered", "whatsapp", fmt.Sprintf("WhatsApp delivered successfully to %s", target.PhoneNumber))
+						p.writePublicEvent(incID, "channel_skipped", "telegram", fmt.Sprintf("Telegram skipped because WhatsApp delivered successfully to %s", target.PhoneNumber))
+					}
 				}
 			} else {
 				log.Printf("[Notifier] WhatsApp failed for %s: %v", target.PhoneNumber, err)
 				lastWAErr = err
 				p.logChan <- NotificationLog{
-					IncidentIDs: incidentIDs,
-					Channel:     "WhatsApp",
-					Recipient:   target.PhoneNumber,
-					Status:      "failed",
-					Error:       err.Error(),
-					Timestamp:   time.Now(),
+					IncidentIDs: incidentIDs, PublicIncidentIDs: publicIncidentIDs,
+					Channel:   "WhatsApp",
+					Recipient: target.PhoneNumber,
+					Status:    "failed",
+					Error:     err.Error(),
+					Timestamp: time.Now(),
 				}
 				for _, incID := range incidentIDs {
 					p.writeEvent(incID, "channel_failed", "whatsapp", fmt.Sprintf("WhatsApp failed: %s", err.Error()))
+				}
+				for _, incID := range publicIncidentIDs {
+					p.writePublicEvent(incID, "channel_failed", "whatsapp", fmt.Sprintf("WhatsApp failed: %s", err.Error()))
 				}
 			}
 		}
@@ -582,18 +631,21 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 				tgRecipient = p.telegram.chatID
 			}
 			p.logChan <- NotificationLog{
-				IncidentIDs: incidentIDs,
-				Channel:     "Telegram",
-				Recipient:   tgRecipient,
-				Status:      "Skipped",
-				Error:       "Skipped — WhatsApp delivered successfully (no fallback needed)",
-				Timestamp:   time.Now(),
+				IncidentIDs: incidentIDs, PublicIncidentIDs: publicIncidentIDs,
+				Channel:   "Telegram",
+				Recipient: tgRecipient,
+				Status:    "Skipped",
+				Error:     "Skipped — WhatsApp delivered successfully (no fallback needed)",
+				Timestamp: time.Now(),
 			}
 		}
 	} else {
 		lastWAErr = fmt.Errorf("whatsapp sidecar is not healthy")
 		for _, incID := range incidentIDs {
 			p.writeEvent(incID, "channel_failed", "whatsapp", "WhatsApp failed: whatsapp sidecar is not healthy")
+		}
+		for _, incID := range publicIncidentIDs {
+			p.writePublicEvent(incID, "channel_failed", "whatsapp", "WhatsApp failed: whatsapp sidecar is not healthy")
 		}
 	}
 
@@ -602,6 +654,10 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 		for _, incID := range incidentIDs {
 			p.writeEvent(incID, "channel_fallback", "telegram", "Falling back to Telegram...")
 			p.writeEvent(incID, "channel_attempt", "telegram", "Attempting Telegram notification...")
+		}
+		for _, incID := range publicIncidentIDs {
+			p.writePublicEvent(incID, "channel_fallback", "telegram", "Falling back to Telegram...")
+			p.writePublicEvent(incID, "channel_attempt", "telegram", "Attempting Telegram notification...")
 		}
 
 		// Telegram fallback: format with HTML <b>bold</b> tags
@@ -614,27 +670,33 @@ func (p *Pipeline) dispatchActualWithErr(ctx context.Context, message string, in
 			status = "failed"
 			errStr = err.Error()
 			p.logChan <- NotificationLog{
-				IncidentIDs: incidentIDs,
-				Channel:     "Telegram",
-				Recipient:   p.telegram.chatID, // Use the configured Telegram chat ID for logging
-				Status:      status,
-				Error:       errStr,
-				Timestamp:   time.Now(),
+				IncidentIDs: incidentIDs, PublicIncidentIDs: publicIncidentIDs,
+				Channel:   "Telegram",
+				Recipient: p.telegram.chatID, // Use the configured Telegram chat ID for logging
+				Status:    status,
+				Error:     errStr,
+				Timestamp: time.Now(),
 			}
 			for _, incID := range incidentIDs {
 				p.writeEvent(incID, "channel_failed", "telegram", fmt.Sprintf("Telegram failed: %s", err.Error()))
 			}
+			for _, incID := range publicIncidentIDs {
+				p.writePublicEvent(incID, "channel_failed", "telegram", fmt.Sprintf("Telegram failed: %s", err.Error()))
+			}
 			return fmt.Errorf("whatsapp failed (%v) and telegram fallback failed (%v)", lastWAErr, err)
 		}
 		p.logChan <- NotificationLog{
-			IncidentIDs: incidentIDs,
-			Channel:     "Telegram",
-			Recipient:   p.telegram.chatID,
-			Status:      status,
-			Timestamp:   time.Now(),
+			IncidentIDs: incidentIDs, PublicIncidentIDs: publicIncidentIDs,
+			Channel:   "Telegram",
+			Recipient: p.telegram.chatID,
+			Status:    status,
+			Timestamp: time.Now(),
 		}
 		for _, incID := range incidentIDs {
 			p.writeEvent(incID, "channel_delivered", "telegram", fmt.Sprintf("Telegram delivered successfully to channel %s", p.telegram.chatID))
+		}
+		for _, incID := range publicIncidentIDs {
+			p.writePublicEvent(incID, "channel_delivered", "telegram", fmt.Sprintf("Telegram delivered successfully to channel %s", p.telegram.chatID))
 		}
 	}
 	return nil
@@ -727,12 +789,23 @@ func (p *Pipeline) drainLogs() {
 						ChannelIcon: entry.Error,
 					})
 				}
-			} else {
+			} else if len(entry.PublicIncidentIDs) == 0 {
 				_ = p.notifLogRepo.Append(&domain.NotificationLogRow{
 					Channel:     entry.Channel,
 					Recipient:   entry.Recipient,
 					Status:      entry.Status,
 					ChannelIcon: entry.Error,
+				})
+			}
+		}
+		if p.publicMonitorIncidentRepo != nil {
+			for _, incidentID := range entry.PublicIncidentIDs {
+				_ = p.publicMonitorIncidentRepo.AppendNotificationLog(&domain.PublicMonitorNotificationLog{
+					IncidentID: incidentID,
+					Channel:    entry.Channel,
+					Recipient:  entry.Recipient,
+					Status:     entry.Status,
+					Error:      entry.Error,
 				})
 			}
 		}

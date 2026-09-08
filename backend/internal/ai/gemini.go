@@ -16,17 +16,18 @@ import (
 )
 
 type ChatMessage struct {
-	Role    string `json:"role"`    // "user" | "model"
+	Role    string `json:"role"` // "user" | "model"
 	Content string `json:"content"`
 }
 
 type Service struct {
-	apiKey       string
-	model        string
-	deviceRepo   repository.DeviceRepository
-	incidentRepo repository.IncidentRepository
-	statusRepo   repository.StatusLogRepository
-	httpClient   *http.Client
+	apiKey                    string
+	model                     string
+	deviceRepo                repository.DeviceRepository
+	incidentRepo              repository.IncidentRepository
+	publicMonitorIncidentRepo repository.PublicMonitorIncidentRepository
+	statusRepo                repository.StatusLogRepository
+	httpClient                *http.Client
 }
 
 func NewService(
@@ -57,6 +58,10 @@ func (s *Service) IsConfigured() bool {
 
 func (s *Service) GetModel() string {
 	return s.model
+}
+
+func (s *Service) SetPublicMonitorIncidentRepo(repo repository.PublicMonitorIncidentRepository) {
+	s.publicMonitorIncidentRepo = repo
 }
 
 // BuildTelemetryContext extracts live network state to inject into the AI prompt
@@ -313,6 +318,79 @@ Berikan output terstruktur dalam format Markdown rapi yang mencakup:
 	)
 
 	return s.Chat(ctx, prompt, nil)
+}
+
+// AnalyzePublicMonitorIncident performs RCA for an endpoint incident. Public
+// monitor incidents have a separate repository and cannot be loaded through
+// the network-device incident repository.
+func (s *Service) AnalyzePublicMonitorIncident(ctx context.Context, incidentID string) (string, error) {
+	if !s.IsConfigured() {
+		return "", fmt.Errorf("GEMINI_API_KEY is not configured in backend .env")
+	}
+	if s.publicMonitorIncidentRepo == nil {
+		return "", fmt.Errorf("public monitor incident repository is not initialized")
+	}
+
+	incident, err := s.publicMonitorIncidentRepo.GetByID(incidentID)
+	if err != nil || incident == nil {
+		return "", fmt.Errorf("public monitor incident not found: %s", incidentID)
+	}
+	events, err := s.publicMonitorIncidentRepo.GetEvents(incidentID, 100)
+	if err != nil {
+		return "", fmt.Errorf("failed to load public monitor incident timeline: %w", err)
+	}
+
+	startedAt := incident.StartedAt
+	resolvedAt := incident.ResolvedAt
+	if resolvedAt == "" {
+		resolvedAt = "Still active"
+	}
+	prompt := fmt.Sprintf(`Perform a structured Root Cause Analysis (RCA) for this public endpoint monitoring incident.
+
+[PUBLIC MONITOR INCIDENT]
+- Incident ID: #%s
+- Monitor: %s
+- Target: %s
+- Status: %s
+- Started: %s
+- Resolved: %s
+- Duration: %d seconds
+- Initial status code: %d
+- Final status code: %d
+- First error: %s
+- Last error: %s
+- Timeline:
+%s
+
+Return concise Markdown with:
+1. Incident summary and likely diagnosis
+2. Impact and severity assessment
+3. Evidence-based root-cause hypotheses (clearly mark uncertainty)
+4. Technical investigation and remediation checklist
+5. A short status update suitable for the operations team
+
+This is an HTTP/public endpoint monitor. Do not invent server-side details that are not present in the evidence.`,
+		incident.ID, incident.MonitorName, incident.TargetURL, incident.Status,
+		startedAt, resolvedAt, incident.DurationSeconds, incident.InitialStatusCode,
+		incident.FinalStatusCode, incident.FirstError, incident.LastError,
+		formatPublicMonitorIncidentEvents(events))
+
+	return s.Chat(ctx, prompt, nil)
+}
+
+func formatPublicMonitorIncidentEvents(events []domain.PublicMonitorIncidentEvent) string {
+	if len(events) == 0 {
+		return "  (No additional timeline events recorded)"
+	}
+	var sb strings.Builder
+	for _, event := range events {
+		channel := ""
+		if event.Channel != "" {
+			channel = " [" + event.Channel + "]"
+		}
+		sb.WriteString(fmt.Sprintf("  - [%s]%s %s: %s\n", event.OccurredAt, channel, event.EventType, event.Detail))
+	}
+	return sb.String()
 }
 
 func formatEvents(events []domain.IncidentEvent) string {

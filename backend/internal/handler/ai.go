@@ -84,7 +84,13 @@ func (h *Handler) AnalyzeIncidentAI(c *gin.Context) {
 		return
 	}
 
-	analysis, err := h.aiService.AnalyzeIncident(c.Request.Context(), incidentID)
+	var analysis string
+	var err error
+	if strings.HasPrefix(strings.ToLower(incidentID), "pinc-") {
+		analysis, err = h.aiService.AnalyzePublicMonitorIncident(c.Request.Context(), incidentID)
+	} else {
+		analysis, err = h.aiService.AnalyzeIncident(c.Request.Context(), incidentID)
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Gagal menganalisis insiden: %v", err),
