@@ -130,7 +130,7 @@
 
       <!-- Right Card: Status History Chart & Location Siblings -->
       <div class="lg:col-span-2 space-y-6">
-        <StatusHistoryChart :device-id="device.id" />
+        <StatusHistoryChart :device-id="device.id" :device-status="device.status" />
 
         <!-- Devices in this Location -->
         <div class="bg-surface border border-subtle rounded-xl p-5 space-y-4 shadow-xl">

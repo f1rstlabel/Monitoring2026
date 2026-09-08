@@ -190,6 +190,19 @@ const featureGroups: FeatureGroup[] = [
     ]
   },
   {
+    category: 'Public Monitoring',
+    features: [
+      { key: 'public_monitoring.view', label: 'View Public Monitors', description: 'Access HTTP/HTTPS endpoint monitoring and history' },
+      { key: 'public_monitoring.create', label: 'Add Public Monitors', description: 'Register a new public HTTP/HTTPS endpoint' },
+      { key: 'public_monitoring.edit', label: 'Edit Public Monitors', description: 'Update monitor settings or run a manual check' },
+      { key: 'public_monitoring.delete', label: 'Archive and Remove Public Monitors', description: 'Archive monitors or remove configuration while retaining audit history' },
+      { key: 'public_monitoring.groups.view', label: 'View Monitor Groups', description: 'View public monitor groups and summaries' },
+      { key: 'public_monitoring.groups.create', label: 'Create Monitor Groups', description: 'Create public monitor groups' },
+      { key: 'public_monitoring.groups.edit', label: 'Edit Monitor Groups', description: 'Rename or update public monitor groups' },
+      { key: 'public_monitoring.groups.delete', label: 'Delete Monitor Groups', description: 'Delete public monitor groups' }
+    ]
+  },
+  {
     category: 'Settings & Administration',
     features: [
       { key: 'settings.branding', label: 'Branding & Appearance', description: 'Change system logo, favicon and application titles' },
@@ -237,7 +250,15 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'settings.retention': false,
     'settings.locations': false,
     'settings.users': false,
-    'settings.audit': false
+    'settings.audit': false,
+    'public_monitoring.view': true,
+    'public_monitoring.create': false,
+    'public_monitoring.edit': false,
+    'public_monitoring.delete': false,
+    'public_monitoring.groups.view': true,
+    'public_monitoring.groups.create': false,
+    'public_monitoring.groups.edit': false,
+    'public_monitoring.groups.delete': false
   },
   anggota: {
     'devices.view': true,
@@ -258,7 +279,15 @@ const matrix = reactive<Record<string, Record<string, boolean>>>({
     'settings.retention': false,
     'settings.locations': false,
     'settings.users': false,
-    'settings.audit': false
+    'settings.audit': false,
+    'public_monitoring.view': true,
+    'public_monitoring.create': true,
+    'public_monitoring.edit': true,
+    'public_monitoring.delete': false,
+    'public_monitoring.groups.view': true,
+    'public_monitoring.groups.create': true,
+    'public_monitoring.groups.edit': true,
+    'public_monitoring.groups.delete': false
   }
 });
 

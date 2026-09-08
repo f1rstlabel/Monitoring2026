@@ -4,7 +4,7 @@
     <nav class="flex items-center gap-2 text-xs font-mono text-text-secondary">
       <router-link to="/incidents" class="hover:text-brand-periwinkle transition-colors">Incidents</router-link>
       <ChevronRight class="w-3.5 h-3.5 text-text-muted" />
-      <span class="text-text-main font-semibold">{{ incident.id }}</span>
+      <span class="text-text-main font-semibold">{{ incident.source === 'PUBLIC_MONITOR' ? incident.id.toUpperCase() : incident.id }}</span>
     </nav>
 
     <!-- Header Section -->
@@ -21,8 +21,15 @@
         </div>
 
         <p class="text-xs font-mono text-text-secondary">
-          Target IP: <span class="text-text-main">{{ incident.deviceIp }}</span> &bull;
-          Device Type: <span class="text-text-main">{{ incident.deviceType }}</span> &bull;
+          <template v-if="incident.source === 'PUBLIC_MONITOR'">
+            Target: <span class="text-text-main break-all">{{ incident.targetUrl || incident.deviceIp }}</span> &bull;
+            Monitor type: <span class="text-text-main">{{ publicMonitorTypeLabel(String(incident.deviceType)) }}</span> &bull;
+            Category: <span class="text-text-main">PUBLIC MONITORING</span> &bull;
+          </template>
+          <template v-else>
+            Target IP: <span class="text-text-main">{{ incident.deviceIp }}</span> &bull;
+            Device Type: <span class="text-text-main">{{ incident.deviceType }}</span> &bull;
+          </template>
           Started: <span class="text-text-main">{{ incident.startTime }}</span>
         </p>
       </div>
@@ -128,7 +135,14 @@
       <div class="lg:col-span-1 space-y-6">
         <!-- 3 Small Stat Cards -->
         <div class="grid grid-cols-1 gap-3">
-          <div class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
+          <div v-if="incident.source === 'PUBLIC_MONITOR'" class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p class="text-[10px] font-mono text-text-muted uppercase">Probe Status</p>
+              <p class="text-lg font-bold font-mono mt-0.5" :class="incident.status === 'RESOLVED' ? 'text-status-up' : 'text-red-400'">{{ incident.status }}</p>
+            </div>
+            <Globe2 class="w-4 h-4 text-brand-periwinkle" />
+          </div>
+          <div v-else class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
             <div>
               <p class="text-[10px] font-mono text-text-muted uppercase">Packet Loss</p>
               <p class="text-lg font-bold font-mono text-red-400 mt-0.5">{{ incident.packetLoss }}%</p>
@@ -136,7 +150,7 @@
             <span class="w-2.5 h-2.5 rounded-full bg-red-500 pulsing-dot-red"></span>
           </div>
 
-          <div class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
+          <div v-if="incident.source !== 'PUBLIC_MONITOR'" class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
             <div>
               <p class="text-[10px] font-mono text-text-muted uppercase">Latency</p>
               <p class="text-lg font-bold font-mono text-text-main mt-0.5">{{ incident.latencyMs }} ms</p>
@@ -146,10 +160,11 @@
 
           <div class="bg-surface border border-subtle rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">Node Location</p>
-              <p class="text-sm font-bold text-brand-periwinkle mt-0.5 truncate max-w-[200px]">{{ incident.location || 'Gedung Sate Lt 2' }}</p>
+              <p class="text-[10px] font-mono text-text-secondary uppercase tracking-wider">{{ incident.source === 'PUBLIC_MONITOR' ? 'Incident Source' : 'Node Location' }}</p>
+              <p class="text-sm font-bold text-brand-periwinkle mt-0.5 truncate max-w-[200px]">{{ incident.source === 'PUBLIC_MONITOR' ? 'PUBLIC MONITORING' : (incident.location || 'Gedung Sate Lt 2') }}</p>
             </div>
-            <MapPin class="w-4 h-4 text-brand-periwinkle" />
+            <Globe2 v-if="incident.source === 'PUBLIC_MONITOR'" class="w-4 h-4 text-brand-periwinkle" />
+            <MapPin v-else class="w-4 h-4 text-brand-periwinkle" />
           </div>
         </div>
 
@@ -281,6 +296,8 @@ import { useRoute } from 'vue-router';
 import { useIncidentStore } from '../stores/incidentStore';
 import { useAuthStore } from '../stores/authStore';
 import { useAIStore } from '../stores/aiStore';
+import { publicMonitoringApi } from '../api';
+import { publicMonitorTypeLabel } from '../utils/publicMonitorLabels';
 import StatusPill from '../components/common/StatusPill.vue';
 import Skeleton from '../components/common/Skeleton.vue';
 import PrintableIncidentReport from '../components/reports/PrintableIncidentReport.vue';
@@ -294,9 +311,11 @@ import {
   RefreshCw,
   Printer,
   MapPin,
+  Globe2,
   MessageSquare,
   Sparkles
 } from 'lucide-vue-next';
+import type { Incident, PublicMonitorIncidentDetail } from '../types';
 
 const route = useRoute();
 const incidentStore = useIncidentStore();
@@ -304,7 +323,8 @@ const authStore = useAuthStore();
 const aiStore = useAIStore();
 
 const pageState = ref<'loading' | 'ready' | 'not_found' | 'error'>('loading');
-const incident = ref(incidentStore.currentIncident);
+const incident = ref<Incident | null>(incidentStore.currentIncident);
+const publicIncidentDetail = ref<PublicMonitorIncidentDetail | null>(null);
 const isPrintRendered = ref(false);
 let liveRefreshTimer: any = null;
 
@@ -438,6 +458,12 @@ async function loadIncident() {
 
   pageState.value = 'loading';
   try {
+    if (route.query.source === 'PUBLIC_MONITOR' || id.startsWith('pinc-')) {
+      publicIncidentDetail.value = await publicMonitoringApi.getIncidentById(id);
+      incident.value = mapPublicIncident(publicIncidentDetail.value);
+      pageState.value = 'ready';
+      return;
+    }
     await incidentStore.fetchIncidentById(id);
     if (incidentStore.currentIncident) {
       incident.value = incidentStore.currentIncident;
@@ -454,10 +480,121 @@ async function loadIncident() {
   }
 }
 
+function mapPublicIncident(detail: PublicMonitorIncidentDetail): Incident {
+  const source = detail.incident;
+  const timeline = [
+    ...(detail.events || []).map((event) => ({
+      id: event.id,
+      timestamp: event.occurredAt,
+      title: publicEventTitle(event.eventType),
+      description: event.detail,
+      severity: publicEventSeverity(event.eventType) as any,
+      channel: event.channel || undefined
+    })),
+    ...(detail.notifications || []).map((notification) => ({
+      id: `${notification.id}-notification`,
+      timestamp: notification.sentAt,
+      title: `${notification.status} Notification (${notification.channel})`,
+      description: notification.error || `${notification.channel} delivery status: ${notification.status}`,
+      severity: notificationSeverity(notification.status) as any,
+      channel: notification.channel
+    }))
+  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  return {
+    id: source.id,
+    source: 'PUBLIC_MONITOR',
+    sourceId: source.monitorId,
+    category: 'PUBLIC MONITORING',
+    targetUrl: source.targetUrl,
+    deviceId: '',
+    deviceName: source.monitorName,
+    deviceType: (source.monitorType || 'PUBLIC MONITOR') as any,
+    deviceIp: source.targetUrl,
+    location: 'PUBLIC MONITORING',
+    status: source.status === 'ACTIVE' ? 'ACTIVE' : 'RESOLVED',
+    startTime: formatDisplayTime(source.startedAt),
+    duration: formatPublicDuration(source.durationSeconds, source.status, source.startedAt),
+    affectedDevicesCount: 1,
+    packetLoss: source.status === 'ACTIVE' ? 100 : 0,
+    latencyMs: 0,
+    dependenciesCount: 0,
+    timeline,
+    notificationLog: (detail.notifications || []).map((notification) => ({
+      id: notification.id,
+      channel: notification.channel,
+      channelIcon: notification.channel,
+      recipient: notification.recipient,
+      status: normalizeNotificationStatus(notification.status),
+      errorMsg: notification.error,
+      timestamp: formatDisplayTime(notification.sentAt)
+    })),
+    resolvedAt: source.resolvedAt ? formatDisplayTime(source.resolvedAt) : undefined,
+    startedAt: source.startedAt
+  };
+}
+
+function formatDisplayTime(value: string) {
+  return new Date(value).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' });
+}
+
+function formatPublicDuration(seconds: number, status: string, startedAt: string) {
+  const total = status === 'ACTIVE' ? Math.max(seconds, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)) : seconds;
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function publicEventTitle(type: string) {
+  const titles: Record<string, string> = {
+    incident_opened: 'Incident Created',
+    incident_resolved: 'Incident Resolved',
+    incident_paused: 'Monitoring Paused',
+    notification_queued: 'Notification Queued',
+    rate_limit_phase: 'Rate Limit Check',
+    channel_attempt: 'Attempting Notification',
+    channel_failed: 'Notification Failed',
+    channel_fallback: 'Falling Back to Secondary Channel',
+    channel_delivered: 'Notification Delivered',
+    channel_skipped: 'Notification Skipped'
+  };
+  return titles[type] || type.split('_').join(' ');
+}
+
+function publicEventSeverity(type: string) {
+  if (type === 'channel_failed' || type === 'incident_opened') return 'critical';
+  if (type === 'channel_fallback' || type === 'incident_paused') return 'warning';
+  if (type === 'channel_skipped') return 'skipped';
+  return 'info';
+}
+
+function notificationSeverity(status: string) {
+  const value = status.toLowerCase();
+  if (value === 'failed') return 'critical';
+  if (value === 'skipped') return 'skipped';
+  return 'info';
+}
+
+function normalizeNotificationStatus(status: string): 'Delivered' | 'Failed' | 'Sent' | 'Skipped' {
+  const value = status.toLowerCase();
+  if (value === 'failed') return 'Failed';
+  if (value === 'skipped') return 'Skipped';
+  if (value === 'sent') return 'Sent';
+  return 'Delivered';
+}
+
 async function refreshIncidentSilently() {
   const id = route.params.id as string;
   if (!id || pageState.value !== 'ready') return;
   try {
+    if (route.query.source === 'PUBLIC_MONITOR' || id.startsWith('pinc-')) {
+      publicIncidentDetail.value = await publicMonitoringApi.getIncidentById(id);
+      incident.value = mapPublicIncident(publicIncidentDetail.value);
+      return;
+    }
     await incidentStore.fetchIncidentById(id);
     if (incidentStore.currentIncident) {
       incident.value = incidentStore.currentIncident;
