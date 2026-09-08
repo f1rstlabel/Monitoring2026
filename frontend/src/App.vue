@@ -3,17 +3,17 @@
     <router-view />
   </div>
 
-  <div v-else class="min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] flex">
+  <div v-else class="min-h-screen overflow-x-hidden bg-[var(--bg-main)] text-[var(--text-primary)] flex">
     <!-- Sidebar Navigation -->
-    <Sidebar />
+    <Sidebar :is-mobile-open="isSidebarOpen" @close="isSidebarOpen = false" />
 
     <!-- Main Content Area -->
-    <div class="flex-1 ml-60 min-h-screen flex flex-col min-w-0">
+    <div class="flex-1 min-w-0 min-h-screen flex flex-col lg:ml-60">
       <!-- Topbar Header -->
-      <Topbar />
+      <Topbar @toggle-sidebar="isSidebarOpen = !isSidebarOpen" />
 
       <!-- Page Container -->
-      <main class="p-6 flex-1 bg-[var(--bg-main)]">
+      <main class="p-3 sm:p-4 lg:p-6 flex-1 min-w-0 bg-[var(--bg-main)]">
         <router-view />
       </main>
 
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Sidebar from './components/common/Sidebar.vue';
 import Topbar from './components/common/Topbar.vue';
@@ -47,8 +47,13 @@ const liveStore = useLiveStore();
 const themeStore = useThemeStore();
 const settingStore = useSettingStore();
 const deviceStore = useDeviceStore();
+const isSidebarOpen = ref(false);
 
 const isLoginPage = computed(() => route.path === '/login');
+
+watch(() => route.path, () => {
+  isSidebarOpen.value = false;
+});
 
 onMounted(() => {
   themeStore.initTheme();

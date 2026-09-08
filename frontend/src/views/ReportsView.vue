@@ -1,13 +1,13 @@
 <template>
-  <div class="space-y-6">
+  <div class="min-w-0 space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-subtle pb-4">
+    <div class="flex flex-col gap-4 border-b border-subtle pb-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h1 class="text-xl font-extrabold text-text-main tracking-tight">{{ reportScope === 'PUBLIC_MONITOR' ? (publicReportTab === 'summary' ? 'Public Monitoring Summary' : 'Public Monitoring Incident Reports') : 'Availability & SLA Reports' }}</h1>
         <p class="text-xs text-text-secondary mt-1">{{ reportScope === 'PUBLIC_MONITOR' ? (publicReportTab === 'summary' ? 'Aggregate availability and response across all public endpoints.' : 'Outage reports by monitor with access to timeline and notification history.') : 'Network performance analysis, device uptime metrics, MTTR, and downtime distribution' }}</p>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2 lg:justify-end">
         <!-- Period Toggle -->
         <div class="flex items-center bg-card border border-subtle rounded-lg p-0.5">
           <button
@@ -166,13 +166,13 @@
       </div>
       <div v-if="publicReportTab === 'incidents' && publicIncidentsLoading" class="space-y-3"><SkeletonTable :rows="6" :cols="7" /></div>
       <div v-else-if="publicReportTab === 'incidents'" class="space-y-3">
-        <div class="overflow-x-auto rounded-xl border border-subtle bg-surface">
+        <div class="responsive-table-wrap responsive-public-incidents-table overflow-x-auto rounded-xl border border-subtle bg-surface">
         <table class="w-full text-left text-xs text-text-secondary"><thead class="border-b border-subtle bg-card font-mono text-[10px] uppercase text-text-muted"><tr><th class="px-4 py-3">Incident</th><th class="px-4 py-3">Monitor</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Started</th><th class="px-4 py-3">Duration</th><th class="px-4 py-3">Reason</th><th class="px-4 py-3">Action</th></tr></thead><tbody class="divide-y divide-subtle"><tr v-for="incident in publicIncidents" :key="incident.id" class="hover:bg-card"><td class="px-4 py-3 font-mono font-bold text-brand-periwinkle">{{ formatPublicIncidentId(incident.id) }}</td><td class="px-4 py-3"><strong class="block text-text-main">{{ incident.monitorName }}</strong><span class="text-[10px] font-mono text-text-muted">{{ incident.targetUrl }}</span></td><td class="px-4 py-3" :class="incident.status === 'ACTIVE' ? 'text-status-down' : 'text-status-up'">{{ incident.status }}</td><td class="px-4 py-3 whitespace-nowrap text-[10px] font-mono">{{ formatReportDate(incident.startedAt) }}</td><td class="px-4 py-3 whitespace-nowrap text-[10px] font-mono">{{ formatIncidentDuration(incident) }}</td><td class="max-w-[280px] truncate px-4 py-3 text-[10px]">{{ incident.lastError || incident.firstError || incident.resolutionReason || 'Recovered' }}</td><td class="px-4 py-3"><router-link :to="`/incidents/${incident.id}?source=PUBLIC_MONITOR`" class="font-semibold text-brand-periwinkle hover:underline">View report</router-link></td></tr><tr v-if="!publicIncidents.length"><td colspan="7" class="py-12 text-center text-text-muted">No public incidents found for this period.</td></tr></tbody></table>
         </div>
         <PaginationControl v-model:current-page="publicIncidentPage" v-model:page-size="publicIncidentPageSize" :total="publicIncidentTotal" />
       </div>
       <div v-if="publicReportTab === 'summary'" class="public-summary-layout">
-        <div class="overflow-x-auto rounded-xl border border-subtle bg-surface">
+        <div class="responsive-table-wrap responsive-public-summary-table overflow-x-auto rounded-xl border border-subtle bg-surface">
           <div class="flex items-center justify-between border-b border-subtle px-5 py-4"><div><h3 class="text-xs font-bold text-text-main">Monitor summary</h3><p class="mt-1 text-[10px] text-text-muted">Per-monitor availability and response metrics for {{ reportPeriodLabel.toLowerCase() }}.</p></div><router-link to="/public-monitoring" class="text-[10px] font-semibold text-brand-periwinkle hover:underline">Open monitors</router-link></div>
           <table class="w-full min-w-[980px] text-left text-xs text-text-secondary"><thead class="border-b border-subtle bg-card font-mono text-[10px] uppercase text-text-muted"><tr><th class="px-5 py-3">Monitor</th><th class="px-5 py-3">Type</th><th class="px-5 py-3">Target</th><th class="px-5 py-3">Group</th><th class="px-5 py-3">Status</th><th class="px-5 py-3">Uptime</th><th class="px-5 py-3">Checks</th><th class="px-5 py-3">Avg response</th><th class="px-5 py-3">Incidents</th></tr></thead><tbody class="divide-y divide-subtle"><tr v-for="summary in paginatedPublicSummaries" :key="summary.monitorId" class="cursor-pointer transition-colors hover:bg-card" @click="router.push({ path: '/public-monitoring', query: { monitorId: summary.monitorId } })"><td class="px-5 py-3"><strong class="block text-text-main">{{ summary.monitorName }}</strong><span class="text-[10px] font-mono text-text-muted">{{ summary.lastChecked ? formatReportDate(summary.lastChecked) : 'Never checked' }}</span></td><td class="px-5 py-3 font-mono text-[10px]">{{ publicMonitorTypeLabel(summary.monitorType) }}</td><td class="max-w-[260px] truncate px-5 py-3 font-mono text-[10px]" :title="summary.targetUrl">{{ summary.targetUrl || 'Host-based check' }}</td><td class="px-5 py-3 text-[10px]">{{ summary.groupName || 'Ungrouped' }}</td><td class="px-5 py-3 font-mono font-bold" :class="summary.status === 'UP' ? 'text-status-up' : summary.status === 'DOWN' ? 'text-status-down' : 'text-amber-400'">{{ summary.status }}</td><td class="px-5 py-3 font-mono text-status-up">{{ summary.uptimePercent.toFixed(2) }}%</td><td class="px-5 py-3 font-mono">{{ summary.totalChecks }} <span class="text-[10px] text-text-muted">({{ summary.upChecks }} UP / {{ summary.downChecks }} DOWN)</span></td><td class="px-5 py-3 font-mono">{{ summary.avgLatencyMs.toFixed(0) }}ms</td><td class="px-5 py-3 font-mono" :class="summary.incidentCount ? 'text-status-down' : 'text-text-secondary'">{{ summary.incidentCount }}</td></tr><tr v-if="!publicSummaries.length"><td colspan="9" class="py-12 text-center text-text-muted">No monitor summary data is available for this period.</td></tr></tbody></table>
         </div>
@@ -277,12 +277,12 @@
       <!-- Downtime Table (2/3 width) -->
       <div class="xl:col-span-2 space-y-4">
         <SkeletonTable v-if="reportStore.isLoading" :rows="7" :cols="5" />
-        <div v-else class="bg-surface border border-subtle rounded-xl overflow-hidden">
+        <div v-else class="responsive-table-wrap bg-surface border border-subtle rounded-xl overflow-hidden">
           <div class="px-5 py-3.5 border-b border-subtle flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wider text-text-secondary font-mono">Downtime by Device</h3>
             <span class="text-[10px] text-text-muted font-mono">Sorted by most-down first</span>
           </div>
-          <table class="w-full text-left text-xs text-text-secondary">
+          <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
             <thead class="bg-card font-mono text-[10px] uppercase text-text-muted border-b border-subtle">
               <tr>
                 <th class="py-3 px-4">Device</th>
@@ -305,7 +305,7 @@
                 class="hover:bg-card transition-colors"
                 :class="{ 'border-l-2 border-l-[#F5A65B]': row.downCount >= 5 }"
               >
-                <td class="py-3 px-4">
+                <td data-label="Device" class="py-3 px-4">
                   <div class="flex items-center gap-2">
                     <span
                       class="text-[10px] font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center"
@@ -319,8 +319,8 @@
                     </div>
                   </div>
                 </td>
-                <td class="py-3 px-4 text-text-secondary max-w-[150px] truncate text-[11px]">{{ row.location }}</td>
-                <td class="py-3 px-4 text-center">
+                <td data-label="Location" class="py-3 px-4 text-text-secondary max-w-[150px] truncate text-[11px]">{{ row.location }}</td>
+                <td data-label="Down Count" class="py-3 px-4 text-center">
                   <span
                     class="text-sm font-extrabold font-mono"
                     :class="row.downCount >= 6 ? 'text-status-down' : row.downCount >= 3 ? 'text-amber-400' : 'text-text-secondary'"
@@ -328,10 +328,10 @@
                     {{ row.downCount }}
                   </span>
                 </td>
-                <td class="py-3 px-4 font-mono font-semibold text-status-down">
+                <td data-label="Total Downtime" class="py-3 px-4 font-mono font-semibold text-status-down">
                   {{ reportStore.formatDowntime(row.totalDowntimeMinutes) }}
                 </td>
-                <td class="py-3 px-4 font-mono text-text-secondary text-[11px]">{{ row.lastDown }}</td>
+                <td data-label="Last Down" class="py-3 px-4 font-mono text-text-secondary text-[11px]">{{ row.lastDown }}</td>
               </tr>
               </template>
               <tr v-else-if="reportStore.filteredRows.length === 0">
@@ -406,8 +406,8 @@
             <h3 class="text-xs font-bold uppercase tracking-wider text-text-secondary font-mono">Active Incidents Report Table</h3>
             <span class="text-[10px] text-text-muted font-mono">Real-time incident ticket queue</span>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-text-secondary">
+          <div class="responsive-table-wrap overflow-x-auto">
+            <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
               <thead class="bg-card font-mono text-[10px] uppercase text-text-muted border-b border-subtle">
                 <tr>
                   <th class="py-3 px-4">Ticket ID</th>
@@ -432,24 +432,24 @@
                     :key="inc.id"
                     class="hover:bg-card transition-colors"
                   >
-                    <td class="py-3 px-4 font-mono font-bold text-brand-periwinkle">{{ inc.id }}</td>
-                    <td class="py-3 px-4">
+                    <td data-label="Ticket ID" class="py-3 px-4 font-mono font-bold text-brand-periwinkle">{{ inc.id }}</td>
+                    <td data-label="Device Name" class="py-3 px-4">
                       <div>
                         <p class="font-bold text-text-main">{{ inc.deviceName }}</p>
                         <p class="text-[10px] text-text-muted font-mono">{{ inc.location }}</p>
                       </div>
                     </td>
-                    <td class="py-3 px-4 text-text-secondary">{{ inc.deviceType }}</td>
-                    <td class="py-3 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
-                    <td class="py-3 px-4 font-mono font-semibold" :class="inc.status === 'ACTIVE' ? 'text-red-400' : 'text-text-secondary'">
+                    <td data-label="Type" class="py-3 px-4 text-text-secondary">{{ inc.deviceType }}</td>
+                    <td data-label="IP Address" class="py-3 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
+                    <td data-label="Duration" class="py-3 px-4 font-mono font-semibold" :class="inc.status === 'ACTIVE' ? 'text-red-400' : 'text-text-secondary'">
                       {{ formatLiveDuration(inc.startedAt, inc.status, inc.duration) }}
                     </td>
-                    <td class="py-3 px-4 text-center font-mono">
+                    <td data-label="Affected" class="py-3 px-4 text-center font-mono">
                       <span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 font-bold">
                         {{ inc.affectedDevicesCount }}
                       </span>
                     </td>
-                    <td class="py-3 px-4">
+                    <td data-label="Status" class="py-3 px-4">
                       <span
                         class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold"
                         :class="inc.status === 'ACTIVE' ? 'bg-status-down/10 text-status-down border border-status-down/20' : 'bg-status-up/10 text-status-up border border-status-up/20'"
@@ -457,7 +457,7 @@
                         {{ inc.status }}
                       </span>
                     </td>
-                    <td class="py-3 px-4 text-right">
+                    <td data-label="Action" class="py-3 px-4 text-right">
                       <router-link
                         :to="`/incidents/${inc.id}`"
                         class="px-2.5 py-1 rounded-lg bg-subtle hover:bg-hover text-xs font-semibold text-text-main transition-colors inline-block"

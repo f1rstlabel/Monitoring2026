@@ -39,8 +39,8 @@
     </div>
 
     <!-- Matrix Table -->
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs text-text-secondary">
+    <div class="responsive-table-wrap overflow-x-auto">
+      <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
         <thead class="bg-card font-mono text-[10px] uppercase text-text-secondary border-b border-subtle">
           <tr>
             <th class="py-3 px-4">Feature Module &amp; Action</th>
@@ -74,7 +74,7 @@
 
             <!-- Feature Row -->
             <tr v-for="feat in group.features" :key="feat.key" class="hover:bg-card transition-colors">
-              <td class="py-3 px-4">
+              <td data-label="Feature Module & Action" class="py-3 px-4">
                 <div>
                   <p class="font-bold text-text-main">{{ feat.label }}</p>
                   <p class="text-[10px] font-mono text-text-muted">{{ feat.key }} &bull; {{ feat.description }}</p>
@@ -82,7 +82,7 @@
               </td>
 
               <!-- Pimpinan ON / OFF Switch Controls -->
-              <td class="py-3 px-4 text-center">
+              <td data-label="Pimpinan" class="py-3 px-4 text-center">
                 <div class="inline-flex p-0.5 rounded-lg bg-main border border-subtle">
                   <button
                     type="button"
@@ -106,7 +106,7 @@
               </td>
 
               <!-- Anggota ON / OFF Switch Controls -->
-              <td class="py-3 px-4 text-center">
+              <td data-label="Anggota SANOC" class="py-3 px-4 text-center">
                 <div class="inline-flex p-0.5 rounded-lg bg-main border border-subtle">
                   <button
                     type="button"
@@ -130,7 +130,7 @@
               </td>
 
               <!-- Admin (Locked Full Access) -->
-              <td class="py-3 px-4 text-center">
+              <td data-label="Admin" class="py-3 px-4 text-center">
                 <span class="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-status-up bg-status-up/10 px-2 py-1 rounded border border-status-up/30">
                   <Check class="w-3 h-3" /> ADMIN (FULL)
                 </span>

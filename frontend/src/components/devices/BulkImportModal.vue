@@ -167,8 +167,8 @@ AP Core Switch,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRU
                 </div>
               </div>
 
-              <div class="bg-card border border-subtle rounded-xl overflow-hidden">
-                <table class="w-full text-xs text-text-secondary">
+              <div class="responsive-table-wrap bg-card border border-subtle rounded-xl overflow-hidden">
+                <table class="responsive-data-table w-full text-xs text-text-secondary">
                   <thead class="bg-main border-b border-subtle font-mono text-[10px] uppercase text-text-muted">
                     <tr>
                       <th class="py-2.5 px-3">#</th>
@@ -181,12 +181,12 @@ AP Core Switch,Switch,DHCP Reservation,,00:1A:2B:3C:4D:5F,Gedung Sate,Rack B,TRU
                   </thead>
                   <tbody class="divide-y divide-subtle">
                     <tr v-for="row in parsedRows" :key="row.rowIndex" class="hover:bg-card">
-                      <td class="py-2 px-3 font-mono text-text-muted">{{ row.rowIndex + 1 }}</td>
-                      <td class="py-2 px-3 font-semibold text-text-main">{{ row.mapped.name || '—' }}</td>
-                      <td class="py-2 px-3 font-mono text-text-secondary text-[11px]">{{ row.mapped.mac || '—' }}</td>
-                      <td class="py-2 px-3 font-mono text-text-secondary">{{ row.mapped.ip || '—' }}</td>
-                      <td class="py-2 px-3 text-text-secondary">{{ row.mapped.model || '—' }}</td>
-                      <td class="py-2 px-3">
+                      <td data-label="#" class="py-2 px-3 font-mono text-text-muted">{{ row.rowIndex + 1 }}</td>
+                      <td data-label="Name" class="py-2 px-3 font-semibold text-text-main">{{ row.mapped.name || '—' }}</td>
+                      <td data-label="MAC Address" class="py-2 px-3 font-mono text-text-secondary text-[11px]">{{ row.mapped.mac || '—' }}</td>
+                      <td data-label="IP Address" class="py-2 px-3 font-mono text-text-secondary">{{ row.mapped.ip || '—' }}</td>
+                      <td data-label="Model" class="py-2 px-3 text-text-secondary">{{ row.mapped.model || '—' }}</td>
+                      <td data-label="Status" class="py-2 px-3">
                         <span
                           class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border"
                           :class="rowStatusClass(row.status)"

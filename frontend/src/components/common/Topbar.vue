@@ -1,5 +1,5 @@
 <template>
-  <header class="h-16 bg-main/80 backdrop-blur border-b border-subtle flex items-center justify-between px-6 sticky top-0 z-20">
+  <header class="sticky top-0 z-20 flex h-16 min-w-0 items-center justify-between gap-2 border-b border-subtle bg-main/80 px-3 backdrop-blur sm:gap-4 sm:px-6">
     <!-- Click Outside Backdrop for Dropdowns -->
     <div
       v-if="isNotifOpen"
@@ -8,24 +8,32 @@
     ></div>
 
     <!-- Dynamic Page Breadcrumbs & Module Title -->
-    <div class="flex items-center gap-3 select-none">
-      <div class="flex items-center gap-2 text-xs font-mono">
-        <span class="text-text-muted font-semibold tracking-wider uppercase text-[10px] bg-surface px-2 py-0.5 rounded border border-subtle">
+    <div class="flex min-w-0 flex-1 items-center gap-2 select-none sm:gap-3">
+      <button
+        type="button"
+        class="shrink-0 rounded-lg border border-subtle bg-surface p-2 text-text-secondary hover:bg-hover hover:text-text-main lg:hidden"
+        aria-label="Open navigation"
+        @click="$emit('toggle-sidebar')"
+      >
+        <Menu class="h-4 w-4" />
+      </button>
+      <div class="flex min-w-0 items-center gap-2 text-xs font-mono">
+        <span class="hidden rounded border border-subtle bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted sm:inline-flex">
           {{ pageMeta.category }}
         </span>
-        <span class="text-text-muted">/</span>
-        <div class="flex items-center gap-1.5 text-text-main font-bold">
+        <span class="hidden text-text-muted sm:inline">/</span>
+        <div class="flex min-w-0 items-center gap-1.5 font-bold text-text-main">
           <component :is="pageMeta.icon" class="w-3.5 h-3.5 text-brand-periwinkle" />
-          <span>{{ pageMeta.title }}</span>
+          <span class="truncate">{{ pageMeta.title }}</span>
         </div>
       </div>
     </div>
 
     <!-- Right Controls -->
-    <div class="flex items-center gap-4 relative z-40">
+    <div class="relative z-40 flex shrink-0 items-center gap-1.5 sm:gap-4">
       <!-- Live Status Indicator & Refresh Now -->
-      <div class="flex items-center gap-2">
-        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-subtle text-xs">
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <div class="hidden items-center gap-2 rounded-full border border-subtle bg-surface px-3 py-1 text-xs sm:flex">
           <span 
             class="w-2 h-2 rounded-full inline-block"
             :class="liveStore.isConnected ? 'bg-status-up pulsing-dot-green' : 'bg-amber-500'"
@@ -43,18 +51,18 @@
         <button
           @click="handleManualRefresh"
           :disabled="isRefreshing"
-          class="px-2.5 py-1 rounded-full bg-surface border border-subtle hover:border-brand-periwinkle text-brand-periwinkle hover:text-brand-periwinkle-hover text-[11px] font-mono font-semibold transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+          class="flex cursor-pointer items-center gap-1 rounded-full border border-subtle bg-surface px-2 py-1 text-[11px] font-mono font-semibold text-brand-periwinkle transition-all hover:border-brand-periwinkle hover:text-brand-periwinkle-hover disabled:cursor-not-allowed disabled:opacity-50 sm:px-2.5"
           title="Poll Now"
         >
           <RefreshCw class="w-3 h-3" :class="isRefreshing ? 'animate-spin' : ''" />
-          <span>{{ isRefreshing ? 'Polling...' : 'Poll Now' }}</span>
+          <span class="hidden sm:inline">{{ isRefreshing ? 'Polling...' : 'Poll Now' }}</span>
         </button>
 
         <!-- Network Diagnostic Terminal Button -->
         <button
           type="button"
           @click="isTerminalOpen = true"
-          class="px-2.5 py-1 rounded-full bg-surface border border-subtle hover:border-status-up text-status-up hover:text-status-up text-[11px] font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-status-up/10"
+          class="hidden cursor-pointer items-center gap-1.5 rounded-full border border-subtle bg-surface px-2.5 py-1 text-[11px] font-mono font-semibold text-status-up shadow-sm shadow-status-up/10 transition-all hover:border-status-up hover:text-status-up sm:flex"
           title="Open Network Diagnostic Terminal (Ping & Traceroute)"
         >
           <Terminal class="w-3 h-3" />
@@ -66,7 +74,7 @@
       <router-link
         to="/profile"
         title="View & Edit Profile"
-        class="flex items-center gap-1.5 px-3 py-1 rounded-full border bg-surface text-xs font-mono font-semibold hover:ring-1 hover:ring-brand-periwinkle transition-all cursor-pointer"
+        class="hidden cursor-pointer items-center gap-1.5 rounded-full border bg-surface px-3 py-1 text-xs font-mono font-semibold transition-all hover:ring-1 hover:ring-brand-periwinkle sm:flex"
         :class="roleBadgeClass"
       >
         <ShieldCheck v-if="authStore.user.role === 'admin'" class="w-3.5 h-3.5" />
@@ -99,7 +107,7 @@
         <!-- Notifications Dropdown Panel -->
         <div
           v-if="isNotifOpen"
-          class="absolute right-0 mt-2 w-80 sm:w-96 bg-surface border border-subtle rounded-xl shadow-2xl z-50 overflow-hidden"
+          class="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-96 overflow-hidden rounded-xl border border-subtle bg-surface shadow-2xl"
         >
           <div class="p-3 border-b border-subtle flex items-center justify-between bg-card">
             <div class="flex items-center gap-2">
@@ -163,6 +171,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
+  Menu,
   Bell,
   ShieldCheck,
   Eye,
@@ -199,6 +208,8 @@ const liveStore = useLiveStore();
 const authStore = useAuthStore();
 const notifStore = useNotificationStore();
 const themeStore = useThemeStore();
+
+defineEmits<{ 'toggle-sidebar': [] }>();
 
 const pageMeta = computed(() => {
   const path = route.path;

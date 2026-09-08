@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-surface border border-status-warning/30 rounded-xl overflow-hidden">
+  <div class="responsive-table-wrap bg-surface border border-status-warning/30 rounded-xl overflow-hidden">
     <!-- Header -->
     <div class="flex items-center gap-3 px-5 py-3.5 border-b border-subtle bg-amber-500/5">
       <div class="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
@@ -14,7 +14,7 @@
     <div v-if="isLoading" class="p-4">
       <SkeletonTable :rows="4" :cols="6" />
     </div>
-    <table v-else-if="devices.length > 0" class="w-full text-xs text-text-secondary">
+    <table v-else-if="devices.length > 0" class="responsive-data-table w-full text-xs text-text-secondary">
       <thead class="bg-card font-mono text-[10px] uppercase text-text-muted border-b border-subtle">
         <tr>
           <th class="py-2.5 px-4">Device</th>
@@ -31,19 +31,19 @@
           :key="d.deviceId"
           class="hover:bg-amber-500/5 transition-colors"
         >
-          <td class="py-3 px-4">
+          <td data-label="Device" class="py-3 px-4">
             <p class="font-bold text-text-main">{{ d.deviceName }}</p>
             <p class="text-[10px] font-mono text-text-muted mt-0.5">{{ d.deviceType }}</p>
           </td>
-          <td class="py-3 px-4 text-text-secondary max-w-[160px] truncate">{{ d.location }}</td>
-          <td class="py-3 px-4 font-mono text-text-secondary text-[11px]">{{ d.ip }}</td>
-          <td class="py-3 px-4">
+          <td data-label="Location" class="py-3 px-4 text-text-secondary max-w-[160px] truncate">{{ d.location }}</td>
+          <td data-label="IP" class="py-3 px-4 font-mono text-text-secondary text-[11px]">{{ d.ip }}</td>
+          <td data-label="7-Day Downs" class="py-3 px-4">
             <div class="flex items-center gap-2">
               <span class="text-base font-extrabold font-mono text-amber-400">{{ d.downCount7d }}×</span>
             </div>
           </td>
-          <td class="py-3 px-4 font-mono text-status-down font-semibold">{{ formatTime(d.totalDowntimeMinutes) }}</td>
-          <td class="py-3 px-4">
+          <td data-label="Total Downtime" class="py-3 px-4 font-mono text-status-down font-semibold">{{ formatTime(d.totalDowntimeMinutes) }}</td>
+          <td data-label="Recommendation" class="py-3 px-4">
             <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30">
               🔧 On-site Inspection
             </span>

@@ -1,5 +1,16 @@
 <template>
-  <aside class="w-60 bg-main border-r border-subtle flex flex-col justify-between h-screen fixed left-0 top-0 z-30 select-none">
+  <div
+    v-if="isMobileOpen"
+    class="fixed inset-0 z-20 bg-black/45 backdrop-blur-[1px] lg:hidden"
+    aria-hidden="true"
+    @click="$emit('close')"
+  ></div>
+
+  <aside
+    class="fixed left-0 top-0 z-30 flex h-screen w-60 -translate-x-full flex-col justify-between border-r border-subtle bg-main select-none transition-transform duration-300 ease-out lg:translate-x-0"
+    :class="isMobileOpen ? 'translate-x-0' : ''"
+    aria-label="Main navigation"
+  >
     <!-- Top Branding & Navigation -->
     <div>
       <!-- Header / Logo -->
@@ -33,6 +44,14 @@
             {{ settingStore.branding.appSubtitle || 'Jabar Regional SANOC' }}
           </p>
         </div>
+        <button
+          type="button"
+          class="ml-auto rounded-lg border border-subtle bg-card p-2 text-text-secondary hover:bg-hover hover:text-text-main lg:hidden"
+          aria-label="Close navigation"
+          @click="$emit('close')"
+        >
+          <X class="h-4 w-4" />
+        </button>
       </div>
 
       <!-- Navigation Items — conditionally rendered per feature permissions -->
@@ -182,8 +201,12 @@ import {
   LogOut,
   ShieldCheck,
   Eye,
-  Cpu
+  Cpu,
+  X
 } from 'lucide-vue-next';
+
+defineProps<{ isMobileOpen: boolean }>();
+defineEmits<{ close: [] }>();
 
 const route = useRoute();
 const router = useRouter();

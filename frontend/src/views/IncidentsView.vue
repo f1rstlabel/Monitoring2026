@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-subtle pb-4">
+    <div class="flex flex-col gap-4 border-b border-subtle pb-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-xl font-extrabold text-text-main tracking-tight">Outage List & Incident Tickets</h1>
         <p class="text-xs text-text-secondary mt-1">Downtime history, notification escalation logs, and recovery metrics</p>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2 sm:justify-end">
         <span class="px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-mono font-bold">
           {{ incidentStore.incidents.filter((i: Incident) => i.status === 'ACTIVE').length }} Active Outages
         </span>
@@ -73,8 +73,8 @@
 
     <!-- Filter Bar -->
     <div class="bg-surface border border-subtle rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3 flex-1 min-w-[320px]">
-        <div class="relative flex-1">
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+        <div class="responsive-filter-search relative flex-1">
           <Search class="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             v-model="searchQuery"
@@ -103,7 +103,7 @@
         </select>
       </div>
 
-      <span class="text-xs font-mono text-text-secondary">
+      <span class="responsive-filter-count text-xs font-mono text-text-secondary">
         Showing <span class="text-text-main font-bold">{{ filteredIncidents.length }}</span> of {{ incidentStore.totalCount || incidentStore.incidents.length }} incidents
       </span>
     </div>
@@ -172,8 +172,8 @@
         </div>
 
         <!-- Group Table Content -->
-        <div v-if="expandedGroups[group.name] !== false" class="overflow-x-auto border-t border-subtle">
-          <table class="w-full text-left text-xs text-text-secondary">
+          <div v-if="expandedGroups[group.name] !== false" class="responsive-table-wrap overflow-x-auto border-t border-subtle">
+          <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
             <thead class="bg-card border-b border-subtle font-mono text-[10px] uppercase text-text-secondary">
               <tr>
                 <th class="py-3.5 px-4">Ticket ID</th>
@@ -196,15 +196,15 @@
                   'border-l-2 border-l-[#F16565] bg-red-500/5': inc.status === 'ACTIVE'
                 }"
               >
-                <td class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
+                <td data-label="Ticket ID" class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
                   {{ formatIncidentId(inc.id, inc.source) }}
                 </td>
-                <td class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
-                <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.source === 'PUBLIC_MONITOR' ? publicMonitorTypeLabel(String(inc.deviceType)) : (inc.category || inc.deviceType) }}</td>
-                <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
-                <td class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
-                <td class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
-                <td class="py-3.5 px-4">
+                <td data-label="Device Name" class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
+                <td data-label="Type" class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.source === 'PUBLIC_MONITOR' ? publicMonitorTypeLabel(String(inc.deviceType)) : (inc.category || inc.deviceType) }}</td>
+                <td data-label="IP Address" class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
+                <td data-label="Duration" class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
+                <td data-label="Affected" class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
+                <td data-label="Status" class="py-3.5 px-4">
                   <span
                     class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border"
                     :class="inc.status === 'ACTIVE'
@@ -214,7 +214,7 @@
                     {{ inc.status }}
                   </span>
                 </td>
-                <td class="py-3.5 px-4 text-right" @click.stop>
+                <td data-label="Action" class="py-3.5 px-4 text-right" @click.stop>
                   <div class="flex items-center justify-end gap-1">
                     <button
                       @click.stop="openIncident(inc)"
@@ -232,8 +232,8 @@
     </div>
 
     <!-- Incident List Table (Flat View) -->
-    <div v-else class="bg-surface border border-subtle rounded-xl overflow-hidden shadow-xl">
-      <table class="w-full text-left text-xs text-text-secondary">
+    <div v-else class="responsive-table-wrap bg-surface border border-subtle rounded-xl overflow-hidden shadow-xl">
+      <table class="responsive-data-table w-full text-left text-xs text-text-secondary">
         <thead class="bg-card border-b border-subtle font-mono text-[10px] uppercase text-text-secondary">
           <tr>
             <th class="py-3.5 px-4">Ticket ID</th>
@@ -262,15 +262,15 @@
                 'border-l-2 border-l-[#F16565] bg-red-500/5': inc.status === 'ACTIVE'
               }"
             >
-              <td class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
+              <td data-label="Ticket ID" class="py-3.5 px-4 font-mono font-bold text-brand-periwinkle group-hover:underline">
                 {{ formatIncidentId(inc.id, inc.source) }}
               </td>
-              <td class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
-              <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.source === 'PUBLIC_MONITOR' ? publicMonitorTypeLabel(String(inc.deviceType)) : (inc.category || inc.deviceType) }}</td>
-              <td class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
-              <td class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
-              <td class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
-              <td class="py-3.5 px-4">
+              <td data-label="Device Name" class="py-3.5 px-4 font-bold text-text-main">{{ inc.deviceName }}</td>
+              <td data-label="Type" class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.source === 'PUBLIC_MONITOR' ? publicMonitorTypeLabel(String(inc.deviceType)) : (inc.category || inc.deviceType) }}</td>
+              <td data-label="IP Address" class="py-3.5 px-4 font-mono text-text-secondary">{{ inc.deviceIp }}</td>
+              <td data-label="Duration" class="py-3.5 px-4 font-mono text-red-400 font-semibold">{{ inc.duration }}</td>
+              <td data-label="Affected" class="py-3.5 px-4 font-mono text-amber-400">{{ inc.affectedDevicesCount }} Nodes</td>
+              <td data-label="Status" class="py-3.5 px-4">
                 <span
                   class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border"
                   :class="inc.status === 'ACTIVE'
@@ -280,7 +280,7 @@
                   {{ inc.status }}
                 </span>
               </td>
-              <td class="py-3.5 px-4 text-right" @click.stop>
+              <td data-label="Action" class="py-3.5 px-4 text-right" @click.stop>
                 <div class="flex items-center justify-end gap-1">
                   <button
                     @click.stop="openIncident(inc)"
