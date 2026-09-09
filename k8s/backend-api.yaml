@@ -32,7 +32,7 @@ spec:
             - name: DB_NAME
               value: sanoc
             - name: CORS_ALLOWED_ORIGIN
-              value: "http://10.11.1.250:30082"
+              value: "http://sanoc.sanditel.id"
             - name: DB_SSLMODE
               value: disable
             - name: REDIS_HOST
