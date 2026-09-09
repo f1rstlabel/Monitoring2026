@@ -30,7 +30,6 @@ func (r *lifecycleIncidentRepo) SyncStatus(_ domain.PublicMonitor, status domain
 		r.incident.LastError = errorMessage
 		r.incident.MonitorName = "Public API"
 		r.incident.TargetURL = "https://example.com/health"
-		r.incident.Status = r.incident.Status
 		_ = latencyMs
 	}
 	return r.incident, changed, nil
