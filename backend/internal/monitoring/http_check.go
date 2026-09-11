@@ -135,13 +135,34 @@ func safeHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout:   timeout,
 		Transport: transport,
-		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
 			if err := ValidateTargetURL(req.URL.String()); err != nil {
 				return err
 			}
+			SetBrowserHeaders(req)
 			return nil
 		},
 	}
+}
+
+// SetBrowserHeaders populates standard modern browser headers on an outgoing HTTP request
+// to prevent legitimate public monitors from being blocked by strict WAFs or anti-bot rules.
+func SetBrowserHeaders(req *http.Request) {
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("Accept-Language", "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7")
+	req.Header.Set("Sec-Ch-Ua", `"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"`)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", `"Windows"`)
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-User", "?1")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("Cache-Control", "max-age=0")
 }
 
 func RunHTTPCheck(ctx context.Context, monitor domain.PublicMonitor) CheckResult {
@@ -164,7 +185,7 @@ func RunHTTPCheck(ctx context.Context, monitor domain.PublicMonitor) CheckResult
 		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
 		request, err := http.NewRequestWithContext(attemptCtx, http.MethodGet, monitor.TargetURL, nil)
 		if err == nil {
-			request.Header.Set("User-Agent", "SANOC-Public-Monitor/1.0")
+			SetBrowserHeaders(request)
 			started := time.Now()
 			response, requestErr := client.Do(request)
 			lastLatencyMs = int(time.Since(started).Milliseconds())

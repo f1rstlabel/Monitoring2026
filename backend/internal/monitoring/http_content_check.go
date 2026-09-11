@@ -58,7 +58,7 @@ func runHTTPAssertionCheck(ctx context.Context, monitor domain.PublicMonitor, as
 		requestCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 		request, err := http.NewRequestWithContext(requestCtx, http.MethodGet, monitor.TargetURL, nil)
 		if err == nil {
-			request.Header.Set("User-Agent", "SANOC-Public-Monitor/1.0")
+			SetBrowserHeaders(request)
 			started := time.Now()
 			response, requestErr := client.Do(request)
 			lastLatency = int(time.Since(started).Milliseconds())
